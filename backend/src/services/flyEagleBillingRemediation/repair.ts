@@ -5,12 +5,21 @@
  */
 import type { PrismaClient } from "@prisma/client";
 
+import { readSchoolLedger } from "../../utils/billingLedgerStore";
+
 import {
   assertFlyEagleSchoolId,
   CONFIRM_FLY_EAGLE_REPAIR_ENV,
   CONFIRM_PRODUCTION_WRITE_ENV,
   FLY_EAGLE_SCHOOL_ID,
 } from "./constants";
+import {
+  matchApprovedClassB,
+  PRODUCTION_APPROVED_CLASS_B,
+  type ApprovedClassBSpec,
+} from "./approvedClassBManifests";
+import { executeApprovedClassBConsolidation } from "./classBApply";
+import { moneyCents, normRef, round2 } from "./normalize";
 import type { RepairPlanItem, ReconciliationReport, ZeroLinkedFaRow } from "./types";
 
 export type RepairExecutionMode = "dry-run" | "apply";
@@ -390,6 +399,19 @@ async function executeRelinkParentsRetireOrphan(
     }
   }
 
+  // Refuse SOT001-style retirement if orphan still holds any ledger / balance
+  const ledgerEmpty = assertOrphanLedgerEmptyForRetire(schoolId, item);
+  if (!ledgerEmpty.ok) {
+    return {
+      caseKey: item.caseKey,
+      repairClass: item.repairClass,
+      action: item.action,
+      status: "aborted",
+      reason: ledgerEmpty.reason,
+      before,
+    };
+  }
+
   await prisma.$transaction(async (tx) => {
     assertFlyEagleSchoolId(schoolId);
     await tx.parent.updateMany({
@@ -402,6 +424,7 @@ async function executeRelinkParentsRetireOrphan(
     if (remainingLearners !== 0) {
       throw new Error("refuse retire: orphan unexpectedly has learners");
     }
+    // Re-check empty inside transaction boundary (learners); ledger already verified
     const updated = await tx.familyAccount.updateMany({
       where: { id: item.orphanFaId, schoolId, retiredAt: null },
       data: { retiredAt: new Date(), mergedIntoFamilyAccountId: currentFaId },
@@ -418,8 +441,42 @@ async function executeRelinkParentsRetireOrphan(
     status: "applied",
     reason: "parents moved to current; orphan retired as predecessor",
     before,
-    after: { ...before, orphanRetired: true },
+    after: { ...before, orphanRetired: true, parentsMovedToCurrent: true },
   };
+}
+
+/** Orphan must have zero invoices/payments/credits/balance before retirement. */
+export function assertOrphanLedgerEmptyForRetire(
+  schoolId: string,
+  item: RepairPlanItem
+): { ok: boolean; reason: string } {
+  const refs = [item.orphanAccountRef, item.orphanAccountNo]
+    .map((r) => normRef(r))
+    .filter(Boolean);
+  if (!refs.length) {
+    return { ok: false, reason: "refuse retire: orphan account ref unknown" };
+  }
+  const ledger = readSchoolLedger(schoolId);
+  const matched = ledger.filter((e) => refs.includes(normRef(e.accountNo)));
+  if (!matched.length) return { ok: true, reason: "orphan ledger empty" };
+
+  let inv = 0;
+  let pay = 0;
+  let cred = 0;
+  for (const e of matched) {
+    const amt = round2(e.amount);
+    if (e.type === "invoice") inv += amt;
+    else if (e.type === "payment") pay += amt;
+    else if (e.type === "credit") cred += amt;
+  }
+  const bal = round2(inv - pay - cred);
+  if (matched.length > 0 || moneyCents(bal) !== 0) {
+    return {
+      ok: false,
+      reason: `refuse retire: orphan still has ledger rows=${matched.length} balance=${bal}`,
+    };
+  }
+  return { ok: true, reason: "orphan ledger empty" };
 }
 
 export async function executeRepairPlan(opts: {
@@ -427,10 +484,15 @@ export async function executeRepairPlan(opts: {
   schoolId?: string;
   report: ReconciliationReport;
   mode: RepairExecutionMode;
-  /** When set, only these caseKeys run (still Class A mutating only unless includeClassB). */
+  /** When set, only these caseKeys run. */
   onlyCaseKeys?: string[];
-  /** Class B never auto-applies unless explicitly true AND gates set — still skips ledger moves here. */
+  /**
+   * When true, Class B items run ONLY if they match the approved allowlist
+   * (production: LEDIKWA + MAPUTLA). No generic merge.
+   */
   includeClassBPlans?: boolean;
+  /** Override allowlist (tests). Defaults to PRODUCTION_APPROVED_CLASS_B. */
+  approvedClassBSpecs?: readonly ApprovedClassBSpec[];
 }): Promise<RepairRunResult> {
   const schoolId = String(opts.schoolId || FLY_EAGLE_SCHOOL_ID).trim();
   assertFlyEagleSchoolId(schoolId);
@@ -450,6 +512,7 @@ export async function executeRepairPlan(opts: {
   const cases: RepairCaseResult[] = [];
   let aborted = false;
   let abortReason: string | undefined;
+  const classBAllowlist = opts.approvedClassBSpecs || PRODUCTION_APPROVED_CLASS_B;
 
   const planned = [
     ...opts.report.repairPlan.classA,
@@ -482,14 +545,71 @@ export async function executeRepairPlan(opts: {
     }
 
     if (item.action === "ledger_consolidate_then_merge") {
-      cases.push({
-        caseKey: item.caseKey,
-        repairClass: item.repairClass,
-        action: item.action,
-        status: "skipped",
-        reason:
-          "Class B accounting-sensitive — ledger consolidate not auto-applied; explicit plan required",
-      });
+      if (!opts.includeClassBPlans) {
+        cases.push({
+          caseKey: item.caseKey,
+          repairClass: item.repairClass,
+          action: item.action,
+          status: "skipped",
+          reason:
+            "Class B accounting-sensitive — not enabled (pass includeClassBPlans + approved allowlist)",
+        });
+        continue;
+      }
+      if (item.currentFaIds.length !== 1) {
+        aborted = true;
+        abortReason = "Class B requires exactly one current FA";
+        cases.push({
+          caseKey: item.caseKey,
+          repairClass: "B",
+          action: item.action,
+          status: "aborted",
+          reason: abortReason,
+        });
+        break;
+      }
+      const spec = matchApprovedClassB(
+        item.orphanFaId,
+        item.currentFaIds[0],
+        item.orphanAccountRef,
+        classBAllowlist
+      );
+      if (!spec) {
+        cases.push({
+          caseKey: item.caseKey,
+          repairClass: "B",
+          action: item.action,
+          status: "skipped",
+          reason: "Class B case not in approved allowlist — refuse generic merge (skipped)",
+        });
+        continue;
+      }
+      try {
+        const result = await executeApprovedClassBConsolidation({
+          prisma: opts.prisma,
+          schoolId,
+          item,
+          spec,
+          mode: opts.mode,
+        });
+        cases.push(result);
+        if (result.status === "aborted") {
+          aborted = true;
+          abortReason = result.reason;
+          break;
+        }
+      } catch (err) {
+        aborted = true;
+        abortReason = err instanceof Error ? err.message : String(err);
+        cases.push({
+          caseKey: item.caseKey,
+          repairClass: "B",
+          action: item.action,
+          status: "aborted",
+          reason: abortReason,
+        });
+        break;
+      }
       continue;
     }
 
@@ -553,7 +673,7 @@ export async function executeRepairPlan(opts: {
     });
   }
 
-  // Money must not change for Class A relink/retire (ledger untouched)
+  // Money totals: Class A/B must preserve school-wide invoice/payment/credit sums
   const moneyAfter = { ...moneyBefore };
   const monetaryReconciled =
     moneyAfter.invoiceCount === moneyBefore.invoiceCount &&

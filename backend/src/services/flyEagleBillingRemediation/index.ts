@@ -4,10 +4,18 @@ export { computeCountChecksums, computeMoneyTotals, ledgerStatsForAccountRef } f
 export { classifyZeroLinkedFamilyAccounts, buildRepairPlan } from "./classify";
 export { buildReconciliationReport, buildCanonicalLearnerRows } from "./reconcile";
 export { writeFlyEagleSnapshot } from "./snapshot";
-export { executeRepairPlan, assertApplyGates } from "./repair";
+export { executeRepairPlan, assertApplyGates, assertOrphanLedgerEmptyForRetire } from "./repair";
 export { buildBillingIntegrityReport, migrationSilentOrphanFindings } from "./integrityReport";
 export { buildClassBConsolidationManifests, buildLedgerConsolidationManifest } from "./ledgerConsolidate";
+export {
+  PRODUCTION_APPROVED_CLASS_B,
+  APPROVED_LEDIKWA,
+  APPROVED_MAPUTLA,
+  matchApprovedClassB,
+} from "./approvedClassBManifests";
+export { executeApprovedClassBConsolidation } from "./classBApply";
 export type * from "./types";
 export type { IntegrityFinding, BillingIntegrityReport } from "./integrityReport";
 export type { LedgerConsolidationManifest } from "./ledgerConsolidate";
+export type { ApprovedClassBSpec } from "./approvedClassBManifests";
 

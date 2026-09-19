@@ -1422,6 +1422,97 @@ export function unmergeLearnerLedger(
 }
 
 /**
+ * Exact-ID accountNo relocate for Fly Eagle Class B consolidations.
+ * Never changes amount/date/reference/type/id. Single lock RMW.
+ * Throws if any expected row is missing, mismatched, or already partially moved.
+ */
+export function relocateLedgerAccountNoByExactIds(
+  schoolId: string,
+  moves: Array<{
+    id: string;
+    fromAccountNo: string;
+    toAccountNo: string;
+    type: string;
+    date: string;
+    amount: number;
+    reference: string | null;
+    familyAccountId?: string;
+  }>
+): { updated: number; alreadyOnDest: number; entries: BillingLedgerEntry[] } {
+  const key = String(schoolId || "").trim();
+  if (!key || !moves.length) {
+    return { updated: 0, alreadyOnDest: 0, entries: readSchoolLedger(schoolId) };
+  }
+
+  return withBillingLedgerLock(() => {
+    const storeKey = resolveBillingLedgerStoreKey(key);
+    if (!storeKey) throw new Error("Invalid school ledger key");
+    const all = readAll();
+    const current = Array.isArray(all[storeKey]) ? [...all[storeKey]] : [];
+    const byId = new Map(current.map((e) => [e.id, e]));
+    let updated = 0;
+    let alreadyOnDest = 0;
+
+    const norm = (v: unknown) => String(v || "").trim().toUpperCase();
+    const money = (v: unknown) => Math.round((Number(v) || 0) * 100);
+
+    for (const move of moves) {
+      const entry = byId.get(move.id);
+      if (!entry) throw new Error(`missing ledger id ${move.id}`);
+      if (String(entry.type || "") !== move.type) {
+        throw new Error(`type mismatch for ${move.id}`);
+      }
+      if (String(entry.date || "") !== move.date) {
+        throw new Error(`date mismatch for ${move.id}`);
+      }
+      if (money(entry.amount) !== money(move.amount)) {
+        throw new Error(`amount mismatch for ${move.id}`);
+      }
+      if (String(entry.reference || "") !== String(move.reference || "")) {
+        throw new Error(`reference mismatch for ${move.id}`);
+      }
+      const onDest = norm(entry.accountNo) === norm(move.toAccountNo);
+      const onSource = norm(entry.accountNo) === norm(move.fromAccountNo);
+      if (onDest) {
+        alreadyOnDest += 1;
+        continue;
+      }
+      if (!onSource) {
+        throw new Error(`ledger ${move.id} on unexpected accountNo=${entry.accountNo}`);
+      }
+    }
+
+    if (alreadyOnDest === moves.length) {
+      return { updated: 0, alreadyOnDest, entries: current };
+    }
+    if (alreadyOnDest > 0) {
+      throw new Error("partial consolidation detected — abort");
+    }
+
+    const moveById = new Map(moves.map((m) => [m.id, m]));
+    const next = current.map((entry) => {
+      const move = moveById.get(entry.id);
+      if (!move) return entry;
+      updated += 1;
+      return {
+        ...entry,
+        accountNo: move.toAccountNo,
+        ...(move.familyAccountId ? { familyAccountId: move.familyAccountId } : {}),
+      };
+    });
+
+    const ids = next.map((e) => e.id);
+    if (new Set(ids).size !== ids.length) {
+      throw new Error("duplicate ledger ids after relocate");
+    }
+
+    all[storeKey] = next;
+    writeAll(all);
+    return { updated, alreadyOnDest: 0, entries: next };
+  });
+}
+
+/**
  * Reassign accountNo on ledger rows (never deletes entries).
  * includeAccountNoOnly: also move rows that match fromAccountNo but lack a learner id (family merge).
  */

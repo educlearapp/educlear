@@ -36,6 +36,7 @@ import { writeFlyEagleSnapshot } from "../src/services/flyEagleBillingRemediatio
 import { buildBillingIntegrityReport } from "../src/services/flyEagleBillingRemediation/integrityReport";
 import { buildCarenQuestions } from "../src/services/flyEagleBillingRemediation/carenQuestions";
 import { buildClassBConsolidationManifests } from "../src/services/flyEagleBillingRemediation/ledgerConsolidate";
+import { PRODUCTION_APPROVED_CLASS_B } from "../src/services/flyEagleBillingRemediation/approvedClassBManifests";
 import { buildSyntheticFlyEagleBundle } from "../src/services/flyEagleBillingRemediation/fixtures/syntheticFlyEagleBundle";
 import type { FlyEagleSchoolBundle, RemediationLedgerEntry, RemediationSnapshot } from "../src/services/flyEagleBillingRemediation/types";
 import { readSchoolLedger } from "../src/utils/billingLedgerStore";
@@ -279,6 +280,9 @@ async function main() {
     prisma,
     report,
     mode,
+    // Class B: only the two production-approved LEDIKWA + MAPUTLA specs
+    includeClassBPlans: true,
+    approvedClassBSpecs: PRODUCTION_APPROVED_CLASS_B,
   });
 
   const repairPath = path.join(
