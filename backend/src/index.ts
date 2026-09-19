@@ -87,6 +87,7 @@ import { requireSuperAdmin } from "./middleware/requireSuperAdmin";
 import { requireSchoolModule } from "./middleware/requireSchoolModule";
 import { publicAdmissionsJsonParser } from "./middleware/publicAdmissionsJsonLimit";
 import { isAllowedSchoolLogo, schoolLogoExtension } from "./utils/logoUploadPolicy";
+import { lookupParentPortalBySchool } from "./services/parentPortalLookup";
 import superAdminSchoolsRoutes from "./routes/superAdminSchools";
 import { prisma } from "./prisma";
 import { bootstrapDevTestSchoolEmail } from "./dev/devTestSchoolEmail";
