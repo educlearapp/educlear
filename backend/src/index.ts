@@ -88,6 +88,7 @@ import { requireSchoolModule } from "./middleware/requireSchoolModule";
 import { publicAdmissionsJsonParser } from "./middleware/publicAdmissionsJsonLimit";
 import { isAllowedSchoolLogo, schoolLogoExtension } from "./utils/logoUploadPolicy";
 import { lookupParentPortalBySchool } from "./services/parentPortalLookup";
+import { rateLimitParentPortalLookup } from "./middleware/parentPortalLookupRateLimit";
 import superAdminSchoolsRoutes from "./routes/superAdminSchools";
 import { prisma } from "./prisma";
 import { bootstrapDevTestSchoolEmail } from "./dev/devTestSchoolEmail";
@@ -432,7 +433,7 @@ app.use("/api/subscriptions", subscriptionsRoutes);
 app.use("/api/credits", creditsRoutes);
 app.use("/api/payfast", payfastRoutes);
 
-app.get("/api/parent-portal/lookup", async (req, res) => {
+app.get("/api/parent-portal/lookup", rateLimitParentPortalLookup, async (req, res) => {
   try {
     const result = await lookupParentPortalBySchool({
       schoolId: String(req.query.schoolId || "").trim(),

@@ -37,6 +37,7 @@ import {
   MODULE_NOT_ENTITLED,
 } from "../middleware/requireSchoolModule";
 import { lookupParentPortalBySchool } from "../services/parentPortalLookup";
+import { rateLimitParentPortalLookup } from "../middleware/parentPortalLookupRateLimit";
 import {
   allowSchool,
   resolveStaffSchoolGate,
@@ -1191,9 +1192,8 @@ router.post("/migration/onboarding", async (req, res) => {
   }
 });
 
-// Legacy lookup (cell + optional id) for staff-embedded portal — school-scoped only.
-// FOLLOW-UP: add rate limiting. Cell+ID isolation is in place; this route is not staff-JWT gated.
-router.get("/lookup-by-cell", async (req, res) => {
+// Legacy lookup (cell + optional id). Rate-limited per IP. Not staff-JWT gated.
+router.get("/lookup-by-cell", rateLimitParentPortalLookup, async (req, res) => {
   try {
     const result = await lookupParentPortalBySchool({
       schoolId: String(req.query.schoolId || "").trim(),
