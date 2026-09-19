@@ -1156,6 +1156,35 @@ export async function applyMigrationStage(
         });
       }
 
+      // Prevent silent Fly Eagle-style orphan shells: surface every active FA with 0 learners.
+      const zeroLinkedFas = await tx.familyAccount.findMany({
+        where: {
+          schoolId: targetSchoolId,
+          retiredAt: null,
+          mergedIntoFamilyAccountId: null,
+          learners: { none: {} },
+        },
+        select: { id: true, accountRef: true, accountNo: true },
+      });
+      for (const fa of zeroLinkedFas) {
+        integrityFindings.push({
+          findingId: `zero_linked_fa_${fa.id}`,
+          severity: "WARNING",
+          title: "Zero-linked FamilyAccount after migration",
+          message: `FamilyAccount ${fa.accountNo || fa.accountRef} has no linked learners. Retain for history if intentional; do not treat as a current payment account. Relink or confirm before closing migration.`,
+          accountRef: fa.accountRef,
+        });
+        pushReport(report, {
+          entityType: "billingAccount",
+          sourceFileId: stage.stageId,
+          sourceFilename: "zero-linked-guard",
+          rowNumber: 0,
+          status: "skipped",
+          message: `Zero-linked FamilyAccount: ${fa.accountNo || fa.accountRef}`,
+          recordId: fa.id,
+        });
+      }
+
       // Phase 1G — opening balances (ledger invoice/credit), then post-cutover txs, then billing plans.
       // Prisma and file-backed ledger are not one atomic TX: track ids for compensation on failure.
       const openingRows: Array<{
