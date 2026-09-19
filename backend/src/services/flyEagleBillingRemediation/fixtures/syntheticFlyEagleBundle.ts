@@ -50,22 +50,22 @@ export function buildSyntheticFlyEagleBundle(): FlyEagleSchoolBundle {
         familyName: "EMPTY",
         createdAt: "2026-08-24T22:00:00.000Z",
       },
-      // SOT current + orphan with parent proof (Class A candidate)
+      // SOT: staff unmerge moved learner+ledger to SOT002; SOT001 empty predecessor with parents
       {
         id: "fa-sot002",
         schoolId: SID,
-        accountRef: "SOTSHANGANE LULONKE CURRENT",
+        accountRef: "SOT002",
         accountNo: "SOT002",
         familyName: "SOTSHANGANE",
-        createdAt: "2026-08-25T10:00:00.000Z",
+        createdAt: "2026-09-15T10:22:35.000Z",
       },
       {
         id: "fa-sot001",
         schoolId: SID,
         accountRef: "SOTSHANGANE LULONKE",
         accountNo: "SOT001",
-        familyName: "SOTSHANGANE",
-        createdAt: "2026-08-24T22:00:00.000Z",
+        familyName: "SOTSHANGANE LULONKE",
+        createdAt: "2026-08-24T22:42:52.000Z",
       },
       // Retired predecessor
       {
@@ -87,7 +87,23 @@ export function buildSyntheticFlyEagleBundle(): FlyEagleSchoolBundle {
         familyName: "BOTLHOKO",
         createdAt: "2026-08-24T22:00:00.000Z",
       },
-      // Other school must never appear — intentionally omitted
+      // Class B split LEDIKWA
+      {
+        id: "fa-led-orphan",
+        schoolId: SID,
+        accountRef: "LEDIKWA RELESEGO",
+        accountNo: null,
+        familyName: "LEDIKWA",
+        createdAt: "2026-08-24T22:00:00.000Z",
+      },
+      {
+        id: "fa-led002",
+        schoolId: SID,
+        accountRef: "LEDIKWA RELESEGO JOSIA",
+        accountNo: "LED002",
+        familyName: "LEDIKWA",
+        createdAt: "2026-08-24T22:10:00.000Z",
+      },
     ],
     learners: [
       {
@@ -118,7 +134,7 @@ export function buildSyntheticFlyEagleBundle(): FlyEagleSchoolBundle {
         id: "lrn-groom-hist",
         schoolId: SID,
         firstName: "Groom",
-        lastName: "Addebo",
+        lastName: "Adebo",
         enrollmentStatus: "HISTORICAL",
         className: "",
         grade: "7",
@@ -136,7 +152,19 @@ export function buildSyntheticFlyEagleBundle(): FlyEagleSchoolBundle {
         grade: "2",
         familyAccountId: "fa-sot002",
         admissionNo: "SOT002",
-        createdAt: "2026-08-25T10:05:00.000Z",
+        createdAt: "2026-08-24T22:43:20.000Z",
+      },
+      {
+        id: "lrn-relesego",
+        schoolId: SID,
+        firstName: "Relesego",
+        lastName: "LEDIKWA",
+        enrollmentStatus: "ACTIVE",
+        className: "Grade 4",
+        grade: "4",
+        familyAccountId: "fa-led002",
+        admissionNo: "LED002",
+        createdAt: "2026-08-24T22:15:00.000Z",
       },
     ],
     parents: [
@@ -181,11 +209,22 @@ export function buildSyntheticFlyEagleBundle(): FlyEagleSchoolBundle {
         email: "mayishe@example.com",
         idNumber: "8502025009088",
       },
+      {
+        id: "par-sot-orphan-2",
+        schoolId: SID,
+        familyAccountId: "fa-sot001",
+        firstName: "Afikile",
+        surname: "SOTSHANGANE",
+        cellNo: "0673508154",
+        email: null,
+        idNumber: null,
+      },
     ],
     parentLearnerLinks: [
       { parentId: "par-manxila", learnerId: "lrn-mibongo", schoolId: SID },
       { parentId: "par-manxila", learnerId: "lrn-simbonge", schoolId: SID },
       { parentId: "par-sot", learnerId: "lrn-lulonke", schoolId: SID },
+      { parentId: "par-sot-orphan", learnerId: "lrn-lulonke", schoolId: SID },
     ],
     ledger: [
       // MAN009 orphan ledger
@@ -194,20 +233,29 @@ export function buildSyntheticFlyEagleBundle(): FlyEagleSchoolBundle {
       // MAN005 current also has ledger → split
       { type: "invoice", accountNo: "MANXILA MIBONGO", amount: 500, schoolId: SID },
       // ADD001 historical
-      { type: "invoice", accountNo: "GROOM ADEBO", amount: 1350, schoolId: SID },
-      { type: "payment", accountNo: "GROOM ADEBO", amount: 1350, schoolId: SID },
+      { id: "led-add-inv", type: "invoice", accountNo: "GROOM ADEBO", amount: 1350, schoolId: SID },
+      { id: "led-add-pay", type: "payment", accountNo: "GROOM ADEBO", amount: 1350, schoolId: SID },
+      // SOT002 holds continuing ledger (post-unmerge)
+      { id: "led-sot-inv", type: "invoice", accountNo: "SOT002", amount: 1400, schoolId: SID, date: "2026-08-27" },
+      { id: "led-sot-pay", type: "payment", accountNo: "SOT002", amount: 1400, schoolId: SID, date: "2026-08-27" },
+      // Class B split: LEDIKWA orphan + current
+      { id: "led-led-o-inv", type: "invoice", accountNo: "LEDIKWA RELESEGO", amount: 1350, schoolId: SID },
+      { id: "led-led-o-pay", type: "payment", accountNo: "LEDIKWA RELESEGO", amount: 700, schoolId: SID },
+      { id: "led-led-c-inv", type: "invoice", accountNo: "LEDIKWA RELESEGO JOSIA", amount: 1400, schoolId: SID },
       // unresolved tiny ledger
-      { type: "invoice", accountNo: "BOTLHOKO ORATILE PEARL", amount: 100, schoolId: SID },
-      { type: "payment", accountNo: "BOTLHOKO ORATILE PEARL", amount: 100, schoolId: SID },
+      { id: "led-un-inv", type: "invoice", accountNo: "BOTLHOKO ORATILE PEARL", amount: 100, schoolId: SID },
+      { id: "led-un-pay", type: "payment", accountNo: "BOTLHOKO ORATILE PEARL", amount: 100, schoolId: SID },
     ],
     ageAnalysisByRef: {
       "MANXILA SIMBONGO": { accountRef: "MANXILA SIMBONGO", balance: 1200 },
       "MANXILA MIBONGO": { accountRef: "MANXILA MIBONGO", balance: 500 },
       "GROOM ADEBO": { accountRef: "GROOM ADEBO", balance: 0 },
       "SOTSHANGANE LULONKE": { accountRef: "SOTSHANGANE LULONKE", balance: 0 },
-      "SOTSHANGANE LULONKE CURRENT": { accountRef: "SOTSHANGANE LULONKE CURRENT", balance: 0 },
+      SOT002: { accountRef: "SOT002", balance: 0 },
       "BOTLHOKO ORATILE PEARL": { accountRef: "BOTLHOKO ORATILE PEARL", balance: 0 },
       "EMPTY SHELL TEST": { accountRef: "EMPTY SHELL TEST", balance: 0 },
+      "LEDIKWA RELESEGO": { accountRef: "LEDIKWA RELESEGO", balance: 650 },
+      "LEDIKWA RELESEGO JOSIA": { accountRef: "LEDIKWA RELESEGO JOSIA", balance: 1400 },
     },
     audit: [
       {
@@ -215,6 +263,12 @@ export function buildSyntheticFlyEagleBundle(): FlyEagleSchoolBundle {
         sourceAccountRef: "MAYISHE OMIYO",
         targetAccountRef: "SOTSHANGANE LULONKE",
         createdAt: "2026-09-15T10:18:48.401Z",
+      },
+      {
+        action: "unmerge",
+        sourceAccountRef: "SOTSHANGANE LULONKE",
+        targetAccountRef: "SOT002",
+        createdAt: "2026-09-15T10:22:35.950Z",
       },
     ],
   };

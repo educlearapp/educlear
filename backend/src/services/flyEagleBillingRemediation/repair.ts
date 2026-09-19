@@ -302,6 +302,126 @@ async function executeRelinkToOrphanSurvivor(
   };
 }
 
+/**
+ * Class A: keep learner on current FA; move parents from empty orphan; retire orphan.
+ * Used when staff unmerge left continuing ledger on current (SOT002 pattern).
+ */
+async function executeRelinkParentsRetireOrphan(
+  prisma: PrismaClient | null,
+  schoolId: string,
+  item: RepairPlanItem,
+  mode: RepairExecutionMode
+): Promise<RepairCaseResult> {
+  if (item.repairClass !== "A") {
+    return {
+      caseKey: item.caseKey,
+      repairClass: item.repairClass,
+      action: item.action,
+      status: "skipped",
+      reason: "relink_parents_to_current_retire_orphan only for Class A",
+    };
+  }
+  if (item.currentFaIds.length !== 1) {
+    return {
+      caseKey: item.caseKey,
+      repairClass: item.repairClass,
+      action: item.action,
+      status: "skipped",
+      reason: `expected exactly 1 current FA, got ${item.currentFaIds.length}`,
+    };
+  }
+
+  const currentFaId = item.currentFaIds[0];
+  const before = {
+    orphanFaId: item.orphanFaId,
+    currentFaId,
+    learnerIds: item.learnerIds,
+  };
+
+  if (mode === "dry-run") {
+    return {
+      caseKey: item.caseKey,
+      repairClass: "A",
+      action: item.action,
+      status: "would_change",
+      reason:
+        "would keep learners on current FA; move parents from orphan → current; retire empty orphan predecessor",
+      before,
+      after: { ...before, orphanRetired: true, parentsMovedToCurrent: true },
+    };
+  }
+
+  if (!prisma) {
+    return {
+      caseKey: item.caseKey,
+      repairClass: "A",
+      action: item.action,
+      status: "aborted",
+      reason: "prisma required for apply",
+    };
+  }
+
+  const pre = await verifyOrphanStillZeroLinked(prisma, schoolId, item.orphanFaId);
+  if (!pre.ok) {
+    return {
+      caseKey: item.caseKey,
+      repairClass: item.repairClass,
+      action: item.action,
+      status: "skipped",
+      reason: pre.reason,
+    };
+  }
+
+  if (item.learnerIds.length) {
+    const learners = await prisma.learner.findMany({
+      where: { schoolId, id: { in: item.learnerIds } },
+      select: { id: true, familyAccountId: true },
+    });
+    for (const l of learners) {
+      if (l.familyAccountId !== currentFaId) {
+        return {
+          caseKey: item.caseKey,
+          repairClass: item.repairClass,
+          action: item.action,
+          status: "skipped",
+          reason: `learner ${l.id} not on expected current FA ${currentFaId}`,
+        };
+      }
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    assertFlyEagleSchoolId(schoolId);
+    await tx.parent.updateMany({
+      where: { schoolId, familyAccountId: item.orphanFaId },
+      data: { familyAccountId: currentFaId },
+    });
+    const remainingLearners = await tx.learner.count({
+      where: { schoolId, familyAccountId: item.orphanFaId },
+    });
+    if (remainingLearners !== 0) {
+      throw new Error("refuse retire: orphan unexpectedly has learners");
+    }
+    const updated = await tx.familyAccount.updateMany({
+      where: { id: item.orphanFaId, schoolId, retiredAt: null },
+      data: { retiredAt: new Date(), mergedIntoFamilyAccountId: currentFaId },
+    });
+    if (updated.count !== 1) {
+      throw new Error("unexpected orphan retire count");
+    }
+  });
+
+  return {
+    caseKey: item.caseKey,
+    repairClass: "A",
+    action: item.action,
+    status: "applied",
+    reason: "parents moved to current; orphan retired as predecessor",
+    before,
+    after: { ...before, orphanRetired: true },
+  };
+}
+
 export async function executeRepairPlan(opts: {
   prisma: PrismaClient | null;
   schoolId?: string;
@@ -390,6 +510,8 @@ export async function executeRepairPlan(opts: {
         result = await executeRetireEmptyShell(opts.prisma, schoolId, item, opts.mode);
       } else if (item.action === "relink_learners_to_orphan_survivor") {
         result = await executeRelinkToOrphanSurvivor(opts.prisma, schoolId, item, opts.mode);
+      } else if (item.action === "relink_parents_to_current_retire_orphan") {
+        result = await executeRelinkParentsRetireOrphan(opts.prisma, schoolId, item, opts.mode);
       } else {
         result = {
           caseKey: item.caseKey,

@@ -85,11 +85,15 @@ function buildIndexes(bundle: FlyEagleSchoolBundle) {
   const parentById = new Map(bundle.parents.map((p) => [p.id, p]));
 
   const mergeTargets = new Map<string, string>();
+  /** orphanRef → targetRef for staff unmerge that created a successor FA */
+  const unmergeTargets = new Map<string, string>();
   for (const entry of bundle.audit || []) {
-    if (String(entry.action || "") !== "merge") continue;
+    const action = String(entry.action || "");
     const src = normRef(entry.sourceAccountRef);
     const tgt = normRef(entry.targetAccountRef);
-    if (src && tgt) mergeTargets.set(src, tgt);
+    if (!src || !tgt) continue;
+    if (action === "merge") mergeTargets.set(src, tgt);
+    if (action === "unmerge") unmergeTargets.set(src, tgt);
   }
 
   return {
@@ -100,6 +104,7 @@ function buildIndexes(bundle: FlyEagleSchoolBundle) {
     linksByParent,
     parentById,
     mergeTargets,
+    unmergeTargets,
   };
 }
 
@@ -271,8 +276,9 @@ function classifyOne(
   const stats = ledgerStatsForAccountRef(bundle.ledger, ref);
   const snap = bundle.ageAnalysisByRef?.[refKey];
   const balance = round2(snap?.balance ?? 0);
+  const ledgerBalance = round2(stats.invoiceTotal - stats.paymentTotal - stats.creditTotal);
   const orphanParents = idx.parentsByFa.get(orphan.id) || [];
-  const monetary = hasMonetaryLedger(stats, balance);
+  const monetary = hasMonetaryLedger(stats, balance) || hasMonetaryLedger(stats, ledgerBalance);
 
   const base: Omit<
     ZeroLinkedFaRow,
@@ -282,6 +288,7 @@ function classifyOne(
     accountRef: ref,
     accountNo: orphan.accountNo,
     balance,
+    ledgerBalance,
     invoiceCount: stats.invoiceCount,
     paymentCount: stats.paymentCount,
     creditCount: stats.creditCount,
@@ -314,14 +321,16 @@ function classifyOne(
   if (mergeInto) {
     return {
       ...base,
-      category: "LEGITIMATE_HISTORICAL_PREDECESSOR",
+      category: "VALID_HISTORICAL_NO_REPAIR",
       repairClass: "A",
       evidence: ["audit_merge_trail"],
       matchedLearnerIds: [],
       matchedLearnerNames: [],
       currentFaIds: [],
       currentAccountNos: [mergeInto],
-      reasons: [`audit merge trail → ${mergeInto}; leave as historical predecessor`],
+      reasons: [
+        `audit merge trail → ${mergeInto}; VALID HISTORICAL — NO REPAIR REQUIRED (Phase 0 excludes from payment picker)`,
+      ],
       proposedAction: "none",
     };
   }
@@ -347,7 +356,7 @@ function classifyOne(
         .map((c) => normRef(c.currentFa?.accountNo || c.currentFa?.accountRef))
         .filter(Boolean),
       reasons: [
-        "matches historical learner record(s) only; retain for audit; exclude from payment picker",
+        "VALID HISTORICAL — matches historical learner record(s); retain for Statements; Phase 0 excludes from payment picker",
         ...historicalCandidates.flatMap((c) => c.reasons),
       ],
       proposedAction: "none",
@@ -357,7 +366,7 @@ function classifyOne(
   if (!activeCandidates.length) {
     return {
       ...base,
-      category: monetary ? "LEGITIMATE_HISTORICAL_PREDECESSOR" : "UNRESOLVED_IDENTITY",
+      category: monetary ? "VALID_HISTORICAL_NO_REPAIR" : "UNRESOLVED_IDENTITY",
       repairClass: monetary ? "A" : "C",
       evidence: [],
       matchedLearnerIds: [],
@@ -366,7 +375,7 @@ function classifyOne(
       currentAccountNos: [],
       reasons: monetary
         ? [
-            "zero-linked with monetary ledger and no proven active learner match — retain as historical predecessor",
+            "VALID HISTORICAL — NO REPAIR REQUIRED: zero-linked with monetary ledger, no proven active learner; Statements/history retained; Phase 0 blocks new payment",
           ]
         : ["no proven identity link to any learner; needs school confirmation"],
       proposedAction: monetary ? "none" : "needs_school_confirmation",
@@ -377,7 +386,7 @@ function classifyOne(
   const currentFaIds = [
     ...new Set(activeCandidates.map((c) => c.currentFa?.id).filter(Boolean) as string[]),
   ];
-  const evidence = [...new Set(activeCandidates.flatMap((c) => c.evidence))];
+  const evidence: EvidenceTag[] = [...new Set(activeCandidates.flatMap((c) => c.evidence))];
   const reasons = activeCandidates.flatMap((c) => c.reasons);
   const matchedLearnerIds = activeCandidates.map((c) => c.learner.id);
   const matchedLearnerNames = activeCandidates.map((c) =>
@@ -393,20 +402,23 @@ function classifyOne(
   const hasExactName = evidence.includes("exact_learner_name");
   const hasHistorical = evidence.includes("historical_learner_record");
 
-  // Sibling family: multiple actives already share one current FA, orphan is extra predecessor
   const siblingShare =
     currentFaIds.length === 1 &&
     activeCandidates.length >= 2 &&
     evidence.includes("sibling_shared_current_fa");
 
-  // Split ledger: orphan has money AND current FA(s) also have money
+  let currentHasMonetary = false;
   let split = false;
   for (const faId of currentFaIds) {
     const fa = idx.faById.get(faId);
     if (!fa) continue;
     const curStats = ledgerStatsForAccountRef(bundle.ledger, fa.accountRef);
     const curBal = round2(bundle.ageAnalysisByRef?.[normRef(fa.accountRef)]?.balance ?? 0);
-    if (monetary && hasMonetaryLedger(curStats, curBal)) {
+    const curLedgerBal = round2(curStats.invoiceTotal - curStats.paymentTotal - curStats.creditTotal);
+    if (hasMonetaryLedger(curStats, curBal) || hasMonetaryLedger(curStats, curLedgerBal)) {
+      currentHasMonetary = true;
+    }
+    if (monetary && currentHasMonetary) {
       split = true;
       evidence.push("ledger_on_orphan", "ledger_on_current");
       reasons.push(
@@ -417,26 +429,65 @@ function classifyOne(
   if (monetary && !split) {
     evidence.push("ledger_on_orphan");
   }
+  if (currentHasMonetary) {
+    evidence.push("current_holds_continuing_ledger");
+  }
+
+  // Staff unmerge: learner+ledger intentionally moved from this orphan to a successor FA
+  const unmergeTargetRef = idx.unmergeTargets.get(refKey);
+  let unmergeTargetFaId: string | null = null;
+  if (unmergeTargetRef) {
+    const tgtFa = bundle.familyAccounts.find(
+      (fa) => normRef(fa.accountRef) === unmergeTargetRef || normRef(fa.accountNo) === unmergeTargetRef
+    );
+    if (tgtFa) unmergeTargetFaId = tgtFa.id;
+    evidence.push("audit_unmerge_trail");
+    reasons.push(`audit unmerge trail ${refKey} → ${unmergeTargetRef} (staff created successor with ledger moved)`);
+  }
 
   let category: OrphanCategory;
   let repairClass: RepairClass;
   let proposedAction: ZeroLinkedFaRow["proposedAction"];
 
-  // Deterministic Class A: parent identity proof + exact name (or historical record) + single current FA
   const deterministic =
     hasParentProof &&
     (hasExactName || hasHistorical) &&
     currentFaIds.length === 1 &&
     activeCandidates.every((c) => c.currentFa?.id === currentFaIds[0]);
 
-  if (siblingShare && !split && hasParentProof) {
+  /**
+   * Canonical-current rule (SOT pattern): when the orphan is empty of ledger but the
+   * linked current FA holds the continuing ledger (often after staff unmerge), keep
+   * the learner on the current FA; move parents; retire empty orphan.
+   */
+  const keepCurrentRetireOrphan =
+    currentFaIds.length === 1 &&
+    !monetary &&
+    currentHasMonetary &&
+    (Boolean(unmergeTargetFaId && unmergeTargetFaId === currentFaIds[0]) ||
+      (deterministic && hasExactName));
+
+  if (keepCurrentRetireOrphan) {
+    category = "WRONG_FA_LINK";
+    repairClass = "A";
+    proposedAction = "relink_parents_to_current_retire_orphan";
+    reasons.push(
+      "canonical CURRENT is the FA that holds the continuing ledger + active learner; orphan is empty predecessor — move parents to current and retire orphan (do not move learner onto empty shell)"
+    );
+  } else if (siblingShare && !split && hasParentProof) {
     category = "SIBLING_FAMILY";
     repairClass = "A";
     proposedAction = "relink_learners_to_orphan_survivor";
-  } else if (deterministic && !split) {
+  } else if (deterministic && !split && monetary && !currentHasMonetary) {
+    // Orphan holds history; current is empty shell → relink learners onto orphan survivor
     category = "WRONG_FA_LINK";
     repairClass = "A";
     proposedAction = "relink_learners_to_orphan_survivor";
+  } else if (deterministic && !split && !monetary && !currentHasMonetary) {
+    category = "WRONG_FA_LINK";
+    repairClass = "A";
+    proposedAction = "relink_parents_to_current_retire_orphan";
+    reasons.push("both sides non-monetary; keep learner on current FA; retire empty orphan after parent relink");
   } else if (deterministic && split) {
     category = "SPLIT_LEDGER";
     repairClass = "B";
@@ -445,12 +496,15 @@ function classifyOne(
     category = "SPLIT_LEDGER";
     repairClass = "B";
     proposedAction = "ledger_consolidate_then_merge";
-  } else if (currentFaIds.length === 1 && hasExactName && hasParentProof) {
+  } else if (currentFaIds.length === 1 && hasExactName && hasParentProof && !monetary && currentHasMonetary) {
+    category = "WRONG_FA_LINK";
+    repairClass = "A";
+    proposedAction = "relink_parents_to_current_retire_orphan";
+  } else if (currentFaIds.length === 1 && hasExactName && hasParentProof && monetary && !currentHasMonetary) {
     category = "WRONG_FA_LINK";
     repairClass = "A";
     proposedAction = "relink_learners_to_orphan_survivor";
   } else if (currentFaIds.length >= 1 && (hasExactName || hasParentProof)) {
-    // Ambiguous: multiple current FAs or incomplete proof
     category = currentFaIds.length > 1 ? "UNRESOLVED_IDENTITY" : "WRONG_FA_LINK";
     repairClass = "C";
     proposedAction = "needs_school_confirmation";

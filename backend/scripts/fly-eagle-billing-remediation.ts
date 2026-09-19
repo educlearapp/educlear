@@ -35,6 +35,7 @@ import { executeRepairPlan } from "../src/services/flyEagleBillingRemediation/re
 import { writeFlyEagleSnapshot } from "../src/services/flyEagleBillingRemediation/snapshot";
 import { buildBillingIntegrityReport } from "../src/services/flyEagleBillingRemediation/integrityReport";
 import { buildCarenQuestions } from "../src/services/flyEagleBillingRemediation/carenQuestions";
+import { buildClassBConsolidationManifests } from "../src/services/flyEagleBillingRemediation/ledgerConsolidate";
 import { buildSyntheticFlyEagleBundle } from "../src/services/flyEagleBillingRemediation/fixtures/syntheticFlyEagleBundle";
 import type { FlyEagleSchoolBundle, RemediationLedgerEntry, RemediationSnapshot } from "../src/services/flyEagleBillingRemediation/types";
 import { readSchoolLedger } from "../src/utils/billingLedgerStore";
@@ -237,6 +238,12 @@ async function main() {
   const caren = buildCarenQuestions(report.repairPlan.classC, report.zeroLinkedFas);
   const carenPath = path.join(snapshotDir || outRoot, "needs-caren.json");
   fs.writeFileSync(carenPath, JSON.stringify(caren, null, 2), "utf8");
+
+  const classBManifests = buildClassBConsolidationManifests(bundle, report.repairPlan.classB);
+  const classBPath = path.join(snapshotDir || outRoot, "class-b-consolidation-manifests.json");
+  fs.writeFileSync(classBPath, JSON.stringify(classBManifests, null, 2), "utf8");
+  const classBUnsafe = classBManifests.filter((m) => !m.safe);
+
   console.log(
     `\n=== INTEGRITY ===\n` +
       JSON.stringify(
@@ -247,6 +254,9 @@ async function main() {
           integrityPath,
           needsCarenCount: caren.length,
           carenPath,
+          classBManifestCount: classBManifests.length,
+          classBAllSafe: classBUnsafe.length === 0,
+          classBPath,
           sampleFindings: integrity.findings.slice(0, 12),
         },
         null,

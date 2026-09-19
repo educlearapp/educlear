@@ -6,5 +6,8 @@ export { buildReconciliationReport, buildCanonicalLearnerRows } from "./reconcil
 export { writeFlyEagleSnapshot } from "./snapshot";
 export { executeRepairPlan, assertApplyGates } from "./repair";
 export { buildBillingIntegrityReport, migrationSilentOrphanFindings } from "./integrityReport";
+export { buildClassBConsolidationManifests, buildLedgerConsolidationManifest } from "./ledgerConsolidate";
 export type * from "./types";
 export type { IntegrityFinding, BillingIntegrityReport } from "./integrityReport";
+export type { LedgerConsolidationManifest } from "./ledgerConsolidate";
+

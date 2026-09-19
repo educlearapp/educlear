@@ -59,21 +59,42 @@ export function buildBillingIntegrityReport(
   const zeroRows = classifyZeroLinkedFamilyAccounts(bundle);
 
   for (const row of zeroRows) {
+    const isValidHistorical =
+      row.category === "VALID_HISTORICAL_NO_REPAIR" ||
+      row.category === "LEGITIMATE_HISTORICAL_PREDECESSOR" ||
+      (row.category === "HISTORICAL_LEARNER_ACCOUNT" && row.proposedAction === "none");
+
     findings.push({
       code: "ACTIVE_ZERO_LINKED_FA",
-      severity: row.repairClass === "C" ? "WARNING" : row.balance || row.invoiceCount ? "WARNING" : "INFO",
+      severity: isValidHistorical
+        ? "INFO"
+        : row.repairClass === "C"
+          ? "WARNING"
+          : row.balance || row.ledgerBalance || row.invoiceCount
+            ? "WARNING"
+            : "INFO",
       schoolId: bundle.schoolId,
-      message: `Zero-linked FA ${row.accountNo || row.accountRef} classified ${row.category} / Class ${row.repairClass}`,
+      message: isValidHistorical
+        ? `VALID HISTORICAL — NO REPAIR REQUIRED: ${row.accountNo || row.accountRef} (${row.category})`
+        : `Zero-linked FA ${row.accountNo || row.accountRef} classified ${row.category} / Class ${row.repairClass}`,
       familyAccountId: row.faId,
       accountRef: row.accountRef,
       accountNo: row.accountNo,
       learnerIds: row.matchedLearnerIds,
-      meta: { category: row.category, repairClass: row.repairClass, action: row.proposedAction },
+      meta: {
+        category: row.category,
+        repairClass: row.repairClass,
+        action: row.proposedAction,
+        validHistorical: isValidHistorical,
+        snapshotBalance: row.balance,
+        ledgerBalance: row.ledgerBalance,
+      },
     });
 
     if (
-      row.category === "SPLIT_LEDGER" ||
-      (row.evidence.includes("ledger_on_orphan") && row.evidence.includes("ledger_on_current"))
+      !isValidHistorical &&
+      (row.category === "SPLIT_LEDGER" ||
+        (row.evidence.includes("ledger_on_orphan") && row.evidence.includes("ledger_on_current")))
     ) {
       findings.push({
         code: "SPLIT_LEARNER_LEDGER",
@@ -88,7 +109,12 @@ export function buildBillingIntegrityReport(
       });
     }
 
-    if (row.invoiceCount + row.paymentCount + row.creditCount > 0 || round2(row.balance) !== 0) {
+    if (
+      !isValidHistorical &&
+      (row.invoiceCount + row.paymentCount + row.creditCount > 0 ||
+        round2(row.balance) !== 0 ||
+        round2(row.ledgerBalance) !== 0)
+    ) {
       findings.push({
         code: "LEDGER_ON_CURRENT_INELIGIBLE_FA",
         severity: "WARNING",

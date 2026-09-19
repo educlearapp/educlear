@@ -115,6 +115,7 @@ export type CountChecksums = {
 
 export type OrphanCategory =
   | "LEGITIMATE_HISTORICAL_PREDECESSOR"
+  | "VALID_HISTORICAL_NO_REPAIR"
   | "WRONG_FA_LINK"
   | "SPLIT_LEDGER"
   | "DUPLICATE_SHELL"
@@ -137,6 +138,8 @@ export type EvidenceTag =
   | "ledger_on_current"
   | "timestamp_proximity"
   | "audit_merge_trail"
+  | "audit_unmerge_trail"
+  | "current_holds_continuing_ledger"
   | "admission_no";
 
 export type CanonicalLearnerRow = {
@@ -162,7 +165,10 @@ export type ZeroLinkedFaRow = {
   faId: string;
   accountRef: string;
   accountNo: string | null;
+  /** Age-analysis snapshot balance (may lag ledger). */
   balance: number;
+  /** Invoice − payment − credit from ledger rows on this accountRef. */
+  ledgerBalance: number;
   invoiceCount: number;
   paymentCount: number;
   creditCount: number;
@@ -180,6 +186,7 @@ export type ZeroLinkedFaRow = {
   proposedAction:
     | "none"
     | "relink_learners_to_orphan_survivor"
+    | "relink_parents_to_current_retire_orphan"
     | "merge_shell_into_orphan"
     | "retire_empty_shell"
     | "ledger_consolidate_then_merge"

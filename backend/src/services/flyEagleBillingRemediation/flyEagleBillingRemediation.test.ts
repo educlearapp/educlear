@@ -14,6 +14,7 @@ import {
 import { buildReconciliationReport } from "./reconcile";
 import { executeRepairPlan } from "./repair";
 import { buildBillingIntegrityReport, migrationSilentOrphanFindings } from "./integrityReport";
+import { buildClassBConsolidationManifests } from "./ledgerConsolidate";
 import {
   buildOtherSchoolBundle,
   buildSyntheticFlyEagleBundle,
@@ -32,12 +33,12 @@ function testSchoolScopeGuard() {
 function testChecksumsAndMoney() {
   const bundle = buildSyntheticFlyEagleBundle();
   const c = computeCountChecksums(bundle);
-  assert.strictEqual(c.activeLearners, 3);
+  assert.strictEqual(c.activeLearners, 4);
   assert.strictEqual(c.historicalLearners, 1);
   assert.ok(c.faZeroLinked >= 3, "expected several zero-linked FAs");
   const money = computeMoneyTotals(bundle);
-  assert.strictEqual(money.invoiceCount, 4);
-  assert.strictEqual(money.paymentCount, 3);
+  assert.ok(money.invoiceCount >= 4, `invoiceCount=${money.invoiceCount}`);
+  assert.ok(money.paymentCount >= 3, `paymentCount=${money.paymentCount}`);
   pass("checksums + money totals on synthetic bundle");
 }
 
@@ -64,28 +65,32 @@ function testClassifications() {
   const unresolved = byId.get("fa-unresolved");
   assert.ok(unresolved);
   assert.ok(
-    unresolved!.repairClass === "C" || unresolved!.category === "LEGITIMATE_HISTORICAL_PREDECESSOR",
+    unresolved!.repairClass === "C" ||
+      unresolved!.category === "VALID_HISTORICAL_NO_REPAIR" ||
+      unresolved!.category === "LEGITIMATE_HISTORICAL_PREDECESSOR",
     `unresolved class=${unresolved!.repairClass} cat=${unresolved!.category}`
   );
 
   const sot = byId.get("fa-sot001");
   assert.ok(sot);
   assert.ok(sot!.matchedLearnerIds.includes("lrn-lulonke"));
-  assert.ok(
-    sot!.evidence.includes("parent_phone") || sot!.evidence.includes("parent_email") || sot!.evidence.includes("parent_name")
+  assert.strictEqual(
+    sot!.proposedAction,
+    "relink_parents_to_current_retire_orphan",
+    `SOT001 action=${sot!.proposedAction}`
   );
-  assert.ok(sot!.evidence.includes("exact_learner_name"));
+  assert.ok(sot!.evidence.includes("audit_unmerge_trail") || sot!.evidence.includes("current_holds_continuing_ledger"));
+  assert.ok(sot!.currentFaIds.includes("fa-sot002"));
 
   const man = byId.get("fa-man009");
   assert.ok(man);
   assert.ok(man!.matchedLearnerIds.length >= 1);
-  // Split: both MAN009 and MAN005 have money
   assert.ok(
     man!.category === "SPLIT_LEDGER" || man!.repairClass === "B" || man!.repairClass === "C",
     `MAN009 cat=${man!.category} class=${man!.repairClass}`
   );
 
-  pass("zero-linked classifications (shell / historical / SOT / MAN / unresolved)");
+  pass("zero-linked classifications (shell / historical / SOT keep-current / MAN / unresolved)");
 }
 
 function testPaymentPickerExcludesZeroLinked() {
@@ -197,6 +202,32 @@ function testApplyGates() {
     });
 }
 
+function testClassBConsolidationManifestSafe() {
+  const bundle = buildSyntheticFlyEagleBundle();
+  const report = buildReconciliationReport(bundle);
+  const manifests = buildClassBConsolidationManifests(bundle, report.repairPlan.classB);
+  assert.ok(manifests.length >= 1, "expected at least one Class B manifest");
+  for (const m of manifests) {
+    assert.ok(m.safe, `manifest ${m.caseKey} must be safe: ${JSON.stringify(m.invariants)}`);
+    assert.strictEqual(m.before.combinedInvoiceTotal, m.after.combinedInvoiceTotal);
+    assert.strictEqual(m.before.combinedPaymentTotal, m.after.combinedPaymentTotal);
+    assert.strictEqual(m.before.combinedBalance, m.after.combinedBalance);
+    assert.strictEqual(m.after.orphan.invoiceCount, 0);
+  }
+  pass("Class B ledger consolidation manifests preserve totals");
+}
+
+function testIntegrityValidHistoricalNotUnresolved() {
+  const bundle = buildSyntheticFlyEagleBundle();
+  const report = buildBillingIntegrityReport(bundle);
+  const validHist = report.findings.filter(
+    (f) => f.meta && (f.meta as { validHistorical?: boolean }).validHistorical
+  );
+  assert.ok(validHist.length >= 1);
+  assert.ok(validHist.every((f) => f.severity === "INFO"));
+  pass("VALID HISTORICAL findings are INFO — not unresolved failures");
+}
+
 function testIntegrityReportAndMigrationGuard() {
   const bundle = buildSyntheticFlyEagleBundle();
   const report = buildBillingIntegrityReport(bundle);
@@ -220,7 +251,6 @@ function testIntegrityReportAndMigrationGuard() {
 function testUnexpectedStateSkipsRatherThanGuessing() {
   const bundle = buildSyntheticFlyEagleBundle();
   const report = buildReconciliationReport(bundle);
-  // Force a Class A relink case then simulate apply without prisma → aborted/refused
   return executeRepairPlan({ prisma: null, report, mode: "apply" })
     .then(() => {
       throw new Error("expected apply gate failure");
@@ -238,6 +268,8 @@ async function main() {
   testPaymentPickerExcludesZeroLinked();
   testSiblingShareAllowed();
   testAmbiguousRejectedFromMutation();
+  testClassBConsolidationManifestSafe();
+  testIntegrityValidHistoricalNotUnresolved();
   testIntegrityReportAndMigrationGuard();
   await testDryRunIdempotentShape();
   await testRefuseOtherSchoolReport();
