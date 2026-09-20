@@ -31,4 +31,10 @@ assert.equal(canAccessSchoolPage("homesafe", user("Finance")), false);
 assert.equal(canAccessSchoolPage("homesafe", user("Teacher")), false);
 assert.equal(canAccessSchoolPage("homesafe", user("Viewer")), true);
 
+// Accounting is Owner-only (Admin retains reports.view for Billing Reports / Lists).
+assert.equal(canAccessSchoolPage("accountingOverview", user("Owner")), true);
+assert.equal(canAccessSchoolPage("accountingOverview", user("Admin")), false);
+assert.equal(canAccessSchoolPage("accountingSettings", user("Admin")), false);
+assert.equal(canAccessSchoolPage("reports", user("Admin")), true);
+
 console.log("schoolAccess.homesafe.test.ts: PASS");

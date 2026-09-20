@@ -147,6 +147,11 @@ export function canAccessSchoolPageByPermission(
 
   if (user.appRole === "Owner") return true;
 
+  // Accounting product area is Owner-only. reports.view still powers Billing Reports / Lists.
+  if (String(page).startsWith("accounting")) {
+    return false;
+  }
+
   const rule = PAGE_RULES[page];
   if (!rule) return false;
   return hasPermission(user, rule.module, rule.action);
