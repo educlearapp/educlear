@@ -18,6 +18,11 @@ import {
   PublicAdmissionsError,
   resolvePublicAdmissionsBySlug,
 } from "./publicAdmissionsConfig";
+import {
+  reconcileDraftFinancialSigner,
+  removePrivateSignatureFiles,
+  retargetDraftFinancialSigner,
+} from "./financialAgreementService";
 
 function clean(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -136,6 +141,11 @@ export type ApplicantApplicationView = {
     paymentStatus: string;
     paymentReference: string | null;
   } | null;
+  financialAgreement: {
+    signed: boolean;
+    signerFullName: string | null;
+    acceptances: Array<{ kind: string; contentSha256: string }>;
+  };
 };
 
 function dec(value: Prisma.Decimal | null | undefined): string | null {
@@ -206,6 +216,11 @@ export function serializeApplicantApplication(app: {
     paymentStatus: string;
     paymentReference: string | null;
   } | null;
+  financialAcceptances?: Array<{
+    kind: string;
+    contentSha256: string;
+    signerFullNameSnapshot: string;
+  }>;
 }): ApplicantApplicationView {
   return {
     publicAccessId: app.publicAccessId,
@@ -278,6 +293,14 @@ export function serializeApplicantApplication(app: {
           paymentReference: app.feeRecord.paymentReference,
         }
       : null,
+    financialAgreement: {
+      signed: (app.financialAcceptances || []).length >= 2,
+      signerFullName: app.financialAcceptances?.[0]?.signerFullNameSnapshot ?? null,
+      acceptances: (app.financialAcceptances || []).map((row) => ({
+        kind: row.kind,
+        contentSha256: row.contentSha256,
+      })),
+    },
   };
 }
 
@@ -286,6 +309,9 @@ const applicationInclude = {
   guardians: { orderBy: { sortOrder: "asc" as const } },
   answers: true,
   feeRecord: true,
+  financialAcceptances: {
+    select: { kind: true, contentSha256: true, signerFullNameSnapshot: true },
+  },
 } as const;
 
 export { applicationInclude };
@@ -339,6 +365,9 @@ export const APPLICANT_DRAFT_FORBIDDEN_KEYS = new Set([
   "auditEvents",
   "staffNotes",
   "documents",
+  "financialAgreementRequired",
+  "financialAcceptances",
+  "signatureFileKey",
 ]);
 
 export type UpdateDraftApplicationInput = CreateDraftApplicationInput & {
@@ -488,7 +517,8 @@ export async function updateDraftApplication(
   const applyDeclarationsAccept =
     declarationsAccepted === true && (!respondingToInfoRequest || !app.declarationsAcceptedAt);
 
-  const updated = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
+    const removedSignatureKeys: string[] = [];
     await tx.admissionApplication.update({
       where: { id: app.id },
       data: {
@@ -548,6 +578,20 @@ export async function updateDraftApplication(
 
     if (guardians !== undefined) {
       const list = Array.isArray(guardians) ? guardians : [];
+      if (app.status === "DRAFT") {
+        const removed = await reconcileDraftFinancialSigner(
+          tx,
+          schoolId,
+          app.id,
+          list.map((guardian) => ({
+            firstName: clean(guardian.firstName) || "",
+            surname: clean(guardian.surname) || "",
+            idNumber: clean(guardian.idNumber) || null,
+            isPayingPerson: Boolean(guardian.isPayingPerson),
+          }))
+        );
+        removedSignatureKeys.push(...removed);
+      }
       await tx.admissionGuardian.deleteMany({ where: { applicationId: app.id } });
       if (list.length) {
         await tx.admissionGuardian.createMany({
@@ -568,6 +612,19 @@ export async function updateDraftApplication(
             sortOrder: Number.isInteger(g.sortOrder) ? Number(g.sortOrder) : index,
           })),
         });
+      }
+      if (app.status === "DRAFT" && removedSignatureKeys.length === 0) {
+        const payers = await tx.admissionGuardian.findMany({
+          where: { schoolId, applicationId: app.id, isPayingPerson: true },
+          select: { id: true },
+        });
+        if (payers.length === 1) {
+          await retargetDraftFinancialSigner(tx, schoolId, app.id, payers[0].id);
+        } else {
+          removedSignatureKeys.push(
+            ...(await reconcileDraftFinancialSigner(tx, schoolId, app.id, []))
+          );
+        }
       }
     }
 
@@ -612,13 +669,15 @@ export async function updateDraftApplication(
       },
     });
 
-    return tx.admissionApplication.findUniqueOrThrow({
+    const updated = await tx.admissionApplication.findUniqueOrThrow({
       where: { id: app.id },
       include: applicationInclude,
     });
+    return { updated, removedSignatureKeys };
   });
 
-  return serializeApplicantApplication(updated);
+  await removePrivateSignatureFiles(result.removedSignatureKeys);
+  return serializeApplicantApplication(result.updated);
 }
 
 /**

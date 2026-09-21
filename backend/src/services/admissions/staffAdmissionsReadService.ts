@@ -501,6 +501,22 @@ export type StaffApplicationDetail = {
   privacyAcceptedAt: string | null;
   declarationsAcceptedAt: string | null;
   privacyNoticeVersion: string | null;
+  financialAgreement: {
+    required: boolean;
+    notRequiredMessage: string | null;
+    signatureAvailable: boolean;
+    acceptances: Array<{
+      kind: string;
+      title: string;
+      version: string | null;
+      body: string;
+      contentSha256: string;
+      signerFullName: string;
+      typedSignerName: string;
+      acceptedAt: string;
+      signedAt: string;
+    }>;
+  };
   statusReason: string | null;
   promotedLearnerId: string | null;
   promotedFamilyAccountId: string | null;
@@ -649,6 +665,10 @@ export async function getStaffApplicationDetail(
         orderBy: [{ documentType: "asc" }, { uploadedAt: "desc" }],
       },
       feeRecord: true,
+      financialAcceptances: {
+        include: { document: { select: { versionLabel: true } } },
+        orderBy: { kind: "asc" },
+      },
       statusHistory: { orderBy: { createdAt: "asc" } },
       paymentHistory: { orderBy: { createdAt: "asc" } },
       auditEvents: { orderBy: { createdAt: "asc" } },
@@ -710,6 +730,30 @@ export async function getStaffApplicationDetail(
     privacyAcceptedAt: iso(app.privacyAcceptedAt),
     declarationsAcceptedAt: iso(app.declarationsAcceptedAt),
     privacyNoticeVersion: app.privacyNoticeVersion,
+    financialAgreement: app.financialAgreementRequired
+      ? {
+          required: true,
+          notRequiredMessage: null,
+          signatureAvailable: app.financialAcceptances.some((row) => Boolean(row.signatureFileKey)),
+          acceptances: app.financialAcceptances.map((row) => ({
+            kind: row.kind,
+            title: row.titleSnapshot,
+            version: row.document?.versionLabel ?? null,
+            body: row.bodySnapshot,
+            contentSha256: row.contentSha256,
+            signerFullName: row.signerFullNameSnapshot,
+            typedSignerName: row.typedSignerName,
+            acceptedAt: row.acceptedAt.toISOString(),
+            signedAt: row.signedAt.toISOString(),
+          })),
+        }
+      : {
+          required: false,
+          notRequiredMessage:
+            "Financial agreement was not required when this application was submitted.",
+          signatureAvailable: false,
+          acceptances: [],
+        },
     statusReason: app.statusReason,
     promotedLearnerId: app.promotedLearnerId,
     promotedFamilyAccountId: app.promotedFamilyAccountId,

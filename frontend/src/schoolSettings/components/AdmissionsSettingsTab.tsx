@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   fetchAdmissionsSettings,
+  publishAdmissionsLegalDocument,
   saveAdmissionsSettings,
   type AdmissionsRequiredDocument,
   type AdmissionsSettings,
@@ -72,6 +73,122 @@ function fromDateInput(value: string): string | null {
   const v = value.trim();
   if (!v) return null;
   return new Date(`${v}T00:00:00.000Z`).toISOString();
+}
+
+function FinancialDocumentPublish({
+  canManage,
+  documents,
+  onPublished,
+}: {
+  canManage: boolean;
+  documents: NonNullable<AdmissionsSettings["financialDocuments"]>;
+  onPublished: (document: NonNullable<AdmissionsSettings["financialDocuments"]>[number]) => void;
+}) {
+  const [kind, setKind] = useState<"FINANCIAL_POLICY" | "FINANCIAL_DECLARATION">("FINANCIAL_POLICY");
+  const [versionLabel, setVersionLabel] = useState("");
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [publishing, setPublishing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const current = documents.find((document) => document.kind === kind);
+
+  async function publish() {
+    if (!canManage || publishing) return;
+    setPublishing(true);
+    setError(null);
+    try {
+      const document = await publishAdmissionsLegalDocument({ kind, versionLabel, title, body });
+      onPublished(document);
+      setVersionLabel("");
+      setTitle("");
+      setBody("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not publish the document");
+    } finally {
+      setPublishing(false);
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 28 }}>
+      <h3 className="school-settings-card-title" style={{ fontSize: "1rem" }}>
+        Financial agreement documents
+      </h3>
+      <p className="school-settings-card-hint">
+        Publishing creates a new version. An existing published version is not rewritten.
+      </p>
+      {documents.length === 0 ? (
+        <p className="school-settings-card-hint">No financial policy or declaration is published.</p>
+      ) : (
+        documents.map((document) => (
+          <p key={document.id} className="school-settings-card-hint">
+            Active {document.kind === "FINANCIAL_POLICY" ? "financial policy" : "financial declaration"}:{" "}
+            {document.title} ({document.version})
+          </p>
+        ))
+      )}
+      {canManage ? (
+        <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+          <label>
+            <span className="school-settings-card-hint">Document</span>
+            <select
+              className="school-settings-input"
+              value={kind}
+              onChange={(event) =>
+                setKind(event.target.value as "FINANCIAL_POLICY" | "FINANCIAL_DECLARATION")
+              }
+              style={{ display: "block", width: "100%", marginTop: 6, padding: "8px 10px" }}
+            >
+              <option value="FINANCIAL_POLICY">Financial Policy</option>
+              <option value="FINANCIAL_DECLARATION">Financial Declaration</option>
+            </select>
+          </label>
+          <label>
+            <span className="school-settings-card-hint">Version</span>
+            <input
+              className="school-settings-input"
+              value={versionLabel}
+              onChange={(event) => setVersionLabel(event.target.value)}
+              style={{ display: "block", width: "100%", marginTop: 6, padding: "8px 10px" }}
+            />
+          </label>
+          <label>
+            <span className="school-settings-card-hint">Title</span>
+            <input
+              className="school-settings-input"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              style={{ display: "block", width: "100%", marginTop: 6, padding: "8px 10px" }}
+            />
+          </label>
+          <label>
+            <span className="school-settings-card-hint">Text</span>
+            <textarea
+              className="school-settings-input"
+              value={body}
+              rows={8}
+              onChange={(event) => setBody(event.target.value)}
+              style={{ display: "block", width: "100%", marginTop: 6, padding: "8px 10px" }}
+            />
+          </label>
+          {current ? (
+            <p className="school-settings-card-hint">
+              Publishing will supersede {current.title} ({current.version}).
+            </p>
+          ) : null}
+          {error ? <p className="school-settings-card-hint">{error}</p> : null}
+          <button
+            type="button"
+            className="school-settings-btn school-settings-btn--outline"
+            disabled={publishing}
+            onClick={() => void publish()}
+          >
+            {publishing ? "Publishing…" : "Publish new version"}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export default function AdmissionsSettingsTab({ canManage, onSaved }: Props) {
@@ -202,6 +319,7 @@ export default function AdmissionsSettingsTab({ canManage, onSaved }: Props) {
       });
       setDraft({
         ...saved,
+        financialDocuments: saved.financialDocuments ?? draft.financialDocuments,
         publicSlug: saved.publicSlug || "",
         defaultAdmissionFeeAmount: saved.defaultAdmissionFeeAmount || "",
         bankName: saved.bankName || "",
@@ -654,6 +772,20 @@ export default function AdmissionsSettingsTab({ canManage, onSaved }: Props) {
           You can view admissions settings. Saving requires admissions manage permission.
         </p>
       )}
+
+      <FinancialDocumentPublish
+        canManage={canManage}
+        documents={draft.financialDocuments || []}
+        onPublished={(document) =>
+          setDraft((current) => ({
+            ...current,
+            financialDocuments: [
+              ...(current.financialDocuments || []).filter((item) => item.kind !== document.kind),
+              document,
+            ],
+          }))
+        }
+      />
     </section>
   );
 }

@@ -30,6 +30,14 @@ export type PublicAdmissionsConfig = {
   applicationQuestions: unknown[];
   privacyNoticeVersion: string | null;
   declarationText: string | null;
+  financialDocuments?: Array<{
+    id: string;
+    kind: "FINANCIAL_POLICY" | "FINANCIAL_DECLARATION";
+    title: string;
+    version: string;
+    contentSha256: string;
+    body: string;
+  }>;
 };
 
 export type PublicAdmissionsConfigResponse = {
@@ -113,6 +121,11 @@ export type ApplicantApplicationView = {
     paymentStatus: string;
     paymentReference: string | null;
   } | null;
+  financialAgreement?: {
+    signed: boolean;
+    signerFullName: string | null;
+    acceptances: Array<{ kind: string; contentSha256: string }>;
+  };
 };
 
 export type CreateDraftApplicationBody = {

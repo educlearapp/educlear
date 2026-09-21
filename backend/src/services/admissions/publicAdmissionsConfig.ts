@@ -13,6 +13,10 @@ import {
   resolvePublicAdmissionsBySlug,
 } from "./resolvePublicAdmissions";
 import { parseRequiredDocumentConfig } from "./requiredDocumentConfig";
+import {
+  listActiveLegalDocuments,
+  toPublicFinancialDocument,
+} from "./financialAgreementService";
 
 function decimalToString(value: Prisma.Decimal | null | undefined): string | null {
   if (value === null || value === undefined) return null;
@@ -45,6 +49,15 @@ export type PublicAdmissionsConfig = {
   applicationQuestions: unknown[];
   privacyNoticeVersion: string | null;
   declarationText: string | null;
+  /** Active published financial documents only. Absent from older callers of the builder. */
+  financialDocuments?: Array<{
+    id: string;
+    kind: "FINANCIAL_POLICY" | "FINANCIAL_DECLARATION";
+    title: string;
+    version: string;
+    contentSha256: string;
+    body: string;
+  }>;
 };
 
 function asJsonArray(value: unknown): unknown[] {
@@ -107,7 +120,7 @@ export async function getPublicAdmissionsConfig(
   now: Date = new Date()
 ): Promise<PublicAdmissionsConfig> {
   const resolved = await resolvePublicAdmissionsBySlug(prisma, schoolSlug);
-  return buildPublicAdmissionsConfig({
+  const config = buildPublicAdmissionsConfig({
     publicSlug: String(resolved.settings.publicSlug || schoolSlug).toLowerCase(),
     schoolName: resolved.school.name,
     logoUrl: resolved.school.logoUrl,
@@ -115,6 +128,11 @@ export async function getPublicAdmissionsConfig(
     settings: resolved.settings,
     now,
   });
+  const documents = await listActiveLegalDocuments(prisma, resolved.school.id);
+  return {
+    ...config,
+    financialDocuments: documents.map(toPublicFinancialDocument),
+  };
 }
 
 export function assertCanCreatePublicApplication(

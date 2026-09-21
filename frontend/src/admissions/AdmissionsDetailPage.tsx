@@ -11,6 +11,7 @@ import {
 import { getEnrolmentDetailLabel } from "./conversionDecision";
 import {
   acceptApplication,
+  fetchStaffFinancialSignatureBlob,
   getApplication,
   rejectApplication,
   requestInfo,
@@ -38,6 +39,90 @@ type Props = {
   onOpenParentPortal?: () => void;
   onOpenClassrooms?: () => void;
 };
+
+function StaffFinancialAgreement({
+  applicationId,
+  agreement,
+}: {
+  applicationId: string;
+  agreement: StaffApplicationDetail["financialAgreement"];
+}) {
+  const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!agreement?.required || !agreement.signatureAvailable) return;
+    let objectUrl = "";
+    let cancelled = false;
+    void (async () => {
+      try {
+        const blob = await fetchStaffFinancialSignatureBlob(applicationId);
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setSignatureUrl(objectUrl);
+      } catch {
+        if (!cancelled) setSignatureUrl(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [agreement?.required, agreement?.signatureAvailable, applicationId]);
+
+  return (
+    <section className="admissions-staff-card" aria-labelledby="admissions-financial-heading">
+      <h2 id="admissions-financial-heading" className="admissions-staff-card-title">
+        Financial agreement
+      </h2>
+      {!agreement?.required ? (
+        <p style={{ margin: 0 }}>
+          {agreement?.notRequiredMessage ||
+            "Financial agreement was not required when this application was submitted."}
+        </p>
+      ) : (
+        <div style={{ display: "grid", gap: 16 }}>
+          {agreement.acceptances.map((acceptance) => (
+            <div key={acceptance.kind}>
+              <p style={{ margin: "0 0 8px" }}>
+                <strong>{acceptance.title}</strong>
+                {acceptance.version ? ` (${acceptance.version})` : ""}
+              </p>
+              <details>
+                <summary>Signed text</summary>
+                <p style={{ whiteSpace: "pre-wrap" }}>{acceptance.body}</p>
+              </details>
+              <dl>
+                <div>
+                  <dt>Signer</dt>
+                  <dd>{acceptance.signerFullName}</dd>
+                </div>
+                <div>
+                  <dt>Typed name</dt>
+                  <dd>{acceptance.typedSignerName}</dd>
+                </div>
+                <div>
+                  <dt>Accepted</dt>
+                  <dd>{formatDate(acceptance.acceptedAt)}</dd>
+                </div>
+                <div>
+                  <dt>Signed</dt>
+                  <dd>{formatDate(acceptance.signedAt)}</dd>
+                </div>
+              </dl>
+            </div>
+          ))}
+          {signatureUrl ? (
+            <img
+              alt="Financial agreement signature"
+              src={signatureUrl}
+              style={{ maxWidth: 360, background: "#fff", border: "1px solid rgba(0,0,0,0.12)" }}
+            />
+          ) : null}
+        </div>
+      )}
+    </section>
+  );
+}
 
 function formatDate(value: string | null): string {
   if (!value) return "—";
@@ -205,6 +290,8 @@ export default function AdmissionsDetailPage({
             </dl>
           )}
         </section>
+
+        <StaffFinancialAgreement applicationId={detail.id} agreement={detail.financialAgreement} />
 
         <section className="admissions-staff-card" aria-labelledby="admissions-docs-heading">
           <h2 id="admissions-docs-heading" className="admissions-staff-card-title">

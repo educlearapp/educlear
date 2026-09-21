@@ -210,6 +210,8 @@ model School {
   admissionPaymentHistory      AdmissionPaymentHistory[]
   admissionAuditEvents         AdmissionAuditEvent[]
   admissionStaffNotes          AdmissionStaffNote[]
+  admissionLegalDocuments      SchoolAdmissionsLegalDocument[]
+  admissionFinancialAcceptances AdmissionFinancialAcceptance[]
 
   @@index([lifecycleStatus])
 }
@@ -3550,6 +3552,59 @@ model SchoolAdmissionsSettings {
   @@index([enabled])
 }
 
+enum SchoolAdmissionsLegalDocumentKind {
+  FINANCIAL_POLICY
+  FINANCIAL_DECLARATION
+}
+
+/// Immutable published legal text. A new publish supersedes the previous active row; body is never rewritten.
+model SchoolAdmissionsLegalDocument {
+  id            String                             @id @default(cuid())
+  schoolId      String
+  kind          SchoolAdmissionsLegalDocumentKind
+  versionLabel  String
+  title         String
+  body          String                             @db.Text
+  contentSha256 String
+  publishedAt   DateTime
+  supersededAt  DateTime?
+  createdAt     DateTime                           @default(now())
+  updatedAt     DateTime                           @updatedAt
+
+  school      School                        @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  acceptances AdmissionFinancialAcceptance[]
+
+  @@index([schoolId, kind, supersededAt])
+}
+
+/// Frozen applicant acceptance of one legal document. Unique per application and kind. Not an AdmissionDocument.
+model AdmissionFinancialAcceptance {
+  id                     String                             @id @default(cuid())
+  schoolId               String
+  applicationId          String
+  kind                   SchoolAdmissionsLegalDocumentKind
+  documentId             String
+  titleSnapshot          String
+  bodySnapshot           String                             @db.Text
+  contentSha256          String
+  signerGuardianId       String
+  signerFullNameSnapshot String
+  typedSignerName        String
+  signatureFileKey       String
+  signatureContentType   String
+  signatureSha256        String
+  acceptedAt             DateTime
+  signedAt               DateTime
+  createdAt              DateTime                           @default(now())
+
+  school      School                        @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  application AdmissionApplication          @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  document    SchoolAdmissionsLegalDocument @relation(fields: [documentId], references: [id], onDelete: Restrict)
+
+  @@unique([applicationId, kind])
+  @@index([schoolId, applicationId])
+}
+
 /// Concurrency-safe sequence for APP-{intakeYear}-{NNNNNN} (allocation in later OA phase).
 model AdmissionApplicationCounter {
   schoolId   String
@@ -3608,6 +3663,9 @@ model AdmissionApplication {
   declarationsAcceptedAt DateTime?
   privacyNoticeVersion   String?
 
+  /// Set true only at submit when both financial documents were published. Existing rows stay false.
+  financialAgreementRequired Boolean @default(false)
+
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
   submittedAt             DateTime?
@@ -3628,6 +3686,7 @@ model AdmissionApplication {
   paymentHistory   AdmissionPaymentHistory[]
   auditEvents      AdmissionAuditEvent[]
   staffNotes       AdmissionStaffNote[]
+  financialAcceptances AdmissionFinancialAcceptance[]
 
   @@unique([schoolId, applicationNumber])
   @@index([schoolId, status])

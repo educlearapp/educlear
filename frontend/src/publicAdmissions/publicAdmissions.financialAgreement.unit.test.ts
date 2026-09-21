@@ -1,0 +1,244 @@
+/**
+ * Financial agreement review readiness.
+ * Run: npx tsx src/publicAdmissions/publicAdmissions.financialAgreement.unit.test.ts
+ */
+import assert from "assert";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+import type { ApplicantApplicationView, PublicAdmissionsConfig } from "./publicAdmissionsTypes";
+import {
+  deriveSubmitReadiness,
+  financialAgreementMatchesCurrentDocuments,
+} from "./reviewReadiness";
+
+function config(financialDocuments?: PublicAdmissionsConfig["financialDocuments"]): PublicAdmissionsConfig {
+  return {
+    publicSlug: "test-school",
+    schoolDisplayName: "Test School",
+    branding: { logoUrl: null, primaryColor: null },
+    enabled: true,
+    acceptingApplications: true,
+    applicationsOpenAt: null,
+    applicationsCloseAt: null,
+    intakeYear: 2027,
+    acceptedGrades: ["Grade 1"],
+    admissionFeeRequired: false,
+    admissionFeeAmount: null,
+    currency: "ZAR",
+    proofOfPaymentRequired: false,
+    paymentVerificationRequired: false,
+    requirePaymentVerifiedBeforeAccept: false,
+    admissionContactEmail: null,
+    admissionContactPhone: null,
+    requiredDocuments: [],
+    applicationQuestions: [],
+    privacyNoticeVersion: "v1",
+    declarationText: "I confirm.",
+    financialDocuments,
+  };
+}
+
+function app(overrides: Partial<ApplicantApplicationView> = {}): ApplicantApplicationView {
+  return {
+    publicAccessId: "acc",
+    status: "DRAFT",
+    statusReason: null,
+    intakeYear: 2027,
+    requestedGrade: "Grade 1",
+    applicationNumber: null,
+    feeRequired: false,
+    feeAmount: null,
+    feeCurrency: "ZAR",
+    feeSnapshotAt: null,
+    declaredExistingSibling: false,
+    declaredSiblingLearnerName: null,
+    declaredSiblingAdmissionNo: null,
+    declaredExistingFamily: false,
+    privacyAcceptedAt: "2026-01-01T00:00:00.000Z",
+    declarationsAcceptedAt: "2026-01-01T00:00:00.000Z",
+    privacyNoticeVersion: "v1",
+    submittedAt: null,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    learner: {
+      firstName: "Anele",
+      lastName: "Dlamini",
+      nickname: null,
+      birthDate: "2018-01-01",
+      gender: null,
+      idNumber: null,
+      homeLanguage: null,
+      citizenship: null,
+      homeAddress: null,
+      allergies: null,
+      medicalAlert: null,
+      previousSchoolName: null,
+      notes: null,
+    },
+    guardians: [
+      {
+        id: "g1",
+        title: null,
+        firstName: "Mary",
+        surname: "Jane",
+        relationship: null,
+        idNumber: null,
+        cellNo: "082",
+        email: null,
+        homeAddress: null,
+        employer: null,
+        isPrimary: true,
+        isPayingPerson: true,
+        sortOrder: 0,
+      },
+    ],
+    answers: [],
+    feeRecord: null,
+    ...overrides,
+  };
+}
+
+const documents = [
+  {
+    id: "p1",
+    kind: "FINANCIAL_POLICY" as const,
+    title: "Policy",
+    version: "2027.1",
+    contentSha256: "policy-hash",
+    body: "Policy text",
+  },
+  {
+    id: "d1",
+    kind: "FINANCIAL_DECLARATION" as const,
+    title: "Declaration",
+    version: "2027.1",
+    contentSha256: "declaration-hash",
+    body: "Declaration text",
+  },
+];
+
+const withoutDocuments = deriveSubmitReadiness({
+  application: app(),
+  config: config(),
+  privacyAccepted: true,
+  declarationsAccepted: true,
+  answerValues: {},
+});
+assert.strictEqual(
+  withoutDocuments.issues.some((issue) => issue.field.startsWith("financialAgreement")),
+  false
+);
+assert.strictEqual(withoutDocuments.canAttemptSubmit, true);
+
+const unsigned = deriveSubmitReadiness({
+  application: app(),
+  config: config(documents),
+  privacyAccepted: true,
+  declarationsAccepted: true,
+  answerValues: {},
+});
+assert.ok(unsigned.issues.some((issue) => issue.field === "financialAgreement.signature"));
+assert.strictEqual(unsigned.canAttemptSubmit, false);
+assert.strictEqual(financialAgreementMatchesCurrentDocuments(app(), config(documents)), false);
+
+const stale = app({
+  financialAgreement: {
+    signed: true,
+    signerFullName: "Mary Jane",
+    acceptances: [
+      { kind: "FINANCIAL_POLICY", contentSha256: "old" },
+      { kind: "FINANCIAL_DECLARATION", contentSha256: "declaration-hash" },
+    ],
+  },
+});
+assert.strictEqual(financialAgreementMatchesCurrentDocuments(stale, config(documents)), false);
+
+const current = app({
+  financialAgreement: {
+    signed: true,
+    signerFullName: "Mary Jane",
+    acceptances: [
+      { kind: "FINANCIAL_POLICY", contentSha256: "policy-hash" },
+      { kind: "FINANCIAL_DECLARATION", contentSha256: "declaration-hash" },
+    ],
+  },
+});
+const signed = deriveSubmitReadiness({
+  application: current,
+  config: config(documents),
+  privacyAccepted: true,
+  declarationsAccepted: true,
+  answerValues: {},
+});
+assert.strictEqual(signed.canAttemptSubmit, true);
+
+const twoPayers = app({
+  guardians: [
+    {
+      id: "g1",
+      title: null,
+      firstName: "Mary",
+      surname: "Jane",
+      relationship: null,
+      idNumber: null,
+      cellNo: "082",
+      email: null,
+      homeAddress: null,
+      employer: null,
+      isPrimary: true,
+      isPayingPerson: true,
+      sortOrder: 0,
+    },
+    {
+      id: "g2",
+      title: null,
+      firstName: "John",
+      surname: "Jane",
+      relationship: null,
+      idNumber: null,
+      cellNo: "083",
+      email: null,
+      homeAddress: null,
+      employer: null,
+      isPrimary: false,
+      isPayingPerson: true,
+      sortOrder: 1,
+    },
+  ],
+});
+const multiple = deriveSubmitReadiness({
+  application: twoPayers,
+  config: config(documents),
+  privacyAccepted: true,
+  declarationsAccepted: true,
+  answerValues: {},
+});
+assert.ok(multiple.issues.some((issue) => issue.message.includes("Exactly one")));
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const review = fs.readFileSync(
+  path.join(__dirname, "PublicAdmissionsReviewStep.tsx"),
+  "utf8"
+);
+const agreement = fs.readFileSync(
+  path.join(__dirname, "PublicAdmissionsFinancialAgreement.tsx"),
+  "utf8"
+);
+assert.match(review, /PublicAdmissionsFinancialAgreement/);
+assert.match(agreement, /type="checkbox"/);
+assert.match(agreement, /pa-financial-signature/);
+assert.match(agreement, /Clear signature/);
+assert.match(agreement, /strokeCount < 1/);
+assert.match(agreement, /A checkbox is not a signature/);
+const settings = fs.readFileSync(
+  path.join(__dirname, "../schoolSettings/components/AdmissionsSettingsTab.tsx"),
+  "utf8"
+);
+assert.match(settings, /Publish new version/);
+assert.match(settings, /No financial policy or declaration is published/);
+const detail = fs.readFileSync(path.join(__dirname, "../admissions/AdmissionsDetailPage.tsx"), "utf8");
+assert.match(detail, /Financial agreement was not required when this application was submitted/);
+
+console.log("financial agreement frontend tests passed");

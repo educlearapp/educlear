@@ -11,9 +11,11 @@ import {
   submitPublicApplication,
   updatePublicDraftApplication,
 } from "./publicAdmissionsApi";
+import PublicAdmissionsFinancialAgreement from "./PublicAdmissionsFinancialAgreement";
 import {
   deriveSubmitReadiness,
   documentReviewSummary,
+  financialAgreementMatchesCurrentDocuments,
   mapValidationDetailsToGuidance,
   parseApplicationQuestions,
   sectionForValidationField,
@@ -145,12 +147,16 @@ export default function PublicAdmissionsReviewStep({
   /** School-configured declaration only — never invent legal/declaration wording. */
   const configuredDeclarationText = String(config?.declarationText || "").trim();
   const privacyVersion = String(config?.privacyNoticeVersion || "").trim();
+  const applicantAccessToken = accessToken;
 
   async function handleSubmit() {
     if (submitting) return;
     setSubmitError(null);
     setSubmitDetails([]);
     setClientIssues(readiness.issues);
+    if (!financialAgreementMatchesCurrentDocuments(application, config)) {
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -452,6 +458,16 @@ export default function PublicAdmissionsReviewStep({
           </span>
         </label>
       </section>
+
+      <PublicAdmissionsFinancialAgreement
+        publicSlug={publicSlug}
+        publicAccessId={publicAccessId}
+        accessToken={applicantAccessToken}
+        config={config}
+        application={application}
+        onSigned={onApplicationUpdated}
+        onSessionInvalid={onSessionInvalid}
+      />
 
       {(clientIssues.length > 0 || submitDetails.length > 0 || submitError) && (
         <section className="pa-card" data-testid="pa-submit-issues">

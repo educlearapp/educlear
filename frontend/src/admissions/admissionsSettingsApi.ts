@@ -44,6 +44,14 @@ export type AdmissionsSettings = {
   declarationText: string | null;
   createdAt: string | null;
   updatedAt: string | null;
+  financialDocuments?: Array<{
+    id: string;
+    kind: "FINANCIAL_POLICY" | "FINANCIAL_DECLARATION";
+    title: string;
+    version: string;
+    contentSha256: string;
+    body: string;
+  }>;
 };
 
 type SettingsResponse = {
@@ -79,4 +87,36 @@ export function fetchAdmissionsSettings() {
 
 export function saveAdmissionsSettings(payload: Partial<AdmissionsSettings>) {
   return request("PUT", payload as Record<string, unknown>);
+}
+
+export async function publishAdmissionsLegalDocument(input: {
+  kind: "FINANCIAL_POLICY" | "FINANCIAL_DECLARATION";
+  versionLabel: string;
+  title: string;
+  body: string;
+}) {
+  const res = await fetch(`${API_URL}/api/admissions/settings/legal-documents`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...staffAuthHeaders(),
+    },
+    body: JSON.stringify(input),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    error?: string;
+    document?: {
+      id: string;
+      kind: "FINANCIAL_POLICY" | "FINANCIAL_DECLARATION";
+      title: string;
+      version: string;
+      contentSha256: string;
+      body: string;
+    };
+  };
+  if (!res.ok || !data.success || !data.document) {
+    throw new Error(String(data.error || `Request failed (${res.status})`));
+  }
+  return data.document;
 }

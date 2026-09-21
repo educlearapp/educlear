@@ -28,6 +28,7 @@ import {
 import {
   createDraftApplication,
   getApplicationForApplicant,
+  loadOwnedApplicationForApplicant,
   updateDraftApplication,
 } from "../services/admissions/draftApplicationService";
 import { markInformationSupplied } from "../services/admissions/applicantInfoResponseService";
@@ -37,6 +38,7 @@ import {
   PublicAdmissionsError,
 } from "../services/admissions/publicAdmissionsConfig";
 import { submitApplication } from "../services/admissions/submitApplicationService";
+import { signFinancialAgreement } from "../services/admissions/financialAgreementService";
 
 const router = Router({ mergeParams: true });
 
@@ -278,6 +280,63 @@ router.post(
       });
       res.setHeader("Cache-Control", "no-store");
       return res.status(201).json({ success: true, document });
+    } catch (err) {
+      return sendPublicError(res, err);
+    }
+  }
+);
+
+/**
+ * POST /api/public/admissions/:schoolSlug/applications/:publicAccessId/financial-agreement
+ * multipart: file (PNG) + policyAccepted + declarationAccepted + typedSignerName + strokeCount
+ */
+router.post(
+  "/applications/:publicAccessId/financial-agreement",
+  rateLimitApplicantWrite,
+  uploadSingle("file"),
+  async (req, res) => {
+    try {
+      const schoolSlug = param(req, "schoolSlug");
+      const publicAccessId = param(req, "publicAccessId");
+      const token = extractApplicantAccessToken(req);
+      const owned = await loadOwnedApplicationForApplicant(
+        prisma,
+        schoolSlug,
+        publicAccessId,
+        token
+      );
+      const file = req.file;
+      if (!file?.buffer) {
+        throw new PublicAdmissionsError("Signature is required", 400, "SIGNATURE_REQUIRED");
+      }
+      const body = (req.body && typeof req.body === "object" ? req.body : {}) as Record<
+        string,
+        unknown
+      >;
+      await signFinancialAgreement(prisma, {
+        schoolId: owned.schoolId,
+        applicationId: owned.app.id,
+        status: owned.app.status,
+        guardians: owned.app.guardians.map((guardian) => ({
+          id: guardian.id,
+          firstName: guardian.firstName,
+          surname: guardian.surname,
+          isPayingPerson: guardian.isPayingPerson,
+        })),
+        policyAccepted: body.policyAccepted,
+        declarationAccepted: body.declarationAccepted,
+        typedSignerName: body.typedSignerName,
+        signaturePng: file.buffer,
+        strokeCount: body.strokeCount,
+      });
+      const application = await getApplicationForApplicant(
+        prisma,
+        schoolSlug,
+        publicAccessId,
+        token
+      );
+      res.setHeader("Cache-Control", "no-store");
+      return res.status(201).json({ success: true, application });
     } catch (err) {
       return sendPublicError(res, err);
     }

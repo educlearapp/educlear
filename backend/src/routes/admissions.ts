@@ -49,6 +49,13 @@ import {
   type StaffWorkflowActor,
 } from "../services/admissions/staffAdmissionsWorkflowService";
 import { hasPermission, resolveStoredPermissions } from "../utils/userPermissions";
+import {
+  listActiveLegalDocuments,
+  openStaffFinancialSignature,
+  publishLegalDocument,
+  toPublicFinancialDocument,
+} from "../services/admissions/financialAgreementService";
+import { PublicAdmissionsError } from "../services/admissions/publicAdmissionsConfig";
 
 const router = Router();
 
@@ -160,7 +167,10 @@ router.get(
     try {
       const schoolId = req.admissionsSettingsAuth!.authorizedSchoolId;
       const settings = await getSchoolAdmissionsSettings(prisma, schoolId);
-      return res.json({ success: true, settings });
+      const financialDocuments = (
+        await listActiveLegalDocuments(prisma, schoolId)
+      ).map(toPublicFinancialDocument);
+      return res.json({ success: true, settings: { ...settings, financialDocuments } });
     } catch (err) {
       return sendStaffAdmissionsError(res, err, "Failed to load admissions settings");
     }
@@ -182,6 +192,36 @@ router.put(
       return res.json({ success: true, settings });
     } catch (err) {
       return sendStaffAdmissionsError(res, err, "Failed to save admissions settings");
+    }
+  }
+);
+
+router.post(
+  "/settings/legal-documents",
+  requireAdmissionsSettingsAuth("manage"),
+  async (req: AdmissionsSettingsAuthRequest, res) => {
+    try {
+      const schoolId = req.admissionsSettingsAuth!.authorizedSchoolId;
+      const body = bodyObject(req);
+      const document = await publishLegalDocument(prisma, schoolId, {
+        kind: body.kind,
+        versionLabel: body.versionLabel,
+        title: body.title,
+        body: body.body,
+      });
+      return res.status(201).json({
+        success: true,
+        document: toPublicFinancialDocument(document),
+      });
+    } catch (err) {
+      if (err instanceof PublicAdmissionsError) {
+        return res.status(err.statusCode).json({
+          success: false,
+          error: err.message,
+          code: err.code,
+        });
+      }
+      return sendStaffAdmissionsError(res, err, "Failed to publish financial document");
     }
   }
 );
@@ -282,6 +322,30 @@ router.get(
       return res.sendFile(file.absolutePath);
     } catch (err) {
       return sendStaffAdmissionsError(res, err, "Failed to download admissions document");
+    }
+  }
+);
+
+router.get(
+  "/applications/:applicationId/financial-signature",
+  requireAdmissionsSettingsAuth("view"),
+  async (req: AdmissionsSettingsAuthRequest, res) => {
+    try {
+      const schoolId = req.admissionsSettingsAuth!.authorizedSchoolId;
+      const file = await openStaffFinancialSignature(
+        prisma,
+        schoolId,
+        String(req.params.applicationId || "")
+      );
+      if (!file) {
+        throw new StaffAdmissionsError("Signature not found", 404, "SIGNATURE_NOT_FOUND");
+      }
+      res.setHeader("Cache-Control", "no-store");
+      res.setHeader("Content-Type", file.contentType);
+      res.setHeader("Content-Disposition", 'inline; filename="financial-signature.png"');
+      return res.sendFile(file.absolutePath);
+    } catch (err) {
+      return sendStaffAdmissionsError(res, err, "Failed to load financial signature");
     }
   }
 );

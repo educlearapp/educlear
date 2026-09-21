@@ -136,6 +136,22 @@ export type StaffApplicationDetail = {
   privacyAcceptedAt: string | null;
   declarationsAcceptedAt: string | null;
   privacyNoticeVersion: string | null;
+  financialAgreement?: {
+    required: boolean;
+    notRequiredMessage: string | null;
+    signatureAvailable: boolean;
+    acceptances: Array<{
+      kind: string;
+      title: string;
+      version: string | null;
+      body: string;
+      contentSha256: string;
+      signerFullName: string;
+      typedSignerName: string;
+      acceptedAt: string;
+      signedAt: string;
+    }>;
+  };
   statusReason: string | null;
   promotedLearnerId: string | null;
   promotedFamilyAccountId: string | null;

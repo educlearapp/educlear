@@ -134,7 +134,15 @@ export function deriveSubmitReadiness(input: {
         message: "Exactly one primary guardian is required",
       });
     }
-    if (!guardians.some((g) => g.isPayingPerson)) {
+    if (publishedFinancialDocuments(config)) {
+      const payingCount = guardians.filter((g) => g.isPayingPerson).length;
+      if (payingCount !== 1) {
+        issues.push({
+          field: "guardians.isPayingPerson",
+          message: "Exactly one guardian must be marked Responsible for fees",
+        });
+      }
+    } else if (!guardians.some((g) => g.isPayingPerson)) {
       issues.push({
         field: "guardians.isPayingPerson",
         message: "At least one paying person must be designated",
@@ -191,6 +199,13 @@ export function deriveSubmitReadiness(input: {
         message: `Required answer missing: ${q.label}`,
       });
     }
+  }
+
+  if (!financialAgreementMatchesCurrentDocuments(application, config)) {
+    issues.push({
+      field: "financialAgreement.signature",
+      message: "The financial policy and declaration must be signed before submission",
+    });
   }
 
   return { issues, canAttemptSubmit: issues.length === 0 };
@@ -287,8 +302,33 @@ export function mapValidationDetailsToGuidance(
   }));
 }
 
+export function publishedFinancialDocuments(config: PublicAdmissionsConfig | null) {
+  const documents = config?.financialDocuments || [];
+  const policy = documents.find((document) => document.kind === "FINANCIAL_POLICY");
+  const declaration = documents.find((document) => document.kind === "FINANCIAL_DECLARATION");
+  if (!policy || !declaration) return null;
+  return [policy, declaration];
+}
+
+export function financialAgreementMatchesCurrentDocuments(
+  application: ApplicantApplicationView,
+  config: PublicAdmissionsConfig | null
+): boolean {
+  const required = publishedFinancialDocuments(config);
+  if (!required) return true;
+  const acceptances = application.financialAgreement?.acceptances || [];
+  return required.every((document) =>
+    acceptances.some(
+      (acceptance) =>
+        acceptance.kind === document.kind &&
+        acceptance.contentSha256 === document.contentSha256
+    )
+  );
+}
+
 export function sectionForValidationField(field: string): "details" | "documents" | "review" {
   const f = String(field || "");
+  if (f.startsWith("financialAgreement.")) return "review";
   if (f.startsWith("answers.") || f === "privacyAccepted" || f === "declarationsAccepted") {
     return "review";
   }

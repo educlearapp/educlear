@@ -15,6 +15,12 @@ import {
 } from "./draftApplicationService";
 import { assertCanCreatePublicApplication } from "./publicAdmissionsConfig";
 import { parseRequiredDocumentConfig } from "./requiredDocumentConfig";
+import {
+  bothFinancialDocumentsPublished,
+  financialAgreementSubmitErrors,
+  listActiveLegalDocuments,
+  type FinancialAcceptanceCheck,
+} from "./financialAgreementService";
 import { gradeIsAccepted, PublicAdmissionsError } from "./resolvePublicAdmissions";
 
 function clean(value: unknown): string {
@@ -51,6 +57,7 @@ export function validateApplicationForSubmit(input: {
       citizenship: string | null;
     } | null;
     guardians: Array<{
+      id?: string;
       firstName: string;
       surname: string;
       cellNo: string | null;
@@ -61,6 +68,8 @@ export function validateApplicationForSubmit(input: {
     answers: Array<{ questionKey: string; valueJson: unknown }>;
   };
   settings: SchoolAdmissionsSettings;
+  financialDocuments?: Array<{ kind: string; title: string; contentSha256: string }>;
+  financialAcceptances?: FinancialAcceptanceCheck[];
 }): Array<{ field: string; message: string }> {
   const errors: Array<{ field: string; message: string }> = [];
   const { app, settings } = input;
@@ -147,7 +156,19 @@ export function validateApplicationForSubmit(input: {
     }
   }
 
-  return errors;
+  return [
+    ...errors,
+    ...financialAgreementSubmitErrors({
+      documents: input.financialDocuments || [],
+      acceptances: input.financialAcceptances || [],
+      guardians: app.guardians.map((guardian) => ({
+        id: guardian.id || "",
+        firstName: guardian.firstName,
+        surname: guardian.surname,
+        isPayingPerson: guardian.isPayingPerson,
+      })),
+    }),
+  ];
 }
 
 export type SubmitApplicationResult = {
@@ -205,7 +226,16 @@ export async function submitApplication(
 
   assertCanCreatePublicApplication(settings, now);
 
-  const validationErrors = validateApplicationForSubmit({ app, settings });
+  const financialDocuments = await listActiveLegalDocuments(prisma, schoolId);
+  const financialAcceptances = await prisma.admissionFinancialAcceptance.findMany({
+    where: { schoolId, applicationId: app.id },
+  });
+  const validationErrors = validateApplicationForSubmit({
+    app,
+    settings,
+    financialDocuments,
+    financialAcceptances,
+  });
   if (validationErrors.length) {
     throw new PublicAdmissionsError(
       "Application is incomplete",
@@ -256,6 +286,30 @@ export async function submitApplication(
       applicationNumber: row.applicationNumber,
     });
 
+    const lockedDocuments = await listActiveLegalDocuments(tx, schoolId);
+    const lockedAcceptances = await tx.admissionFinancialAcceptance.findMany({
+      where: { schoolId, applicationId: app.id },
+    });
+    const lockedFinancialErrors = financialAgreementSubmitErrors({
+      documents: lockedDocuments,
+      acceptances: lockedAcceptances,
+      guardians: app.guardians.map((guardian) => ({
+        id: guardian.id,
+        firstName: guardian.firstName,
+        surname: guardian.surname,
+        isPayingPerson: guardian.isPayingPerson,
+      })),
+    });
+    if (lockedFinancialErrors.length) {
+      throw new PublicAdmissionsError(
+        "Application is incomplete",
+        400,
+        "VALIDATION_FAILED",
+        lockedFinancialErrors
+      );
+    }
+    const financialAgreementRequired = bothFinancialDocumentsPublished(lockedDocuments);
+
     await tx.admissionApplication.update({
       where: { id: app.id },
       data: {
@@ -263,6 +317,7 @@ export async function submitApplication(
         submittedAt: now,
         lastApplicantActivityAt: now,
         applicationNumber,
+        financialAgreementRequired,
         feeRequired,
         feeAmount: feeAmount ?? null,
         feeCurrency: feeRequired ? feeCurrency : null,

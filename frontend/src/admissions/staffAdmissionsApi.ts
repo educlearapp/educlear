@@ -158,6 +158,17 @@ export function rejectApplication(applicationId: string, payload: { reason?: str
   return workflowPost(applicationId, "reject", payload);
 }
 
+export async function fetchStaffFinancialSignatureBlob(applicationId: string): Promise<Blob> {
+  const res = await fetch(
+    `${API_URL}/api/admissions/applications/${encodeURIComponent(applicationId)}/financial-signature`,
+    { headers: staffAuthHeaders() }
+  );
+  if (!res.ok) {
+    throw new StaffAdmissionsApiError("Could not load signature", "SIGNATURE_NOT_FOUND");
+  }
+  return res.blob();
+}
+
 
 export async function getReactivationPreflight(
   applicationId: string

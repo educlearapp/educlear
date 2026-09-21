@@ -264,6 +264,46 @@ export async function listPublicApplicantDocuments(
   };
 }
 
+export async function signPublicFinancialAgreement(
+  publicSlug: string,
+  publicAccessId: string,
+  accessToken: string,
+  input: {
+    policyAccepted: boolean;
+    declarationAccepted: boolean;
+    typedSignerName: string;
+    strokeCount: number;
+    signature: Blob;
+  }
+): Promise<ApplicantApplicationView> {
+  const slug = normalizeSlug(publicSlug);
+  const accessId = String(publicAccessId || "").trim();
+  const token = String(accessToken || "").trim();
+  if (!slug || !accessId || !token || !input.signature) {
+    throw new PublicAdmissionsApiError("Could not sign financial agreement", 400, "INVALID_SIGNATURE");
+  }
+  const body = new FormData();
+  body.append("file", input.signature, "signature.png");
+  body.append("policyAccepted", input.policyAccepted ? "true" : "false");
+  body.append("declarationAccepted", input.declarationAccepted ? "true" : "false");
+  body.append("typedSignerName", input.typedSignerName);
+  body.append("strokeCount", String(input.strokeCount));
+  const res = await fetch(`${applicationsBase(slug, accessId)}/financial-agreement`, {
+    method: "POST",
+    headers: applicantTokenOnlyHeaders(token),
+    body,
+  });
+  const payload = (await parseJson(res)) as Record<string, unknown>;
+  if (!res.ok) {
+    throwFromPayload(res, payload, "Could not sign financial agreement");
+  }
+  const application = payload.application as ApplicantApplicationView | undefined;
+  if (!payload.success || !application) {
+    throw new PublicAdmissionsApiError("Could not sign financial agreement", 500, "INVALID_RESPONSE");
+  }
+  return application;
+}
+
 export async function uploadPublicApplicantDocument(
   publicSlug: string,
   publicAccessId: string,
