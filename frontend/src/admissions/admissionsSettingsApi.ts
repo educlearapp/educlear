@@ -1,6 +1,19 @@
 import { API_URL } from "../api";
 import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 
+export type AdmissionsRequiredDocumentCondition = {
+  type: "learner_citizenship_not_south_african";
+};
+
+export type AdmissionsRequiredDocument = {
+  key: string;
+  label: string;
+  required: boolean;
+  allowMultiple: boolean;
+  maxCount: number;
+  condition: AdmissionsRequiredDocumentCondition | null;
+};
+
 export type AdmissionsSettings = {
   id: string | null;
   schoolId: string;
@@ -24,7 +37,7 @@ export type AdmissionsSettings = {
   paymentInstructions: string | null;
   admissionContactEmail: string | null;
   admissionContactPhone: string | null;
-  requiredDocuments: unknown[];
+  requiredDocuments: AdmissionsRequiredDocument[];
   applicationQuestions: unknown[];
   notificationRecipientUserIds: string[];
   privacyNoticeVersion: string | null;

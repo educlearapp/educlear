@@ -20,9 +20,8 @@ import {
 } from "./admissionsDecisionAuth";
 import { gradeIsAccepted } from "./resolvePublicAdmissions";
 import {
-  deriveDocumentCompleteness,
+  deriveConfiguredDocumentCompleteness,
   getStaffApplicationDetail,
-  parseRequiredDocumentTypes,
   StaffAdmissionsError,
   type StaffApplicationDetail,
 } from "./staffAdmissionsReadService";
@@ -771,11 +770,19 @@ async function assertAcceptanceGates(
     );
   }
 
-  const requiredTypes = parseRequiredDocumentTypes(settings.requiredDocuments);
-  const completeness = deriveDocumentCompleteness({
-    requiredDocumentTypes: requiredTypes,
+  const completeness = deriveConfiguredDocumentCompleteness({
+    requiredDocuments: settings.requiredDocuments,
     activeDocumentTypes: app.documents.map((d) => d.documentType),
+    learnerCitizenship: app.learnerCandidate?.citizenship,
   });
+  if (completeness.unresolvedConditionTypes.length) {
+    throw new StaffAdmissionsError(
+      "Learner citizenship is required to evaluate conditional documents",
+      400,
+      "CITIZENSHIP_REQUIRED_FOR_DOCUMENTS",
+      [{ field: "learner.citizenship", message: "Learner citizenship is required" }]
+    );
+  }
   if (!completeness.documentsComplete) {
     throw new StaffAdmissionsError(
       "Required documents are incomplete",
@@ -851,10 +858,22 @@ export async function acceptAdmissionApplication(
       where: { applicationId: locked.id, schoolId: actor.schoolId, deletedAt: null },
       select: { documentType: true },
     });
-    const completeness = deriveDocumentCompleteness({
-      requiredDocumentTypes: parseRequiredDocumentTypes(settings.requiredDocuments),
-      activeDocumentTypes: docs.map((d) => d.documentType),
+    const learner = await tx.admissionLearnerCandidate.findUnique({
+      where: { applicationId: locked.id },
+      select: { citizenship: true },
     });
+    const completeness = deriveConfiguredDocumentCompleteness({
+      requiredDocuments: settings.requiredDocuments,
+      activeDocumentTypes: docs.map((d) => d.documentType),
+      learnerCitizenship: learner?.citizenship,
+    });
+    if (completeness.unresolvedConditionTypes.length) {
+      throw new StaffAdmissionsError(
+        "Learner citizenship is required to evaluate conditional documents",
+        400,
+        "CITIZENSHIP_REQUIRED_FOR_DOCUMENTS"
+      );
+    }
     if (!completeness.documentsComplete) {
       throw new StaffAdmissionsError("Required documents are incomplete", 400, "DOCUMENTS_INCOMPLETE");
     }

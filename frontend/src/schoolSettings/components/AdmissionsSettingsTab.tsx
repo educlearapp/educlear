@@ -2,15 +2,30 @@ import { useEffect, useState } from "react";
 import {
   fetchAdmissionsSettings,
   saveAdmissionsSettings,
+  type AdmissionsRequiredDocument,
   type AdmissionsSettings,
 } from "../../admissions/admissionsSettingsApi";
+import { listApplications } from "../../admissions/staffAdmissionsApi";
 import { hasPermission } from "../../users/permissions";
 import { getSchoolSessionUser } from "../../auth/schoolSession";
+import {
+  BUILTIN_DOCUMENT_KEYS,
+  BUILTIN_DOCUMENTS,
+  newDocumentRequirement,
+  requiredDocumentValidation,
+} from "../admissionsRequiredDocuments";
 
 type Props = {
   canManage: boolean;
   onSaved?: () => void;
 };
+
+const ACTIVE_APPLICATION_STATUSES = [
+  "DRAFT",
+  "SUBMITTED",
+  "UNDER_REVIEW",
+  "INFO_REQUESTED",
+] as const;
 
 function emptyDraft(schoolId: string): AdmissionsSettings {
   return {
@@ -67,6 +82,8 @@ export default function AdmissionsSettingsTab({ canManage, onSaved }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [savedRequiredDocuments, setSavedRequiredDocuments] = useState("[]");
+  const [activeApplicationCount, setActiveApplicationCount] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -89,12 +106,26 @@ export default function AdmissionsSettingsTab({ canManage, onSaved }: Props) {
           admissionContactPhone: settings.admissionContactPhone || "",
         });
         setGradesText((settings.acceptedGrades || []).join(", "));
+        setSavedRequiredDocuments(JSON.stringify(settings.requiredDocuments || []));
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load settings");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
+      });
+    Promise.all(
+      ACTIVE_APPLICATION_STATUSES.map((status) =>
+        listApplications({ status, includeDrafts: true, pageSize: 1 }).then(
+          (result) => result.total
+        )
+      )
+    )
+      .then((totals) => {
+        if (!cancelled) setActiveApplicationCount(totals.reduce((sum, total) => sum + total, 0));
+      })
+      .catch(() => {
+        if (!cancelled) setActiveApplicationCount(null);
       });
     return () => {
       cancelled = true;
@@ -106,8 +137,36 @@ export default function AdmissionsSettingsTab({ canManage, onSaved }: Props) {
     setMessage(null);
   }
 
+  function patchRequiredDocument(
+    index: number,
+    next: Partial<AdmissionsRequiredDocument>
+  ) {
+    patch(
+      "requiredDocuments",
+      draft.requiredDocuments.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, ...next } : item
+      )
+    );
+  }
+
   async function handleSave() {
     if (!canManage) return;
+    const documentError = requiredDocumentValidation(draft.requiredDocuments || []);
+    if (documentError) {
+      setError(documentError);
+      return;
+    }
+    const documentsChanged =
+      JSON.stringify(draft.requiredDocuments || []) !== savedRequiredDocuments;
+    if (documentsChanged) {
+      const warning =
+        activeApplicationCount === null
+          ? "Active or pending applications could not be checked. Changing required documents can affect staff acceptance. Continue?"
+          : activeApplicationCount > 0
+            ? `Changing required documents can affect ${activeApplicationCount} active or pending application${activeApplicationCount === 1 ? "" : "s"} at staff acceptance. Continue?`
+            : null;
+      if (warning && !window.confirm(warning)) return;
+    }
     setSaving(true);
     setError(null);
     setMessage(null);
@@ -139,6 +198,7 @@ export default function AdmissionsSettingsTab({ canManage, onSaved }: Props) {
         paymentInstructions: String(draft.paymentInstructions || "").trim() || null,
         admissionContactEmail: String(draft.admissionContactEmail || "").trim() || null,
         admissionContactPhone: String(draft.admissionContactPhone || "").trim() || null,
+        requiredDocuments: draft.requiredDocuments,
       });
       setDraft({
         ...saved,
@@ -154,6 +214,7 @@ export default function AdmissionsSettingsTab({ canManage, onSaved }: Props) {
         admissionContactPhone: saved.admissionContactPhone || "",
       });
       setGradesText((saved.acceptedGrades || []).join(", "));
+      setSavedRequiredDocuments(JSON.stringify(saved.requiredDocuments || []));
       setMessage("Admissions settings saved.");
       onSaved?.();
     } catch (err) {
@@ -261,6 +322,190 @@ export default function AdmissionsSettingsTab({ canManage, onSaved }: Props) {
             style={{ display: "block", width: "100%", marginTop: 6, padding: "8px 10px" }}
           />
         </label>
+
+        <h3 className="school-settings-card-title" style={{ fontSize: "1rem", marginTop: 8 }}>
+          Required documents
+        </h3>
+        <p className="school-settings-card-hint">
+          Configure supporting documents only. Proof of payment remains in the separate
+          post-submission payment flow.
+        </p>
+        {activeApplicationCount !== null && activeApplicationCount > 0 ? (
+          <p className="school-settings-card-hint" style={{ color: "#92400e" }}>
+            Changes can affect staff acceptance checks for {activeApplicationCount} active or
+            pending application{activeApplicationCount === 1 ? "" : "s"}.
+          </p>
+        ) : null}
+        {draft.requiredDocuments.map((document, index) => {
+          const builtIn = BUILTIN_DOCUMENT_KEYS.has(
+            document.key as (typeof BUILTIN_DOCUMENTS)[number][0]
+          );
+          return (
+            <div
+              key={`${document.key}-${index}`}
+              style={{
+                display: "grid",
+                gap: 10,
+                padding: 12,
+                border: "1px solid rgba(0,0,0,0.12)",
+                borderRadius: 8,
+              }}
+            >
+              <label>
+                <span className="school-settings-card-hint">Document key</span>
+                <select
+                  className="school-settings-input"
+                  value={builtIn ? document.key : "__custom__"}
+                  disabled={!canManage}
+                  onChange={(event) => {
+                    const key = event.target.value;
+                    if (key === "__custom__") {
+                      patchRequiredDocument(index, { key: "" });
+                      return;
+                    }
+                    const label =
+                      BUILTIN_DOCUMENTS.find(([candidate]) => candidate === key)?.[1] ||
+                      document.label;
+                    patchRequiredDocument(index, { key, label });
+                  }}
+                  style={{ display: "block", width: "100%", marginTop: 6, padding: "8px 10px" }}
+                >
+                  {BUILTIN_DOCUMENTS.map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {label} ({key})
+                    </option>
+                  ))}
+                  <option value="__custom__">Custom document key</option>
+                </select>
+              </label>
+              {!builtIn ? (
+                <label>
+                  <span className="school-settings-card-hint">Custom key</span>
+                  <input
+                    className="school-settings-input"
+                    value={document.key}
+                    disabled={!canManage}
+                    onChange={(event) =>
+                      patchRequiredDocument(index, {
+                        key: event.target.value.trim().toLowerCase(),
+                      })
+                    }
+                    placeholder="e.g. previous_school_testimonial"
+                    style={{ display: "block", width: "100%", marginTop: 6, padding: "8px 10px" }}
+                  />
+                </label>
+              ) : null}
+              <label>
+                <span className="school-settings-card-hint">Display label</span>
+                <input
+                  className="school-settings-input"
+                  value={document.label}
+                  disabled={!canManage}
+                  onChange={(event) =>
+                    patchRequiredDocument(index, { label: event.target.value })
+                  }
+                  style={{ display: "block", width: "100%", marginTop: 6, padding: "8px 10px" }}
+                />
+              </label>
+              <label className="school-settings-checkbox">
+                <input
+                  type="checkbox"
+                  checked={document.required}
+                  disabled={!canManage}
+                  onChange={(event) =>
+                    patchRequiredDocument(index, { required: event.target.checked })
+                  }
+                />
+                <span>Required</span>
+              </label>
+              <label>
+                <span className="school-settings-card-hint">Requirement condition</span>
+                <select
+                  className="school-settings-input"
+                  value={document.condition?.type || ""}
+                  disabled={!canManage}
+                  onChange={(event) =>
+                    patchRequiredDocument(index, {
+                      condition: event.target.value
+                        ? { type: "learner_citizenship_not_south_african" }
+                        : null,
+                      ...(event.target.value ? { required: true } : {}),
+                    })
+                  }
+                  style={{ display: "block", width: "100%", marginTop: 6, padding: "8px 10px" }}
+                >
+                  <option value="">Always</option>
+                  <option value="learner_citizenship_not_south_african">
+                    Learner citizenship is not South African
+                  </option>
+                </select>
+              </label>
+              <label className="school-settings-checkbox">
+                <input
+                  type="checkbox"
+                  checked={document.allowMultiple}
+                  disabled={!canManage}
+                  onChange={(event) =>
+                    patchRequiredDocument(index, {
+                      allowMultiple: event.target.checked,
+                      maxCount: event.target.checked
+                        ? Math.max(2, Number(document.maxCount) || 10)
+                        : 1,
+                    })
+                  }
+                />
+                <span>Allow multiple files</span>
+              </label>
+              {document.allowMultiple ? (
+                <label>
+                  <span className="school-settings-card-hint">Maximum files (1–20)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    className="school-settings-input"
+                    value={document.maxCount}
+                    disabled={!canManage}
+                    onChange={(event) =>
+                      patchRequiredDocument(index, {
+                        maxCount: Number(event.target.value),
+                      })
+                    }
+                    style={{ display: "block", width: "100%", marginTop: 6, padding: "8px 10px" }}
+                  />
+                </label>
+              ) : null}
+              {canManage ? (
+                <button
+                  type="button"
+                  className="school-settings-btn"
+                  onClick={() =>
+                    patch(
+                      "requiredDocuments",
+                      draft.requiredDocuments.filter((_, itemIndex) => itemIndex !== index)
+                    )
+                  }
+                >
+                  Remove requirement
+                </button>
+              ) : null}
+            </div>
+          );
+        })}
+        {canManage ? (
+          <button
+            type="button"
+            className="school-settings-btn"
+            onClick={() =>
+              patch("requiredDocuments", [
+                ...draft.requiredDocuments,
+                newDocumentRequirement(draft.requiredDocuments.length),
+              ])
+            }
+          >
+            Add document requirement
+          </button>
+        ) : null}
 
         <h3 className="school-settings-card-title" style={{ fontSize: "1rem", marginTop: 8 }}>
           Admission fee
@@ -409,6 +654,7 @@ export default function AdmissionsSettingsTab({ canManage, onSaved }: Props) {
 }
 
 /** Helper for page gate — unused import guard for tree consumers. */
+// eslint-disable-next-line react-refresh/only-export-components
 export function sessionCanManageAdmissions() {
   return hasPermission(getSchoolSessionUser(), "admissions", "manage");
 }

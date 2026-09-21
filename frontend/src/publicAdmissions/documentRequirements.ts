@@ -28,6 +28,8 @@ const FALLBACK_LABELS: Record<string, string> = {
   medical_document: "Medical document",
   supporting_document: "Supporting document",
 };
+const DEFAULT_MULTIPLE_DOCUMENT_MAX_COUNT = 10;
+const MAX_MULTIPLE_DOCUMENT_MAX_COUNT = 20;
 
 export function humanizeDocumentType(documentType: string): string {
   const key = String(documentType || "").trim();
@@ -48,15 +50,42 @@ export function parseRequiredDocumentsConfig(
   const seen = new Set<string>();
   for (const item of requiredDocuments) {
     if (!item || typeof item !== "object") continue;
-    const row = item as { key?: unknown; label?: unknown; required?: unknown };
+    const row = item as {
+      key?: unknown;
+      label?: unknown;
+      required?: unknown;
+      allowMultiple?: unknown;
+      maxCount?: unknown;
+      condition?: unknown;
+    };
     const key = String(row.key || "").trim();
     if (!key || key === "proof_of_payment" || seen.has(key)) continue;
     seen.add(key);
     const labelRaw = String(row.label || "").trim();
+    const allowMultiple = row.allowMultiple === true;
+    const parsedMax = Number(row.maxCount);
+    const conditionType =
+      row.condition && typeof row.condition === "object"
+        ? String((row.condition as { type?: unknown }).type || "")
+        : typeof row.condition === "string"
+          ? row.condition
+          : "";
     out.push({
       key,
       label: labelRaw || null,
       required: row.required === true,
+      allowMultiple,
+      maxCount: allowMultiple
+        ? Number.isInteger(parsedMax) &&
+          parsedMax >= 1 &&
+          parsedMax <= MAX_MULTIPLE_DOCUMENT_MAX_COUNT
+          ? parsedMax
+          : DEFAULT_MULTIPLE_DOCUMENT_MAX_COUNT
+        : 1,
+      condition:
+        conditionType === "learner_citizenship_not_south_african"
+          ? { type: "learner_citizenship_not_south_african" }
+          : null,
     });
   }
   return out;
@@ -75,7 +104,14 @@ export function buildSupportingDocumentRequirements(input: {
   for (const raw of input.listRequiredDocumentTypes || []) {
     const key = String(raw || "").trim();
     if (!key || key === "proof_of_payment" || byKey.has(key)) continue;
-    byKey.set(key, { key, label: null, required: false });
+    byKey.set(key, {
+      key,
+      label: null,
+      required: false,
+      allowMultiple: false,
+      maxCount: 1,
+      condition: null,
+    });
   }
   return Array.from(byKey.values());
 }
@@ -106,6 +142,47 @@ export function currentDocumentForType(
   return [...matches].sort((a, b) => String(b.uploadedAt).localeCompare(String(a.uploadedAt)))[0];
 }
 
+export function documentsForType(
+  documents: ApplicantDocumentView[],
+  documentType: string
+): ApplicantDocumentView[] {
+  const key = String(documentType || "").trim();
+  return (documents || [])
+    .filter(
+      (document) =>
+        document &&
+        !document.isProofOfPayment &&
+        document.documentType !== "proof_of_payment" &&
+        String(document.documentType) === key
+    )
+    .sort((first, second) =>
+      String(second.uploadedAt).localeCompare(String(first.uploadedAt))
+    );
+}
+
+export type RequirementApplicability = "applicable" | "not_applicable" | "unresolved";
+
+export function normalizeCitizenship(value: unknown): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[._-]+/g, " ")
+    .replace(/\s+/g, " ");
+}
+
+export function evaluateRequirementApplicability(
+  requirement: PublicRequiredDocumentConfig,
+  learnerCitizenship: unknown
+): RequirementApplicability {
+  if (!requirement.condition) return "applicable";
+  const citizenship = normalizeCitizenship(learnerCitizenship);
+  if (!citizenship) return "unresolved";
+  if (["south african", "south africa", "za", "zaf", "rsa"].includes(citizenship)) {
+    return "not_applicable";
+  }
+  return "applicable";
+}
+
 export function supportingDocumentsOnly(
   documents: ApplicantDocumentView[]
 ): ApplicantDocumentView[] {
@@ -117,28 +194,44 @@ export function supportingDocumentsOnly(
 export function deriveSupportingDocumentCompleteness(input: {
   requirements: PublicRequiredDocumentConfig[];
   documents: ApplicantDocumentView[];
+  learnerCitizenship?: unknown;
 }): {
   requiredTotal: number;
   requiredUploaded: number;
   missingKeys: string[];
+  unresolvedConditionKeys: string[];
   summary: string | null;
 } {
-  const required = input.requirements.filter((r) => r.required);
   const missingKeys: string[] = [];
+  const unresolvedConditionKeys: string[] = [];
   let requiredUploaded = 0;
-  for (const req of required) {
-    if (currentDocumentForType(input.documents, req.key)) {
+  let requiredTotal = 0;
+  for (const req of input.requirements) {
+    if (!req.required) continue;
+    const applicability = evaluateRequirementApplicability(req, input.learnerCitizenship);
+    if (applicability === "not_applicable") continue;
+    if (applicability === "unresolved") {
+      unresolvedConditionKeys.push(req.key);
+      continue;
+    }
+    requiredTotal += 1;
+    if (documentsForType(input.documents, req.key).length > 0) {
       requiredUploaded += 1;
     } else {
       missingKeys.push(req.key);
     }
   }
-  const requiredTotal = required.length;
   const summary =
     requiredTotal > 0
       ? `${requiredUploaded} of ${requiredTotal} required document${requiredTotal === 1 ? "" : "s"} uploaded`
       : null;
-  return { requiredTotal, requiredUploaded, missingKeys, summary };
+  return {
+    requiredTotal,
+    requiredUploaded,
+    missingKeys,
+    unresolvedConditionKeys,
+    summary,
+  };
 }
 
 export type ClientFileValidationResult =

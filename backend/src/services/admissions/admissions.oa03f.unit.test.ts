@@ -9,6 +9,7 @@ import { permissionsForRole } from "../../utils/userPermissions";
 import {
   assertNoSensitiveAdmissionsFields,
   buildStaffApplicationsWhere,
+  deriveConfiguredDocumentCompleteness,
   deriveDocumentCompleteness,
   parseRequiredDocumentTypes,
   StaffAdmissionsError,
@@ -51,6 +52,39 @@ function main() {
   });
   assert.strictEqual(incomplete.documentsComplete, false);
   assert.deepStrictEqual(incomplete.missingDocumentTypes, ["birth_certificate"]);
+
+  const conditionalDocuments = [
+    {
+      key: "permanent_residence_permit",
+      label: "Permanent residence permit",
+      required: true,
+      condition: { type: "learner_citizenship_not_south_african" },
+    },
+  ];
+  assert.strictEqual(
+    deriveConfiguredDocumentCompleteness({
+      requiredDocuments: conditionalDocuments,
+      activeDocumentTypes: [],
+      learnerCitizenship: "South African",
+    }).documentsComplete,
+    true
+  );
+  assert.deepStrictEqual(
+    deriveConfiguredDocumentCompleteness({
+      requiredDocuments: conditionalDocuments,
+      activeDocumentTypes: [],
+      learnerCitizenship: "Zimbabwean",
+    }).missingDocumentTypes,
+    ["permanent_residence_permit"]
+  );
+  assert.deepStrictEqual(
+    deriveConfiguredDocumentCompleteness({
+      requiredDocuments: conditionalDocuments,
+      activeDocumentTypes: [],
+      learnerCitizenship: "",
+    }).unresolvedConditionTypes,
+    ["permanent_residence_permit"]
+  );
 
   // Filters
   const whereBase = buildStaffApplicationsWhere("school-a", {});

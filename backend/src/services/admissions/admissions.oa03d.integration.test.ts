@@ -63,6 +63,13 @@ async function makeSchool(suffix: string, opts?: { fee?: boolean }) {
       currency: "ZAR",
       requiredDocuments: [
         { key: "birth_certificate", label: "Birth certificate", required: true },
+        {
+          key: "parent_id",
+          label: "Parent IDs",
+          required: true,
+          allowMultiple: true,
+          maxCount: 2,
+        },
         { key: "custom_school_form", label: "School form", required: false },
       ],
       applicationQuestions: [{ key: "why", label: "Why apply?", required: true }],
@@ -171,6 +178,39 @@ async function main() {
       claimedMime: "image/jpeg",
     });
     assert.strictEqual(jpegDoc.contentType, "image/jpeg");
+    const secondParentId = await uploadApplicantDocument(
+      prisma,
+      a.slug,
+      accessA,
+      tokenA,
+      {
+        documentType: "parent_id",
+        buffer: minimalJpeg(),
+        originalFileName: "second-id.jpg",
+        claimedMime: "image/jpeg",
+      }
+    );
+    const multipleParentIds = await listApplicantDocuments(
+      prisma,
+      a.slug,
+      accessA,
+      tokenA
+    );
+    assert.strictEqual(
+      multipleParentIds.documents.filter((d) => d.documentType === "parent_id").length,
+      2
+    );
+    await assert.rejects(
+      () =>
+        uploadApplicantDocument(prisma, a.slug, accessA, tokenA, {
+          documentType: "parent_id",
+          buffer: minimalJpeg(),
+          originalFileName: "third-id.jpg",
+          claimedMime: "image/jpeg",
+        }),
+      (err: unknown) =>
+        err instanceof PublicAdmissionsError && err.code === "DOCUMENT_LIMIT_REACHED"
+    );
 
     const pngDoc = await uploadApplicantDocument(prisma, a.slug, accessA, tokenA, {
       documentType: "custom_school_form",
@@ -352,6 +392,7 @@ async function main() {
     await deleteApplicantDocument(prisma, a.slug, accessA, tokenA, jpegDoc.id);
     const afterDel = await listApplicantDocuments(prisma, a.slug, accessA, tokenA);
     assert.ok(!afterDel.documents.some((d) => d.id === jpegDoc.id));
+    assert.ok(afterDel.documents.some((d) => d.id === secondParentId.id));
 
     // Audit events present
     const audits = await prisma.admissionAuditEvent.findMany({

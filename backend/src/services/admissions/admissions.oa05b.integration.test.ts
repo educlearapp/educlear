@@ -20,6 +20,7 @@ import {
   createDraftApplication,
   updateDraftApplication,
 } from "./draftApplicationService";
+import { PublicAdmissionsError } from "./resolvePublicAdmissions";
 import { submitApplication } from "./submitApplicationService";
 import { StaffAdmissionsError } from "./staffAdmissionsReadService";
 import {
@@ -93,7 +94,7 @@ function converter(
   };
 }
 
-async function makeSchool(suffix: string) {
+async function makeSchool(suffix: string, opts?: { requiredDocuments?: unknown[] }) {
   const school = await prisma.school.create({ data: { name: `OA05B ${suffix}` } });
   const slug = `oa05b-${suffix}-${Date.now().toString(36)}`;
   await prisma.schoolAdmissionsSettings.create({
@@ -106,7 +107,9 @@ async function makeSchool(suffix: string) {
       admissionFeeRequired: false,
       currency: "ZAR",
       requirePaymentVerifiedBeforeAccept: false,
-      requiredDocuments: [{ key: "birth_certificate", label: "Birth certificate", required: true }],
+      requiredDocuments:
+        opts?.requiredDocuments ??
+        [{ key: "birth_certificate", label: "Birth certificate", required: true }],
       applicationQuestions: [{ key: "why", label: "Why apply?", required: true }],
     },
   });
@@ -248,6 +251,59 @@ async function acceptReadyApp(
   });
 }
 
+async function prepareConditionalDocumentApp(input: {
+  slug: string;
+  schoolId: string;
+  adminId: string;
+  citizenship: string | null;
+}) {
+  appSeq += 1;
+  const draft = await createDraftApplication(prisma, input.slug, {
+    requestedGrade: "Grade 1",
+    learner: { firstName: "", lastName: "" },
+  });
+  await updateDraftApplication(
+    prisma,
+    input.slug,
+    draft.application.publicAccessId,
+    draft.accessToken,
+    {
+      requestedGrade: "Grade 1",
+      intakeYear: 2027,
+      learner: {
+        firstName: `Conditional${appSeq}`,
+        lastName: "Learner",
+        birthDate: "2018-05-01",
+        citizenship: input.citizenship,
+        homeAddress: "1 Test St",
+      },
+      guardians: [
+        {
+          firstName: "Parent",
+          surname: "Learner",
+          cellNo: "0821111111",
+          isPrimary: true,
+          isPayingPerson: true,
+        },
+      ],
+      answers: [
+        {
+          questionKey: "why",
+          questionLabelSnapshot: "Why apply?",
+          valueJson: "Test",
+        },
+      ],
+      privacyAccepted: true,
+      declarationsAccepted: true,
+      privacyNoticeVersion: "v1",
+    }
+  );
+  return {
+    draft,
+    actor: staff(input.schoolId, input.adminId),
+  };
+}
+
 async function seedHistoricalLearner(input: {
   schoolId: string;
   firstName: string;
@@ -324,7 +380,18 @@ async function main() {
   try {
     const a = await makeSchool("a");
     const b = await makeSchool("b");
-    schoolIds.push(a.school.id, b.school.id);
+    const conditional = await makeSchool("conditional", {
+      requiredDocuments: [
+        { key: "birth_certificate", label: "Birth certificate", required: true },
+        {
+          key: "permanent_residence_permit",
+          label: "Permanent residence permit",
+          required: true,
+          condition: { type: "learner_citizenship_not_south_african" },
+        },
+      ],
+    });
+    schoolIds.push(a.school.id, b.school.id, conditional.school.id);
     const convA = converter(a.school.id, a.admin.id);
 
     // Auth
@@ -336,6 +403,116 @@ async function main() {
           "x"
         ),
       (e: unknown) => e instanceof StaffAdmissionsError && e.code === "ADMISSIONS_DECISION_FORBIDDEN"
+    );
+
+    const nonSouthAfrican = await prepareConditionalDocumentApp({
+      slug: conditional.slug,
+      schoolId: conditional.school.id,
+      adminId: conditional.admin.id,
+      citizenship: "Zimbabwean",
+    });
+    await uploadApplicantDocument(
+      prisma,
+      conditional.slug,
+      nonSouthAfrican.draft.application.publicAccessId,
+      nonSouthAfrican.draft.accessToken,
+      {
+        documentType: "birth_certificate",
+        buffer: minimalPdf(),
+        originalFileName: "birth.pdf",
+        claimedMime: "application/pdf",
+      }
+    );
+    await submitApplication(
+      prisma,
+      conditional.slug,
+      nonSouthAfrican.draft.application.publicAccessId,
+      nonSouthAfrican.draft.accessToken
+    );
+    const nonSouthAfricanRow = await prisma.admissionApplication.findFirstOrThrow({
+      where: { publicAccessId: nonSouthAfrican.draft.application.publicAccessId },
+    });
+    await startApplicationReview(
+      prisma,
+      nonSouthAfrican.actor,
+      nonSouthAfricanRow.id
+    );
+    await assert.rejects(
+      () =>
+        acceptAdmissionApplication(
+          prisma,
+          nonSouthAfrican.actor,
+          nonSouthAfricanRow.id
+        ),
+      (error: unknown) =>
+        error instanceof StaffAdmissionsError && error.code === "DOCUMENTS_INCOMPLETE"
+    );
+    await uploadApplicantDocument(
+      prisma,
+      conditional.slug,
+      nonSouthAfrican.draft.application.publicAccessId,
+      nonSouthAfrican.draft.accessToken,
+      {
+        documentType: "permanent_residence_permit",
+        buffer: minimalPdf(),
+        originalFileName: "permit.pdf",
+        claimedMime: "application/pdf",
+      }
+    );
+    await acceptAdmissionApplication(
+      prisma,
+      nonSouthAfrican.actor,
+      nonSouthAfricanRow.id
+    );
+
+    const southAfrican = await prepareConditionalDocumentApp({
+      slug: conditional.slug,
+      schoolId: conditional.school.id,
+      adminId: conditional.admin.id,
+      citizenship: "South African",
+    });
+    await uploadApplicantDocument(
+      prisma,
+      conditional.slug,
+      southAfrican.draft.application.publicAccessId,
+      southAfrican.draft.accessToken,
+      {
+        documentType: "birth_certificate",
+        buffer: minimalPdf(),
+        originalFileName: "birth.pdf",
+        claimedMime: "application/pdf",
+      }
+    );
+    await submitApplication(
+      prisma,
+      conditional.slug,
+      southAfrican.draft.application.publicAccessId,
+      southAfrican.draft.accessToken
+    );
+    const southAfricanRow = await prisma.admissionApplication.findFirstOrThrow({
+      where: { publicAccessId: southAfrican.draft.application.publicAccessId },
+    });
+    await startApplicationReview(prisma, southAfrican.actor, southAfricanRow.id);
+    await acceptAdmissionApplication(prisma, southAfrican.actor, southAfricanRow.id);
+
+    const unresolvedCitizenship = await prepareConditionalDocumentApp({
+      slug: conditional.slug,
+      schoolId: conditional.school.id,
+      adminId: conditional.admin.id,
+      citizenship: null,
+    });
+    await assert.rejects(
+      () =>
+        submitApplication(
+          prisma,
+          conditional.slug,
+          unresolvedCitizenship.draft.application.publicAccessId,
+          unresolvedCitizenship.draft.accessToken
+        ),
+      (error: unknown) =>
+        error instanceof PublicAdmissionsError &&
+        error.code === "VALIDATION_FAILED" &&
+        Boolean(error.details?.some((detail) => detail.field === "learner.citizenship"))
     );
 
     // 1 Exact-ID historical preflight + successful reactivation

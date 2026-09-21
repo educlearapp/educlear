@@ -14,6 +14,7 @@ import {
   type ApplicantApplicationView,
 } from "./draftApplicationService";
 import { assertCanCreatePublicApplication } from "./publicAdmissionsConfig";
+import { parseRequiredDocumentConfig } from "./requiredDocumentConfig";
 import { gradeIsAccepted, PublicAdmissionsError } from "./resolvePublicAdmissions";
 
 function clean(value: unknown): string {
@@ -47,6 +48,7 @@ export function validateApplicationForSubmit(input: {
       firstName: string;
       lastName: string;
       birthDate: Date | null;
+      citizenship: string | null;
     } | null;
     guardians: Array<{
       firstName: string;
@@ -71,6 +73,15 @@ export function validateApplicationForSubmit(input: {
   }
   if (!app.learnerCandidate?.birthDate) {
     errors.push({ field: "learner.birthDate", message: "Learner date of birth is required" });
+  }
+  const hasConditionalDocuments = parseRequiredDocumentConfig(settings.requiredDocuments).some(
+    (requirement) => requirement.required && requirement.condition
+  );
+  if (hasConditionalDocuments && !clean(app.learnerCandidate?.citizenship)) {
+    errors.push({
+      field: "learner.citizenship",
+      message: "Learner citizenship is required for document requirements",
+    });
   }
 
   if (!clean(app.requestedGrade)) {
@@ -136,7 +147,6 @@ export function validateApplicationForSubmit(input: {
     }
   }
 
-  // Document requirements deferred to secure document storage (later OA slice).
   return errors;
 }
 

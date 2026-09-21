@@ -153,6 +153,53 @@ const docsSummary = documentReviewSummary({
 assert.equal(docsSummary.requiredUploaded, 0);
 assert.ok(docsSummary.missingLabels.includes("Birth certificate"), "4. doc completeness");
 
+const conditionalConfig = baseConfig({
+  requiredDocuments: [
+    {
+      key: "permanent_residence_permit",
+      label: "Permanent residence permit",
+      required: true,
+      condition: { type: "learner_citizenship_not_south_african" },
+    },
+  ],
+});
+const unresolvedReadiness = deriveSubmitReadiness({
+  application: baseApp({
+    learner: { ...baseApp().learner!, citizenship: null },
+  }),
+  config: conditionalConfig,
+  privacyAccepted: true,
+  declarationsAccepted: true,
+  answerValues: { why: "Because" },
+});
+assert.ok(
+  unresolvedReadiness.issues.some((issue) => issue.field === "learner.citizenship")
+);
+assert.equal(
+  documentReviewSummary({
+    config: conditionalConfig,
+    documents: [],
+    learnerCitizenship: "South African",
+  }).requiredTotal,
+  0
+);
+assert.deepEqual(
+  documentReviewSummary({
+    config: conditionalConfig,
+    documents: [],
+    learnerCitizenship: "Zimbabwean",
+  }).missingLabels,
+  ["Permanent residence permit"]
+);
+assert.deepEqual(
+  documentReviewSummary({
+    config: conditionalConfig,
+    documents: [],
+    learnerCitizenship: "",
+  }).unresolvedLabels,
+  ["Permanent residence permit"]
+);
+
 assert.equal(isEditableDraftStatus("DRAFT"), true);
 assert.equal(isPostSubmitStatus("SUBMITTED"), true);
 assert.equal(isPostSubmitStatus("DRAFT"), false);

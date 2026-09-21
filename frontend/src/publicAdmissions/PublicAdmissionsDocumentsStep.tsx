@@ -4,6 +4,8 @@ import {
   buildSupportingDocumentRequirements,
   currentDocumentForType,
   deriveSupportingDocumentCompleteness,
+  documentsForType,
+  evaluateRequirementApplicability,
   labelForDocumentType,
   supportingDocumentsOnly,
   validateAdmissionsFileClient,
@@ -26,6 +28,7 @@ type Props = {
   publicAccessId: string;
   accessToken: string;
   config: PublicAdmissionsConfig | null;
+  learnerCitizenship?: string | null;
   onSessionInvalid: () => void;
   onBackToDetails: () => void;
 };
@@ -64,6 +67,7 @@ export default function PublicAdmissionsDocumentsStep({
   publicAccessId,
   accessToken,
   config,
+  learnerCitizenship,
   onSessionInvalid,
   onBackToDetails,
 }: Props) {
@@ -235,7 +239,12 @@ export default function PublicAdmissionsDocumentsStep({
   const completeness = deriveSupportingDocumentCompleteness({
     requirements,
     documents,
+    learnerCitizenship,
   });
+  const visibleRequirements = requirements.filter(
+    (requirement) =>
+      evaluateRequirementApplicability(requirement, learnerCitizenship) !== "not_applicable"
+  );
 
   if (loading) {
     return (
@@ -299,30 +308,39 @@ export default function PublicAdmissionsDocumentsStep({
           </p>
         ) : (
           <p className="pa-body">
-            {requirements.length === 0
+            {visibleRequirements.length === 0
               ? "No supporting documents are currently required for this school."
               : "Upload any optional documents listed below."}
           </p>
         )}
       </section>
 
-      {requirements.length === 0 ? (
+      {visibleRequirements.length === 0 ? (
         <section className="pa-card">
           <p className="pa-body">You can continue with your application details for now.</p>
         </section>
       ) : (
-        requirements.map((req) => {
+        visibleRequirements.map((req) => {
+          const currentDocuments = documentsForType(documents, req.key);
           const current = currentDocumentForType(documents, req.key);
           const row = busy[req.key] || {};
           const label = labelForDocumentType(req.key, requirements);
           const inputId = `${baseId}-${req.key}`;
-          const statusLabel = current
-            ? req.required
-              ? "Required — Uploaded"
-              : "Optional — Uploaded"
-            : req.required
-              ? "Required — Missing"
-              : "Optional — Not uploaded";
+          const applicability = evaluateRequirementApplicability(req, learnerCitizenship);
+          const atMaximum =
+            req.allowMultiple && currentDocuments.length >= req.maxCount;
+          const statusLabel =
+            applicability === "unresolved"
+              ? "Required if learner is not South African"
+              : currentDocuments.length
+                ? req.allowMultiple
+                  ? `${currentDocuments.length} uploaded`
+                  : req.required
+                    ? "Required — Uploaded"
+                    : "Optional — Uploaded"
+                : req.required
+                  ? "Required — Missing"
+                  : "Optional — Not uploaded";
 
           return (
             <section
@@ -336,22 +354,54 @@ export default function PublicAdmissionsDocumentsStep({
                   {label}
                 </h3>
                 <span
-                  className={`pa-doc-status ${current ? "pa-doc-status--ok" : req.required ? "pa-doc-status--missing" : "pa-doc-status--optional"}`}
+                  className={`pa-doc-status ${
+                    current
+                      ? "pa-doc-status--ok"
+                      : applicability === "unresolved"
+                        ? "pa-doc-status--optional"
+                        : req.required
+                          ? "pa-doc-status--missing"
+                          : "pa-doc-status--optional"
+                  }`}
                   data-testid={`pa-doc-status-${req.key}`}
                 >
                   {row.uploading ? "Uploading…" : statusLabel}
                 </span>
               </div>
 
-              {current ? (
-                <div className="pa-doc-current" data-testid={`pa-doc-current-${req.key}`}>
-                  <p className="pa-doc-filename">{current.originalFileName}</p>
-                  <p className="pa-body">
-                    {[formatBytes(current.byteSize), formatUploadedAt(current.uploadedAt)]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-                </div>
+              {currentDocuments.length ? (
+                currentDocuments.map((document) => (
+                  <div
+                    key={document.id}
+                    className="pa-doc-current"
+                    data-testid={`pa-doc-current-${req.key}`}
+                  >
+                    <p className="pa-doc-filename">{document.originalFileName}</p>
+                    <p className="pa-body">
+                      {[formatBytes(document.byteSize), formatUploadedAt(document.uploadedAt)]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                    <div className="pa-doc-actions">
+                      <button
+                        type="button"
+                        className="pa-secondary-btn"
+                        disabled={Boolean(row.uploading || row.deleting || row.downloading)}
+                        onClick={() => void handleDownload(req.key, document)}
+                      >
+                        {row.downloading ? "Downloading…" : "Download"}
+                      </button>
+                      <button
+                        type="button"
+                        className="pa-link-button"
+                        disabled={Boolean(row.uploading || row.deleting)}
+                        onClick={() => void handleDelete(req.key, document)}
+                      >
+                        {row.deleting ? "Removing…" : "Delete"}
+                      </button>
+                    </div>
+                  </div>
+                ))
               ) : (
                 <p className="pa-body">No file uploaded yet.</p>
               )}
@@ -370,8 +420,10 @@ export default function PublicAdmissionsDocumentsStep({
                 className="pa-file-input"
                 type="file"
                 accept={ADMISSIONS_ACCEPT_ATTR}
-                disabled={Boolean(row.uploading || row.deleting)}
-                aria-label={`${current ? "Replace" : "Upload"} ${label}`}
+                disabled={Boolean(row.uploading || row.deleting || atMaximum)}
+                aria-label={`${
+                  req.allowMultiple && current ? "Add another" : current ? "Replace" : "Upload"
+                } ${label}`}
                 onChange={(e) => {
                   const file = e.target.files?.[0] || null;
                   void handleUpload(req.key, file);
@@ -379,33 +431,19 @@ export default function PublicAdmissionsDocumentsStep({
               />
 
               <div className="pa-doc-actions">
-                <label htmlFor={inputId} className="pa-secondary-btn pa-file-label">
-                  {row.uploading
-                    ? "Uploading…"
-                    : current
-                      ? "Replace file"
-                      : "Choose file"}
-                </label>
-                {current ? (
-                  <>
-                    <button
-                      type="button"
-                      className="pa-secondary-btn"
-                      disabled={Boolean(row.uploading || row.deleting || row.downloading)}
-                      onClick={() => void handleDownload(req.key, current)}
-                    >
-                      {row.downloading ? "Downloading…" : "Download"}
-                    </button>
-                    <button
-                      type="button"
-                      className="pa-link-button"
-                      disabled={Boolean(row.uploading || row.deleting)}
-                      onClick={() => void handleDelete(req.key, current)}
-                    >
-                      {row.deleting ? "Removing…" : "Delete"}
-                    </button>
-                  </>
-                ) : null}
+                {!atMaximum ? (
+                  <label htmlFor={inputId} className="pa-secondary-btn pa-file-label">
+                    {row.uploading
+                      ? "Uploading…"
+                      : req.allowMultiple && current
+                        ? "Add another file"
+                        : current
+                          ? "Replace file"
+                          : "Choose file"}
+                  </label>
+                ) : (
+                  <span className="pa-body">Maximum of {req.maxCount} files uploaded.</span>
+                )}
               </div>
             </section>
           );

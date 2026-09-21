@@ -12,6 +12,7 @@ import {
   PublicAdmissionsError,
   resolvePublicAdmissionsBySlug,
 } from "./resolvePublicAdmissions";
+import { parseRequiredDocumentConfig } from "./requiredDocumentConfig";
 
 function decimalToString(value: Prisma.Decimal | null | undefined): string | null {
   if (value === null || value === undefined) return null;
@@ -89,7 +90,7 @@ export function buildPublicAdmissionsConfig(input: {
     requirePaymentVerifiedBeforeAccept: Boolean(settings.requirePaymentVerifiedBeforeAccept),
     admissionContactEmail: settings.admissionContactEmail,
     admissionContactPhone: settings.admissionContactPhone,
-    requiredDocuments: asJsonArray(settings.requiredDocuments),
+    requiredDocuments: parseRequiredDocumentConfig(settings.requiredDocuments),
     applicationQuestions: asJsonArray(settings.applicationQuestions),
     privacyNoticeVersion: settings.privacyNoticeVersion,
     declarationText: settings.declarationText,

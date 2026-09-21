@@ -16,6 +16,7 @@ import {
   validateDraftFormClient,
   type DraftFormClientErrors,
 } from "./draftFormState";
+import { parseRequiredDocumentsConfig } from "./documentRequirements";
 import {
   createPublicDraftApplication,
   fetchPublicAdmissionsConfig,
@@ -231,7 +232,10 @@ export default function PublicAdmissionsApplyPage() {
   async function handleSave(opts?: { silent?: boolean }): Promise<boolean> {
     if (!slug || !publicAccessId || !accessToken || saveState === "saving") return false;
     const grades = Array.isArray(config?.acceptedGrades) ? config!.acceptedGrades : [];
-    const errors = validateDraftFormClient(form, grades);
+    const requireCitizenship = parseRequiredDocumentsConfig(
+      config?.requiredDocuments
+    ).some((requirement) => requirement.required && requirement.condition);
+    const errors = validateDraftFormClient(form, grades, { requireCitizenship });
     setClientErrors(errors);
     if (hasClientErrors(errors)) {
       setSaveState("dirty");
@@ -608,6 +612,7 @@ export default function PublicAdmissionsApplyPage() {
             publicAccessId={publicAccessId}
             accessToken={accessToken}
             config={config}
+            learnerCitizenship={form.learner.citizenship}
             onSessionInvalid={handleDocumentsSessionInvalid}
             onBackToDetails={() => setActiveStep("details")}
           />
@@ -768,6 +773,7 @@ export default function PublicAdmissionsApplyPage() {
                     }))
                   }
                 />
+                <FieldError message={clientErrors.learnerCitizenship} />
               </div>
 
               <div className="pa-field">

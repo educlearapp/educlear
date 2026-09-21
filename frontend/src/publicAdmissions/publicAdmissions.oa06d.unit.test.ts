@@ -12,6 +12,8 @@ import {
   buildSupportingDocumentRequirements,
   currentDocumentForType,
   deriveSupportingDocumentCompleteness,
+  documentsForType,
+  evaluateRequirementApplicability,
   humanizeDocumentType,
   parseRequiredDocumentsConfig,
   validateAdmissionsFileClient,
@@ -79,6 +81,7 @@ const parsed = parseRequiredDocumentsConfig(baseConfig().requiredDocuments);
 assert.equal(parsed.length, 3, "1. ignores proof_of_payment from config");
 assert.ok(parsed.every((r) => r.key !== "proof_of_payment"));
 assert.ok(!parsed.some((r) => /Da Silva|dasilva/i.test(r.label || r.key)), "2. no school hardcoding");
+assert.ok(parsed.every((r) => r.allowMultiple === false && r.maxCount === 1));
 
 const requirements = buildSupportingDocumentRequirements({
   config: baseConfig(),
@@ -126,6 +129,66 @@ const completenessDone = deriveSupportingDocumentCompleteness({
 });
 assert.equal(completenessDone.requiredUploaded, 2);
 assert.equal(completenessDone.missingKeys.length, 0);
+
+const conditionalRequirements = parseRequiredDocumentsConfig([
+  {
+    key: "parent_id",
+    label: "Parent IDs",
+    required: true,
+    allowMultiple: true,
+    maxCount: 3,
+  },
+  {
+    key: "permanent_residence_permit",
+    label: "Permanent residence permit",
+    required: true,
+    condition: { type: "learner_citizenship_not_south_african" },
+  },
+]);
+assert.equal(conditionalRequirements[0]?.allowMultiple, true);
+assert.equal(conditionalRequirements[0]?.maxCount, 3);
+assert.equal(
+  evaluateRequirementApplicability(conditionalRequirements[1]!, "ZA"),
+  "not_applicable"
+);
+assert.equal(
+  evaluateRequirementApplicability(conditionalRequirements[1]!, "Zimbabwean"),
+  "applicable"
+);
+assert.equal(
+  evaluateRequirementApplicability(conditionalRequirements[1]!, ""),
+  "unresolved"
+);
+
+const multipleParentDocs = [
+  doc({ id: "p1", documentType: "parent_id", originalFileName: "parent-1.pdf" }),
+  doc({ id: "p2", documentType: "parent_id", originalFileName: "parent-2.pdf" }),
+];
+assert.equal(documentsForType(multipleParentDocs, "parent_id").length, 2);
+assert.equal(
+  deriveSupportingDocumentCompleteness({
+    requirements: conditionalRequirements,
+    documents: multipleParentDocs,
+    learnerCitizenship: "South African",
+  }).missingKeys.length,
+  0
+);
+assert.deepEqual(
+  deriveSupportingDocumentCompleteness({
+    requirements: conditionalRequirements,
+    documents: multipleParentDocs,
+    learnerCitizenship: "Zimbabwean",
+  }).missingKeys,
+  ["permanent_residence_permit"]
+);
+assert.deepEqual(
+  deriveSupportingDocumentCompleteness({
+    requirements: conditionalRequirements,
+    documents: multipleParentDocs,
+    learnerCitizenship: "",
+  }).unresolvedConditionKeys,
+  ["permanent_residence_permit"]
+);
 
 assert.equal(humanizeDocumentType("birth_certificate"), "Birth certificate");
 

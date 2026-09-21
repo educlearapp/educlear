@@ -6,6 +6,10 @@
  */
 
 import { Prisma, type PrismaClient } from "@prisma/client";
+import {
+  parseRequiredDocumentConfig,
+  RequiredDocumentConfigError,
+} from "./requiredDocumentConfig";
 
 export const ADMISSIONS_DEFAULT_CURRENCY = "ZAR";
 
@@ -57,6 +61,17 @@ function asStringArray(value: unknown): string[] {
 function asJsonArray(value: unknown): Prisma.InputJsonValue {
   if (!Array.isArray(value)) return [];
   return value as Prisma.InputJsonValue;
+}
+
+function validatedRequiredDocuments(value: unknown): Prisma.InputJsonValue {
+  try {
+    return parseRequiredDocumentConfig(value, { strict: true }) as unknown as Prisma.InputJsonValue;
+  } catch (error) {
+    if (error instanceof RequiredDocumentConfigError) {
+      throw new AdmissionsSettingsValidationError(error.message);
+    }
+    throw error;
+  }
 }
 
 function optionalTrimmed(value: unknown): string | null {
@@ -176,7 +191,7 @@ export function serializeAdmissionsSettings(
     paymentInstructions: row.paymentInstructions,
     admissionContactEmail: row.admissionContactEmail,
     admissionContactPhone: row.admissionContactPhone,
-    requiredDocuments: asJsonArray(row.requiredDocuments) as unknown[],
+    requiredDocuments: parseRequiredDocumentConfig(row.requiredDocuments) as unknown[],
     applicationQuestions: asJsonArray(row.applicationQuestions) as unknown[],
     notificationRecipientUserIds: asStringArray(row.notificationRecipientUserIds),
     privacyNoticeVersion: row.privacyNoticeVersion,
@@ -319,7 +334,7 @@ export async function upsertSchoolAdmissionsSettings(
         : existing?.admissionContactPhone ?? null,
     requiredDocuments:
       body.requiredDocuments !== undefined
-        ? asJsonArray(body.requiredDocuments)
+        ? validatedRequiredDocuments(body.requiredDocuments)
         : asJsonArray(existing?.requiredDocuments),
     applicationQuestions:
       body.applicationQuestions !== undefined

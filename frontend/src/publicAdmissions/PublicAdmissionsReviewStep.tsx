@@ -1,6 +1,8 @@
 import { useEffect, useId, useState } from "react";
 import {
   buildSupportingDocumentRequirements,
+  documentsForType,
+  evaluateRequirementApplicability,
   labelForDocumentType,
 } from "./documentRequirements";
 import {
@@ -125,11 +127,19 @@ export default function PublicAdmissionsReviewStep({
     config,
     documents,
     listRequiredDocumentTypes: listRequiredTypes,
+    learnerCitizenship: application.learner?.citizenship,
   });
   const requirements = buildSupportingDocumentRequirements({
     config,
     listRequiredDocumentTypes: listRequiredTypes,
   });
+  const visibleRequirements = requirements.filter(
+    (requirement) =>
+      evaluateRequirementApplicability(
+        requirement,
+        application.learner?.citizenship
+      ) !== "not_applicable"
+  );
 
   const learner = application.learner;
   /** School-configured declaration only — never invent legal/declaration wording. */
@@ -327,16 +337,30 @@ export default function PublicAdmissionsReviewStep({
                 {docSummary.missingLabels.join(", ")}
               </p>
             ) : null}
+            {docSummary.unresolvedLabels.length > 0 ? (
+              <p className="pa-body" data-testid="pa-review-docs-conditional">
+                Add learner citizenship to determine whether this document is required:{" "}
+                {docSummary.unresolvedLabels.join(", ")}
+              </p>
+            ) : null}
             <ul className="pa-review-doc-list">
-              {requirements.map((req) => {
-                const current = documents.find((d) => d.documentType === req.key);
+              {visibleRequirements.map((req) => {
+                const matching = documentsForType(documents, req.key);
+                const applicability = evaluateRequirementApplicability(
+                  req,
+                  application.learner?.citizenship
+                );
                 return (
                   <li key={req.key}>
                     <strong>{labelForDocumentType(req.key, requirements)}</strong>
                     {" — "}
-                    {current
-                      ? `Uploaded (${current.originalFileName})`
-                      : req.required
+                    {matching.length
+                      ? matching.length === 1
+                        ? `Uploaded (${matching[0].originalFileName})`
+                        : `${matching.length} files uploaded`
+                      : applicability === "unresolved"
+                        ? "Required if learner is not South African"
+                        : req.required
                         ? "Missing"
                         : "Not uploaded"}
                   </li>

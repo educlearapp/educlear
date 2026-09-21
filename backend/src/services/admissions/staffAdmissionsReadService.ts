@@ -14,6 +14,11 @@ import {
   resolveLocalAdmissionsDocumentFile,
 } from "./admissionsDocumentService";
 import { buildPostEnrolmentSummary, type PostEnrolmentSummary } from "./admissionsPostEnrolmentService";
+import {
+  deriveRequiredDocumentCompleteness,
+  evaluateRequiredDocumentApplicability,
+  parseRequiredDocumentConfig,
+} from "./requiredDocumentConfig";
 import { PublicAdmissionsError } from "./resolvePublicAdmissions";
 
 export class StaffAdmissionsError extends Error {
@@ -49,24 +54,16 @@ function iso(value: Date | null | undefined): string | null {
 
 /** Required document type keys from school settings (required !== false when key present). */
 export function parseRequiredDocumentTypes(requiredDocuments: unknown): string[] {
-  if (!Array.isArray(requiredDocuments)) return [];
-  const keys: string[] = [];
-  for (const item of requiredDocuments) {
-    if (!item || typeof item !== "object") continue;
-    const row = item as { key?: unknown; required?: unknown };
-    const key = clean(row.key);
-    if (!key || key === "proof_of_payment") continue;
-    // Only explicitly required documents count toward completeness
-    if (row.required !== true) continue;
-    keys.push(key);
-  }
-  return keys;
+  return parseRequiredDocumentConfig(requiredDocuments)
+    .filter((item) => item.required)
+    .map((item) => item.key);
 }
 
 export type DocumentCompleteness = {
   requiredDocumentTypes: string[];
   uploadedDocumentTypes: string[];
   missingDocumentTypes: string[];
+  unresolvedConditionTypes: string[];
   documentsComplete: boolean;
 };
 
@@ -85,7 +82,42 @@ export function deriveDocumentCompleteness(input: {
     requiredDocumentTypes: required,
     uploadedDocumentTypes: uploaded,
     missingDocumentTypes: missing,
+    unresolvedConditionTypes: [],
     documentsComplete: missing.length === 0,
+  };
+}
+
+export function deriveConfiguredDocumentCompleteness(input: {
+  requiredDocuments: unknown;
+  activeDocumentTypes: string[];
+  learnerCitizenship?: unknown;
+}): DocumentCompleteness {
+  const requirements = parseRequiredDocumentConfig(input.requiredDocuments);
+  const derived = deriveRequiredDocumentCompleteness({
+    requirements,
+    activeDocumentTypes: input.activeDocumentTypes,
+    learnerCitizenship: input.learnerCitizenship,
+  });
+  const uploaded = Array.from(
+    new Set(input.activeDocumentTypes.map((type) => clean(type)).filter(Boolean))
+  ).sort();
+  const required = requirements
+    .filter(
+      (item) =>
+        item.required &&
+        evaluateRequiredDocumentApplicability(item, input.learnerCitizenship) !==
+          "not_applicable"
+    )
+    .map((item) => item.key);
+  return {
+    requiredDocumentTypes: required,
+    uploadedDocumentTypes: uploaded,
+    missingDocumentTypes: [
+      ...derived.missingDocumentTypes,
+      ...derived.unresolvedConditionTypes,
+    ],
+    unresolvedConditionTypes: derived.unresolvedConditionTypes,
+    documentsComplete: derived.documentsComplete,
   };
 }
 
@@ -349,7 +381,7 @@ export async function listStaffApplications(
     where: { schoolId: sid },
     select: { requiredDocuments: true },
   });
-  const requiredTypes = parseRequiredDocumentTypes(settings?.requiredDocuments ?? []);
+  const requiredDocuments = settings?.requiredDocuments ?? [];
 
   const [total, rows] = await Promise.all([
     prisma.admissionApplication.count({ where }),
@@ -376,7 +408,7 @@ export async function listStaffApplications(
         feeRequired: true,
         feeAmount: true,
         feeCurrency: true,
-        learnerCandidate: { select: { firstName: true, lastName: true } },
+        learnerCandidate: { select: { firstName: true, lastName: true, citizenship: true } },
         guardians: {
           select: {
             firstName: true,
@@ -405,9 +437,10 @@ export async function listStaffApplications(
   ]);
 
   const items: StaffApplicationListItem[] = rows.map((row) => {
-    const completeness = deriveDocumentCompleteness({
-      requiredDocumentTypes: requiredTypes,
+    const completeness = deriveConfiguredDocumentCompleteness({
+      requiredDocuments,
       activeDocumentTypes: row.documents.map((d) => d.documentType),
+      learnerCitizenship: row.learnerCandidate?.citizenship,
     });
     const guardian = primaryGuardianSummary(row.guardians);
     const feeRequired = Boolean(row.feeRecord?.required ?? row.feeRequired);
@@ -593,7 +626,7 @@ export async function getStaffApplicationDetail(
     where: { schoolId: sid },
     select: { requiredDocuments: true },
   });
-  const requiredTypes = parseRequiredDocumentTypes(settings?.requiredDocuments ?? []);
+  const requiredDocuments = settings?.requiredDocuments ?? [];
 
   const app = await prisma.admissionApplication.findFirst({
     where: { id: appId, schoolId: sid },
@@ -628,9 +661,10 @@ export async function getStaffApplicationDetail(
   }
 
   const docs = app.documents.map(toStaffDocumentMeta);
-  const completeness = deriveDocumentCompleteness({
-    requiredDocumentTypes: requiredTypes,
+  const completeness = deriveConfiguredDocumentCompleteness({
+    requiredDocuments,
     activeDocumentTypes: docs.map((d) => d.documentType),
+    learnerCitizenship: app.learnerCandidate?.citizenship,
   });
 
   let proofDocument: StaffDocumentMeta | null = null;

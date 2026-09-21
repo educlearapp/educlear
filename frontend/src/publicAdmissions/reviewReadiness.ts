@@ -6,6 +6,7 @@ import {
   buildSupportingDocumentRequirements,
   currentDocumentForType,
   deriveSupportingDocumentCompleteness,
+  parseRequiredDocumentsConfig,
 } from "./documentRequirements";
 import type {
   ApplicantApplicationView,
@@ -91,6 +92,15 @@ export function deriveSubmitReadiness(input: {
   }
   if (!learner?.birthDate) {
     issues.push({ field: "learner.birthDate", message: "Learner date of birth is required" });
+  }
+  const hasConditionalDocuments = parseRequiredDocumentsConfig(
+    config?.requiredDocuments
+  ).some((requirement) => requirement.required && requirement.condition);
+  if (hasConditionalDocuments && !clean(learner?.citizenship)) {
+    issues.push({
+      field: "learner.citizenship",
+      message: "Learner citizenship is required for document requirements",
+    });
   }
   if (!clean(application.requestedGrade)) {
     issues.push({ field: "requestedGrade", message: "Requested grade is required" });
@@ -190,10 +200,12 @@ export function documentReviewSummary(input: {
   config: PublicAdmissionsConfig | null;
   documents: ApplicantDocumentView[];
   listRequiredDocumentTypes?: string[];
+  learnerCitizenship?: string | null;
 }): {
   requiredTotal: number;
   requiredUploaded: number;
   missingLabels: string[];
+  unresolvedLabels: string[];
   summary: string | null;
 } {
   const requirements = buildSupportingDocumentRequirements({
@@ -203,8 +215,13 @@ export function documentReviewSummary(input: {
   const completeness = deriveSupportingDocumentCompleteness({
     requirements,
     documents: input.documents,
+    learnerCitizenship: input.learnerCitizenship,
   });
   const missingLabels = completeness.missingKeys.map((key) => {
+    const req = requirements.find((r) => r.key === key);
+    return req?.label || key;
+  });
+  const unresolvedLabels = completeness.unresolvedConditionKeys.map((key) => {
     const req = requirements.find((r) => r.key === key);
     return req?.label || key;
   });
@@ -212,6 +229,7 @@ export function documentReviewSummary(input: {
     requiredTotal: completeness.requiredTotal,
     requiredUploaded: completeness.requiredUploaded,
     missingLabels,
+    unresolvedLabels,
     summary: completeness.summary,
   };
 }

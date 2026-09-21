@@ -173,6 +173,7 @@ export function buildUpdateDraftBody(
 export type DraftFormClientErrors = {
   learnerFirstName?: string;
   learnerLastName?: string;
+  learnerCitizenship?: string;
   requestedGrade?: string;
   guardians?: string;
   primary?: string;
@@ -182,7 +183,8 @@ export type DraftFormClientErrors = {
 /** Soft UX validation — server remains authoritative. */
 export function validateDraftFormClient(
   form: DraftApplicationFormState,
-  acceptedGrades: string[]
+  acceptedGrades: string[],
+  options?: { requireCitizenship?: boolean }
 ): DraftFormClientErrors {
   const errors: DraftFormClientErrors = {};
   if (!form.learner.firstName.trim()) {
@@ -190,6 +192,10 @@ export function validateDraftFormClient(
   }
   if (!form.learner.lastName.trim()) {
     errors.learnerLastName = "Learner surname is required.";
+  }
+  if (options?.requireCitizenship && !form.learner.citizenship.trim()) {
+    errors.learnerCitizenship =
+      "Learner citizenship is required for document requirements.";
   }
   if (acceptedGrades.length > 0 && !form.requestedGrade.trim()) {
     errors.requestedGrade = "Please select a grade.";

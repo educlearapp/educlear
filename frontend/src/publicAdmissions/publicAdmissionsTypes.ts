@@ -247,6 +247,11 @@ export type PublicRequiredDocumentConfig = {
   key: string;
   label: string | null;
   required: boolean;
+  allowMultiple: boolean;
+  maxCount: number;
+  condition: {
+    type: "learner_citizenship_not_south_african";
+  } | null;
 };
 
 /** Applicant document list item from public documents API. */

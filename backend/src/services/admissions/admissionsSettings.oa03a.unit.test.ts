@@ -216,6 +216,45 @@ async function main() {
   assert.strictEqual(saved.defaultAdmissionFeeAmount, "1600.00");
   assert.strictEqual(saved.publicSlug, "demo-school");
 
+  const savedDocuments = await upsertSchoolAdmissionsSettings(okPrisma, schoolA, {
+    enabled: false,
+    requiredDocuments: [
+      {
+        key: "parent_id",
+        label: "Parent IDs",
+        required: true,
+        allowMultiple: true,
+        maxCount: 3,
+      },
+      {
+        key: "permanent_residence_permit",
+        label: "Permanent residence permit",
+        required: true,
+        condition: { type: "learner_citizenship_not_south_african" },
+      },
+    ],
+  });
+  assert.strictEqual(savedDocuments.requiredDocuments.length, 2);
+  assert.strictEqual((savedDocuments.requiredDocuments[0] as any).allowMultiple, true);
+
+  for (const requiredDocuments of [
+    [
+      { key: "parent_id", label: "Parent ID", required: true },
+      { key: "parent_id", label: "Duplicate", required: true },
+    ],
+    [{ key: "../unsafe", label: "Unsafe", required: true }],
+    [{ key: "proof_of_payment", label: "Proof", required: true }],
+  ]) {
+    await assert.rejects(
+      () =>
+        upsertSchoolAdmissionsSettings(okPrisma, schoolA, {
+          enabled: false,
+          requiredDocuments,
+        }),
+      AdmissionsSettingsValidationError
+    );
+  }
+
   // Cross-tenant body rejected even if upsert would otherwise work
   let crossThrown = false;
   try {

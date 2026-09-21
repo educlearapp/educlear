@@ -13,6 +13,10 @@ import {
   validateAdmissionsUploadBuffer,
 } from "./admissionsFileValidation";
 import { loadOwnedApplicationForApplicant } from "./draftApplicationService";
+import {
+  findRequiredDocumentConfig,
+  parseRequiredDocumentConfig,
+} from "./requiredDocumentConfig";
 import { PublicAdmissionsError } from "./resolvePublicAdmissions";
 
 export const ADMISSIONS_STORAGE_PROVIDER = "local_disk";
@@ -67,15 +71,7 @@ function clean(value: unknown): string {
 }
 
 function configuredDocumentKeys(settings: { requiredDocuments: unknown }): string[] {
-  const raw = settings.requiredDocuments;
-  if (!Array.isArray(raw)) return [];
-  const keys: string[] = [];
-  for (const item of raw) {
-    if (!item || typeof item !== "object") continue;
-    const key = clean((item as { key?: unknown }).key);
-    if (key) keys.push(key);
-  }
-  return keys;
+  return parseRequiredDocumentConfig(settings.requiredDocuments).map((item) => item.key);
 }
 
 export function isAllowedDocumentType(
@@ -228,6 +224,7 @@ export async function uploadApplicantDocument(
   if (!isAllowedDocumentType(documentType, settings)) {
     throw new PublicAdmissionsError("Unknown document type", 400, "INVALID_DOCUMENT_TYPE");
   }
+  const documentConfig = findRequiredDocumentConfig(settings.requiredDocuments, documentType);
 
   let validated;
   try {
@@ -253,6 +250,23 @@ export async function uploadApplicantDocument(
 
   try {
     const created = await prisma.$transaction(async (tx) => {
+      if (documentConfig?.allowMultiple) {
+        const activeCount = await tx.admissionDocument.count({
+          where: {
+            schoolId,
+            applicationId: app.id,
+            documentType,
+            deletedAt: null,
+          },
+        });
+        if (activeCount >= documentConfig.maxCount) {
+          throw new PublicAdmissionsError(
+            `A maximum of ${documentConfig.maxCount} files may be uploaded for this document`,
+            409,
+            "DOCUMENT_LIMIT_REACHED"
+          );
+        }
+      }
       const doc = await tx.admissionDocument.create({
         data: {
           schoolId,
@@ -268,12 +282,14 @@ export async function uploadApplicantDocument(
           scanStatus: "NOT_SCANNED",
         },
       });
-      await softReplaceActiveDocuments(tx, {
-        schoolId,
-        applicationId: app.id,
-        documentType,
-        newDocumentId: doc.id,
-      });
+      if (!documentConfig?.allowMultiple) {
+        await softReplaceActiveDocuments(tx, {
+          schoolId,
+          applicationId: app.id,
+          documentType,
+          newDocumentId: doc.id,
+        });
+      }
       await tx.admissionAuditEvent.create({
         data: {
           schoolId,
