@@ -71,6 +71,73 @@ export function rgbPng(
   ]);
 }
 
+function paethPredictor(a: number, b: number, c: number): number {
+  const p = a + b - c;
+  const pa = Math.abs(p - a);
+  const pb = Math.abs(p - b);
+  const pc = Math.abs(p - c);
+  if (pa <= pb && pa <= pc) return a;
+  if (pb <= pc) return b;
+  return c;
+}
+
+/** Browser-like RGBA PNG with a controllable first-row filter (0–4). */
+export function rgbaPng(input: {
+  width: number;
+  height: number;
+  firstRowFilter: number;
+  paint: (x: number, y: number) => [number, number, number, number];
+}): Buffer {
+  const { width, height, firstRowFilter, paint } = input;
+  const channels = 4;
+  const stride = width * channels;
+  const recon: Buffer[] = [];
+  for (let y = 0; y < height; y += 1) {
+    const row = Buffer.alloc(stride);
+    for (let x = 0; x < width; x += 1) {
+      const [r, g, b, a] = paint(x, y);
+      const i = x * channels;
+      row[i] = r;
+      row[i + 1] = g;
+      row[i + 2] = b;
+      row[i + 3] = a;
+    }
+    recon.push(row);
+  }
+  const raw = Buffer.alloc(height * (1 + stride));
+  let cursor = 0;
+  for (let y = 0; y < height; y += 1) {
+    const filter = y === 0 ? firstRowFilter : 0;
+    const row = recon[y];
+    const prev = recon[y - 1];
+    raw[cursor] = filter;
+    cursor += 1;
+    for (let i = 0; i < stride; i += 1) {
+      const left = i >= channels ? row[i - channels] : 0;
+      const up = prev ? prev[i] : 0;
+      const upLeft = prev && i >= channels ? prev[i - channels] : 0;
+      if (filter === 0) raw[cursor] = row[i];
+      else if (filter === 1) raw[cursor] = (row[i] - left) & 255;
+      else if (filter === 2) raw[cursor] = (row[i] - up) & 255;
+      else if (filter === 3) raw[cursor] = (row[i] - Math.floor((left + up) / 2)) & 255;
+      else if (filter === 4) raw[cursor] = (row[i] - paethPredictor(left, up, upLeft)) & 255;
+      else throw new Error(`unsupported filter ${filter}`);
+      cursor += 1;
+    }
+  }
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 6;
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    pngChunk("IHDR", ihdr),
+    pngChunk("IDAT", zlib.deflateSync(raw)),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
 function expectCode(fn: () => void, code: string) {
   try {
     fn();
@@ -91,8 +158,8 @@ function main() {
 
   const blank = rgbPng(2, 2, () => [255, 255, 255]);
   const ink = rgbPng(2, 2, (x, y) => (x === 0 && y === 0 ? [0, 0, 0] : [255, 255, 255]));
-  assert.strictEqual(pngHasVisibleInk(blank), false);
-  assert.strictEqual(pngHasVisibleInk(ink), true);
+  assert.strictEqual(pngHasVisibleInk(blank), false, "RGB filter-0 blank still rejected");
+  assert.strictEqual(pngHasVisibleInk(ink), true, "RGB filter-0 ink still accepted");
   expectCode(() => validateFinancialSignaturePng(Buffer.alloc(0), 1), "SIGNATURE_REQUIRED");
   expectCode(() => validateFinancialSignaturePng(ink, 0), "SIGNATURE_STROKE_REQUIRED");
   expectCode(() => validateFinancialSignaturePng(blank, 1), "SIGNATURE_BLANK");
@@ -105,6 +172,47 @@ function main() {
     "INVALID_SIGNATURE_TYPE"
   );
   validateFinancialSignaturePng(ink, 1);
+
+  const browserLikeInk = rgbaPng({
+    width: 40,
+    height: 20,
+    firstRowFilter: 2,
+    paint: (x, y) =>
+      y === 10 && x >= 5 && x < 15 ? [17, 17, 17, 255] : [255, 255, 255, 255],
+  });
+  const browserLikeBlank = rgbaPng({
+    width: 40,
+    height: 20,
+    firstRowFilter: 2,
+    paint: () => [255, 255, 255, 255],
+  });
+  assert.strictEqual(
+    pngHasVisibleInk(browserLikeInk),
+    true,
+    "RGBA first-row Up filter with later ink must be accepted"
+  );
+  assert.strictEqual(
+    pngHasVisibleInk(browserLikeBlank),
+    false,
+    "RGBA first-row Up filter all-white must stay blank"
+  );
+  validateFinancialSignaturePng(browserLikeInk, 1);
+  expectCode(() => validateFinancialSignaturePng(browserLikeBlank, 1), "SIGNATURE_BLANK");
+
+  for (const firstRowFilter of [1, 3, 4]) {
+    const filteredInk = rgbaPng({
+      width: 16,
+      height: 8,
+      firstRowFilter,
+      paint: (x, y) =>
+        y === 4 && x === 4 ? [0, 0, 0, 255] : [255, 255, 255, 255],
+    });
+    assert.strictEqual(
+      pngHasVisibleInk(filteredInk),
+      true,
+      `first-row filter ${firstRowFilter} with later ink remains accepted`
+    );
+  }
 
   const documents = [
     { kind: "FINANCIAL_POLICY", title: "Policy", contentSha256: "hash-policy" },

@@ -282,8 +282,12 @@ export function pngHasVisibleInk(buffer: Buffer): boolean {
         else if (filter === 3) row[i] = (row[i] + Math.floor((left + up) / 2)) & 255;
         else row[i] = (row[i] + paeth(left, up, upLeft)) & 255;
       }
-    } else if (filter === 2 && prev) {
-      for (let i = 0; i < row.length; i += 1) row[i] = (row[i] + prev[i]) & 255;
+    } else if (filter === 2) {
+      // PNG Up: on the first row, prior-row bytes are 0 (browsers often emit filter 2 here).
+      for (let i = 0; i < row.length; i += 1) {
+        const up = prev ? prev[i] : 0;
+        row[i] = (row[i] + up) & 255;
+      }
     } else if (filter !== 0) {
       return false;
     }
