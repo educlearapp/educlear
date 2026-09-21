@@ -20,6 +20,17 @@ export const DEFAULT_CORS_ALLOWED_ORIGINS: readonly string[] = [
   "https://www.educlear.co.za",
 ];
 
+/** Headers accepted by the shared backend CORS middleware. */
+export const DEFAULT_CORS_ALLOWED_HEADERS: readonly string[] = [
+  "Content-Type",
+  "Authorization",
+  "X-Admissions-Access-Token",
+  "Cache-Control",
+  "Pragma",
+  "Expires",
+  "Idempotency-Key",
+];
+
 export class OutboundEmailDisabledError extends Error {
   readonly code = "OUTBOUND_EMAIL_DISABLED" as const;
 

@@ -7,6 +7,7 @@ import fs from "fs";
 import path from "path";
 import multer from "multer";
 import {
+  DEFAULT_CORS_ALLOWED_HEADERS,
   isCorsOriginAllowed,
   resolveCorsAllowedOrigins,
 } from "./utils/outboundSafety"; 
@@ -286,14 +287,7 @@ const corsOptions: cors.CorsOptions = {
     }
   },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: [
-    "Content-Type",
-    "Authorization",
-    "Cache-Control",
-    "Pragma",
-    "Expires",
-    "Idempotency-Key",
-  ],
+  allowedHeaders: [...DEFAULT_CORS_ALLOWED_HEADERS],
   credentials: true,
 };
 
