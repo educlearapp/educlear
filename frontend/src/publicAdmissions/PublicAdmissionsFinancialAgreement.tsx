@@ -34,6 +34,10 @@ export default function PublicAdmissionsFinancialAgreement({
 }: Props) {
   const formId = useId();
   const documents = publishedFinancialDocuments(config);
+  const policyDocumentId =
+    documents?.find((document) => document.kind === "FINANCIAL_POLICY")?.id ?? "";
+  const declarationDocumentId =
+    documents?.find((document) => document.kind === "FINANCIAL_DECLARATION")?.id ?? "";
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawing = useRef(false);
   const moved = useRef(false);
@@ -46,6 +50,7 @@ export default function PublicAdmissionsFinancialAgreement({
   const responsibleName = payerName(application);
   const signed = financialAgreementMatchesCurrentDocuments(application, config);
 
+  // Init only when published document identity changes — never on stroke/checkbox/typed-name/parent rerenders.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -57,7 +62,7 @@ export default function PublicAdmissionsFinancialAgreement({
     context.lineWidth = 2.5;
     context.lineCap = "round";
     context.lineJoin = "round";
-  }, [documents]);
+  }, [policyDocumentId, declarationDocumentId]);
 
   if (!documents) return null;
 

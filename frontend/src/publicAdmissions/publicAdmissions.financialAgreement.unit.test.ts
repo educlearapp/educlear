@@ -1,5 +1,5 @@
 /**
- * Financial agreement review readiness.
+ * Financial agreement review readiness + signature/submit wiring.
  * Run: npx tsx src/publicAdmissions/publicAdmissions.financialAgreement.unit.test.ts
  */
 import assert from "assert";
@@ -32,7 +32,9 @@ function config(financialDocuments?: PublicAdmissionsConfig["financialDocuments"
     requirePaymentVerifiedBeforeAccept: false,
     admissionContactEmail: null,
     admissionContactPhone: null,
-    requiredDocuments: [],
+    requiredDocuments: [
+      { key: "birth_certificate", label: "Birth certificate", required: true },
+    ],
     applicationQuestions: [],
     privacyNoticeVersion: "v1",
     declarationText: "I confirm.",
@@ -119,6 +121,15 @@ const documents = [
   },
 ];
 
+const signedAcceptances = {
+  signed: true as const,
+  signerFullName: "Mary Jane",
+  acceptances: [
+    { kind: "FINANCIAL_POLICY" as const, contentSha256: "policy-hash" },
+    { kind: "FINANCIAL_DECLARATION" as const, contentSha256: "declaration-hash" },
+  ],
+};
+
 const withoutDocuments = deriveSubmitReadiness({
   application: app(),
   config: config(),
@@ -140,7 +151,7 @@ const unsigned = deriveSubmitReadiness({
   answerValues: {},
 });
 assert.ok(unsigned.issues.some((issue) => issue.field === "financialAgreement.signature"));
-assert.strictEqual(unsigned.canAttemptSubmit, false);
+assert.strictEqual(unsigned.canAttemptSubmit, false, "unsigned Financial Agreement disables Submit");
 assert.strictEqual(financialAgreementMatchesCurrentDocuments(app(), config(documents)), false);
 
 const stale = app({
@@ -155,16 +166,7 @@ const stale = app({
 });
 assert.strictEqual(financialAgreementMatchesCurrentDocuments(stale, config(documents)), false);
 
-const current = app({
-  financialAgreement: {
-    signed: true,
-    signerFullName: "Mary Jane",
-    acceptances: [
-      { kind: "FINANCIAL_POLICY", contentSha256: "policy-hash" },
-      { kind: "FINANCIAL_DECLARATION", contentSha256: "declaration-hash" },
-    ],
-  },
-});
+const current = app({ financialAgreement: signedAcceptances });
 const signed = deriveSubmitReadiness({
   application: current,
   config: config(documents),
@@ -172,7 +174,59 @@ const signed = deriveSubmitReadiness({
   declarationsAccepted: true,
   answerValues: {},
 });
-assert.strictEqual(signed.canAttemptSubmit, true);
+assert.strictEqual(
+  signed.canAttemptSubmit,
+  true,
+  "signed current FA + privacy + declarations + complete application enables Submit"
+);
+
+const privacyUnchecked = deriveSubmitReadiness({
+  application: app({
+    privacyAcceptedAt: null,
+    financialAgreement: signedAcceptances,
+  }),
+  config: config(documents),
+  privacyAccepted: false,
+  declarationsAccepted: true,
+  answerValues: {},
+});
+assert.ok(privacyUnchecked.issues.some((issue) => issue.field === "privacyAccepted"));
+assert.strictEqual(privacyUnchecked.canAttemptSubmit, false, "privacy unchecked disables Submit");
+
+const declarationsUnchecked = deriveSubmitReadiness({
+  application: app({
+    declarationsAcceptedAt: null,
+    financialAgreement: signedAcceptances,
+  }),
+  config: config(documents),
+  privacyAccepted: true,
+  declarationsAccepted: false,
+  answerValues: {},
+});
+assert.ok(declarationsUnchecked.issues.some((issue) => issue.field === "declarationsAccepted"));
+assert.strictEqual(
+  declarationsUnchecked.canAttemptSubmit,
+  false,
+  "declarations unchecked disables Submit"
+);
+
+const missingDocsOnly = deriveSubmitReadiness({
+  application: current,
+  config: config(documents),
+  privacyAccepted: true,
+  declarationsAccepted: true,
+  answerValues: {},
+});
+assert.strictEqual(
+  missingDocsOnly.canAttemptSubmit,
+  true,
+  "missing supporting documents alone do not disable Submit"
+);
+assert.ok(
+  Array.isArray(config(documents).requiredDocuments) &&
+    (config(documents).requiredDocuments as unknown[]).length > 0,
+  "config still lists required supporting documents"
+);
 
 const twoPayers = app({
   guardians: [
@@ -226,12 +280,67 @@ const agreement = fs.readFileSync(
   path.join(__dirname, "PublicAdmissionsFinancialAgreement.tsx"),
   "utf8"
 );
+
 assert.match(review, /PublicAdmissionsFinancialAgreement/);
+assert.match(
+  review,
+  /disabled=\{submitting \|\| !readiness\.canAttemptSubmit\}/,
+  "Submit button uses full readiness gate"
+);
+assert.match(
+  review,
+  /if \(!readiness\.canAttemptSubmit\) \{\s*return;\s*\}/,
+  "handleSubmit returns when readiness fails"
+);
+assert.doesNotMatch(
+  review,
+  /if \(!financialAgreementMatchesCurrentDocuments/,
+  "FA-only early return removed as redundant"
+);
+
 assert.match(agreement, /type="checkbox"/);
 assert.match(agreement, /pa-financial-signature/);
 assert.match(agreement, /Clear signature/);
 assert.match(agreement, /strokeCount < 1/);
 assert.match(agreement, /A checkbox is not a signature/);
+assert.match(agreement, /policyDocumentId/);
+assert.match(agreement, /declarationDocumentId/);
+assert.match(
+  agreement,
+  /}, \[policyDocumentId, declarationDocumentId\]\);/,
+  "canvas init depends on stable document ids only"
+);
+assert.doesNotMatch(
+  agreement,
+  /}, \[documents\]\);/,
+  "canvas init must not depend on fresh documents array reference"
+);
+assert.doesNotMatch(
+  agreement,
+  /}, \[strokeCount/,
+  "canvas init must not re-run for strokeCount"
+);
+assert.doesNotMatch(
+  agreement,
+  /}, \[policyAccepted/,
+  "canvas init must not re-run for checkbox state"
+);
+assert.doesNotMatch(
+  agreement,
+  /}, \[typedName/,
+  "canvas init must not re-run for typed-name state"
+);
+assert.match(
+  agreement,
+  /onSigned\(updated\);\s*clearSignature\(\);/,
+  "successful signing still intentionally clears the pad"
+);
+assert.match(
+  agreement,
+  /function clearSignature\(\)[\s\S]*setStrokeCount\(0\)/,
+  "Clear still removes ink path and resets stroke count"
+);
+
 const settings = fs.readFileSync(
   path.join(__dirname, "../schoolSettings/components/AdmissionsSettingsTab.tsx"),
   "utf8"

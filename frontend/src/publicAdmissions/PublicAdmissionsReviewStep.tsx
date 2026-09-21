@@ -15,7 +15,6 @@ import PublicAdmissionsFinancialAgreement from "./PublicAdmissionsFinancialAgree
 import {
   deriveSubmitReadiness,
   documentReviewSummary,
-  financialAgreementMatchesCurrentDocuments,
   mapValidationDetailsToGuidance,
   parseApplicationQuestions,
   sectionForValidationField,
@@ -154,7 +153,7 @@ export default function PublicAdmissionsReviewStep({
     setSubmitError(null);
     setSubmitDetails([]);
     setClientIssues(readiness.issues);
-    if (!financialAgreementMatchesCurrentDocuments(application, config)) {
+    if (!readiness.canAttemptSubmit) {
       return;
     }
 
@@ -507,7 +506,7 @@ export default function PublicAdmissionsReviewStep({
           <button
             type="button"
             className="pa-cta"
-            disabled={submitting}
+            disabled={submitting || !readiness.canAttemptSubmit}
             onClick={() => void handleSubmit()}
             data-testid="pa-submit-application"
           >
