@@ -336,6 +336,11 @@ export default function AdmissionsSettingsTab({ canManage, onSaved }: Props) {
             pending application{activeApplicationCount === 1 ? "" : "s"}.
           </p>
         ) : null}
+        {draft.requiredDocuments.length === 0 ? (
+          <p className="school-settings-card-hint">
+            No supporting document requirements have been configured yet.
+          </p>
+        ) : null}
         {draft.requiredDocuments.map((document, index) => {
           const builtIn = BUILTIN_DOCUMENT_KEYS.has(
             document.key as (typeof BUILTIN_DOCUMENTS)[number][0]
@@ -478,7 +483,7 @@ export default function AdmissionsSettingsTab({ canManage, onSaved }: Props) {
               {canManage ? (
                 <button
                   type="button"
-                  className="school-settings-btn"
+                  className="school-settings-btn school-settings-btn--outline"
                   onClick={() =>
                     patch(
                       "requiredDocuments",
@@ -495,7 +500,7 @@ export default function AdmissionsSettingsTab({ canManage, onSaved }: Props) {
         {canManage ? (
           <button
             type="button"
-            className="school-settings-btn"
+            className="school-settings-btn school-settings-btn--outline"
             onClick={() =>
               patch("requiredDocuments", [
                 ...draft.requiredDocuments,

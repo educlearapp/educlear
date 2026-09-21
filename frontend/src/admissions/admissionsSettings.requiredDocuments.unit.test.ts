@@ -68,8 +68,22 @@ assert.match(
 );
 
 assert.match(settingsSource, /requiredDocuments:\s*draft\.requiredDocuments/);
-assert.match(settingsSource, /Add document requirement/);
-assert.match(settingsSource, /Remove requirement/);
+assert.match(
+  settingsSource,
+  /draft\.requiredDocuments\.length === 0[\s\S]*No supporting document requirements have been configured yet\./
+);
+
+function buttonBlock(label: string): string {
+  const blocks = settingsSource.match(/<button[\s\S]*?<\/button>/g) || [];
+  const block = blocks.find((item) => item.includes(label));
+  assert.ok(block, `missing ${label} button`);
+  return block;
+}
+
+const addButton = buttonBlock("Add document requirement");
+const removeButton = buttonBlock("Remove requirement");
+assert.match(addButton, /className="school-settings-btn school-settings-btn--outline"/);
+assert.match(removeButton, /className="school-settings-btn school-settings-btn--outline"/);
 assert.match(settingsSource, /learner_citizenship_not_south_african/);
 assert.match(settingsSource, /active or pending application/);
 assert.ok(!/proof_of_payment",\s*"Proof/.test(settingsSource));
