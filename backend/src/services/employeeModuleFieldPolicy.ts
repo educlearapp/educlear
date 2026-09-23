@@ -90,7 +90,11 @@ const WRITE_ALIASES: Record<string, string> = {
 };
 
 /** Non-persisted client keys allowed on writes (mapped / ignored safely). */
-const WRITE_PASSTHROUGH_KEYS = new Set(["payrollEnabled"]);
+const WRITE_PASSTHROUGH_KEYS = new Set([
+  "payrollEnabled",
+  /** Add Employee control flag — server allocates employeeNumber; not a DB column. */
+  "autoAssignEmployeeNumber",
+]);
 
 export type PayrollFieldViolation = {
   fields: string[];

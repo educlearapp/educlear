@@ -13,8 +13,10 @@ import { MODULE_NOT_ENTITLED, requireSchoolModule } from "../middleware/requireS
 import {
   assertNoPayrollMutationWhenDisabled,
   CORE_EMPLOYEE_API_FIELDS,
+  findDisallowedEmployeeMutationFields,
   PAYROLL_EMPLOYEE_API_FIELDS,
   sanitizeEmployeeForModule,
+  stripPayrollFieldsFromWriteData,
 } from "./employeeModuleFieldPolicy";
 import {
   ACCOUNTING_BANKING_MUTATION_FIELDS,
@@ -216,6 +218,101 @@ async function main() {
     false
   );
   assert.strictEqual(coreOk, null);
+
+  // autoAssignEmployeeNumber: control/passthrough only — not CORE or PAYROLL data
+  assert.ok(
+    !(CORE_EMPLOYEE_API_FIELDS as readonly string[]).includes("autoAssignEmployeeNumber"),
+    "autoAssignEmployeeNumber must not be a CORE data field"
+  );
+  assert.ok(
+    !(PAYROLL_EMPLOYEE_API_FIELDS as readonly string[]).includes("autoAssignEmployeeNumber"),
+    "autoAssignEmployeeNumber must not be a PAYROLL data field"
+  );
+
+  // PAYROLL enabled + auto-assign flag allowed (Add Employee regression)
+  const autoAssignPayrollOn = assertNoPayrollMutationWhenDisabled(
+    {
+      schoolId: SCHOOL,
+      firstName: "Jane",
+      lastName: "Doe",
+      jobTitle: "Teacher",
+      isActive: true,
+      basicSalary: 0,
+      autoAssignEmployeeNumber: true,
+    },
+    true
+  );
+  assert.strictEqual(
+    autoAssignPayrollOn,
+    null,
+    "PAYROLL on + autoAssignEmployeeNumber must be allowed"
+  );
+  assert.deepStrictEqual(
+    findDisallowedEmployeeMutationFields(
+      { firstName: "Jane", lastName: "Doe", autoAssignEmployeeNumber: true },
+      true
+    ),
+    []
+  );
+
+  // Passthrough is preserved by strip helper but is not a classified API data field
+  const strippedWrite = stripPayrollFieldsFromWriteData(
+    {
+      firstName: "Jane",
+      lastName: "Doe",
+      autoAssignEmployeeNumber: true,
+      payrollEnabled: true,
+      unknownFutureColumn: "x",
+    },
+    true
+  );
+  assert.strictEqual(strippedWrite.autoAssignEmployeeNumber, true);
+  assert.strictEqual(strippedWrite.payrollEnabled, true);
+  assert.strictEqual(
+    Object.prototype.hasOwnProperty.call(strippedWrite, "unknownFutureColumn"),
+    false,
+    "unknown fields must still be stripped from write data"
+  );
+
+  // Genuine unknown employee fields still rejected
+  const unknownViol = assertNoPayrollMutationWhenDisabled(
+    { firstName: "A", lastName: "B", mysteryColumn: "nope" },
+    true
+  );
+  assert.ok(unknownViol);
+  assert.ok(unknownViol!.fields.includes("mysteryColumn"));
+  assert.strictEqual(
+    unknownViol!.error,
+    "Unrecognized employee fields cannot be set for this school's module entitlements"
+  );
+
+  // PAYROLL fields remain blocked when PAYROLL disabled (auto-assign flag alone is OK)
+  const payrollOffWithSalary = assertNoPayrollMutationWhenDisabled(
+    {
+      firstName: "A",
+      lastName: "B",
+      basicSalary: 1,
+      autoAssignEmployeeNumber: true,
+    },
+    false
+  );
+  assert.ok(payrollOffWithSalary);
+  assert.ok(payrollOffWithSalary!.fields.includes("basicSalary"));
+  assert.ok(!payrollOffWithSalary!.fields.includes("autoAssignEmployeeNumber"));
+  assert.match(
+    payrollOffWithSalary!.error,
+    /Payroll-specific employee fields cannot be set/
+  );
+
+  const autoAssignOnlyPayrollOff = assertNoPayrollMutationWhenDisabled(
+    { firstName: "A", lastName: "B", autoAssignEmployeeNumber: true },
+    false
+  );
+  assert.strictEqual(
+    autoAssignOnlyPayrollOff,
+    null,
+    "auto-assign control flag alone must not require PAYROLL"
+  );
 
   const accViol = assertNoAccountingBankingMutationWhenDisabled(
     { schoolId: SCHOOL, expenseCategory: "Salaries" },
