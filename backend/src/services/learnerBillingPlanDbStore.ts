@@ -12,15 +12,20 @@ const UPSERT_BATCH_SIZE = 10;
 
 function normalizeItems(items: StoredBillingPlanItem[]): StoredBillingPlanItem[] {
   return items
-    .map((item) => ({
-      feeDescription: String(item.feeDescription || "").trim(),
-      amount: Number(item.amount) || 0,
-    }))
+    .map((item) => {
+      const id = String(item.id || "").trim();
+      return {
+        ...(id ? { id } : {}),
+        feeDescription: String(item.feeDescription || "").trim(),
+        amount: Number(item.amount) || 0,
+      };
+    })
     .filter((item) => item.feeDescription);
 }
 
 function groupLinesByLearner(
   lines: Array<{
+    id: string;
     learnerId: string;
     feeDescription: string;
     amount: number;
@@ -31,6 +36,7 @@ function groupLinesByLearner(
   for (const line of lines) {
     if (!grouped[line.learnerId]) grouped[line.learnerId] = [];
     grouped[line.learnerId].push({
+      id: line.id,
       feeDescription: line.feeDescription,
       amount: line.amount,
     });
@@ -50,6 +56,7 @@ export async function readLearnerBillingPlanFromDb(
     where: { schoolId: schoolKey, learnerId: learnerKey },
     orderBy: [{ sortOrder: "asc" }],
     select: {
+      id: true,
       feeDescription: true,
       amount: true,
     },
@@ -57,6 +64,7 @@ export async function readLearnerBillingPlanFromDb(
 
   return normalizeItems(
     lines.map((line) => ({
+      id: line.id,
       feeDescription: line.feeDescription,
       amount: line.amount,
     }))
@@ -73,6 +81,7 @@ export async function readSchoolBillingPlansFromDb(
     where: { schoolId: key },
     orderBy: [{ learnerId: "asc" }, { sortOrder: "asc" }],
     select: {
+      id: true,
       learnerId: true,
       feeDescription: true,
       amount: true,

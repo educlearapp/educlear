@@ -82,6 +82,7 @@ type ParentBillingTransaction = {
   amountIn: number;
   amountOut: number;
   balance: number;
+  chargeLines?: Array<{ lineKey: string; description: string; amount: number }>;
 };
 
 type ParentBillingSnapshot = {

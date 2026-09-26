@@ -31,6 +31,7 @@ export type FinanceTransaction = {
   amountIn: number;
   amountOut: number;
   balance: number;
+  chargeLines?: Array<{ lineKey: string; description: string; amount: number }>;
 };
 
 export type FinanceMonthStatus = {

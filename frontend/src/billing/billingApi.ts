@@ -182,6 +182,7 @@ export type StatementAccountTransactionRow = {
   isKidesysHistory: boolean;
   isOpeningBalance: boolean;
   canUndo: boolean;
+  chargeLines?: Array<{ lineKey: string; description: string; amount: number }>;
 };
 
 export const fetchStatementAccountTransactions = async (

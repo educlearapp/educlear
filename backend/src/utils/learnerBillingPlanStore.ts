@@ -8,6 +8,8 @@ import {
 } from "../services/daSilvaSchoolResolve";
 
 export type StoredBillingPlanItem = {
+  /** Persistent LearnerBillingPlanLine.id when sourced from DB; absent for JSON-only plans. */
+  id?: string;
   feeDescription: string;
   amount: number;
 };

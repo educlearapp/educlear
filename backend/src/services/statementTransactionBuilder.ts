@@ -11,17 +11,18 @@ import {
 } from "../utils/billingDisplayRules";
 import {
   normaliseAmount,
+  type BillingInvoiceChargeLine,
   type BillingLedgerEntry,
 } from "../utils/billingLedgerStore";
 import {
   filterHistoryForAccount,
   readSchoolKidesysHistory,
-  type KidesysHistoryEntry,
 } from "../utils/kidesysTransactionHistoryStore";
 import {
   filterKidesysHistoryByStatementPeriod,
   shouldShowOpeningBalanceMigration,
 } from "../utils/statementPeriod";
+import { formatInvoiceChargeLinesBreakdown } from "./invoiceChargeLines";
 import type { StatementPdfTransaction } from "./statementPdfTypes";
 
 export type StatementManageTransactionRow = {
@@ -40,6 +41,8 @@ export type StatementManageTransactionRow = {
   isKidesysHistory: boolean;
   isOpeningBalance: boolean;
   canUndo: boolean;
+  /** Immutable invoice fee breakdown when present on the ledger entry. */
+  chargeLines?: BillingInvoiceChargeLine[];
 };
 
 type BuildStatementTransactionsInput = {
@@ -68,6 +71,30 @@ function resolveEntryLearnerLabel(
     return "Family account";
   }
   return "";
+}
+
+function snapshotChargeLines(
+  entry: BillingLedgerEntry
+): BillingInvoiceChargeLine[] | undefined {
+  if (!Array.isArray(entry.chargeLines) || !entry.chargeLines.length) return undefined;
+  return entry.chargeLines.map((line) => ({
+    lineKey: String(line.lineKey || "").trim(),
+    description: String(line.description || "").trim(),
+    amount: normaliseAmount(line.amount),
+  }));
+}
+
+function formatPdfDescription(entry: BillingLedgerEntry): string {
+  const chargeLines = snapshotChargeLines(entry);
+  if (chargeLines?.length) {
+    const formatMoney = (value: number) =>
+      `R ${Number(value || 0).toLocaleString("en-ZA", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
+    return formatInvoiceChargeLinesBreakdown(chargeLines, formatMoney);
+  }
+  return formatLedgerDescriptionDisplay(entry) || "—";
 }
 
 /**
@@ -103,16 +130,18 @@ export function buildStatementTransactions(
     running += isDebit ? amount : -amount;
     const isOpeningBalance = isKidesysOpeningBalanceEntry(entry);
     const sortTime = new Date(entry.date || entry.createdAt).getTime();
+    const chargeLines = snapshotChargeLines(entry);
     postingRows.push({
       key: `posting-${entry.id}`,
       date: entry.date || "—",
       type: formatLedgerTypeLabel(entry),
       reference: formatLedgerReferenceDisplay(entry) || "—",
-      description: formatLedgerDescriptionDisplay(entry) || "—",
+      description: formatPdfDescription(entry),
       amountIn: isDebit ? amount : 0,
       amountOut: !isDebit ? amount : 0,
       balance: running,
       learner: resolveEntryLearnerLabel(entry, nameByLearnerId, accountRef) || undefined,
+      ...(chargeLines ? { chargeLines } : {}),
       isKidesysHistory: false,
       isOpeningBalance,
       sortTime: Number.isNaN(sortTime) ? 0 : sortTime,
@@ -190,6 +219,7 @@ export function buildStatementManageTransactions(
     const typeLabel = formatLedgerTypeLabel(entry);
     const learnerLabel = resolveEntryLearnerLabel(entry, nameByLearnerId, accountRef);
     const sortTime = new Date(entry.date || entry.createdAt).getTime();
+    const chargeLines = snapshotChargeLines(entry);
     postingRows.push({
       key: `posting-${entry.id}`,
       ledgerEntryId: entry.id,
@@ -206,6 +236,7 @@ export function buildStatementManageTransactions(
       isKidesysHistory: false,
       isOpeningBalance,
       canUndo: canUndoStatementPostingEntry(entry, typeLabel),
+      ...(chargeLines ? { chargeLines } : {}),
       sortTime: Number.isNaN(sortTime) ? 0 : sortTime,
     });
   });

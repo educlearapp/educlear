@@ -71,6 +71,9 @@ router.get("/", async (req, res) => {
       createdAt: entry.createdAt,
       runId: entry.runId,
       invoicePeriod: entry.invoicePeriod,
+      ...(Array.isArray(entry.chargeLines) && entry.chargeLines.length
+        ? { chargeLines: entry.chargeLines }
+        : {}),
     }));
 
     return res.json({ success: true, invoices });

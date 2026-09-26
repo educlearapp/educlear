@@ -5,6 +5,11 @@ import { prisma } from "../prisma";
 import { loadSchoolBillingSettings } from "../routes/billingSettings";
 import { buildInvoiceEntry } from "./invoiceEntryBuilder";
 import {
+  buildInvoiceChargeLines,
+  formatInvoiceChargeDescription,
+  invoiceMoneyEqual,
+} from "./invoiceChargeLines";
+import {
   readExplicitlyEmptyBillingPlanLearnerIds,
   readSchoolBillingPlansResolved,
 } from "./learnerBillingPlanDbStore";
@@ -731,7 +736,7 @@ export async function executeInvoiceRun(
     request.dueDate
   );
   const existingInvoiceCount = existingLedger.filter((entry) => entry.type === "invoice").length;
-  const description =
+  const fallbackRunDescription =
     String(request.description || "").trim() ||
     resolveInvoiceMessage(settings) ||
     `Invoice Run ${request.invoicePeriod}`;
@@ -739,6 +744,42 @@ export async function executeInvoiceRun(
   const builtEntries: BillingLedgerEntry[] = [];
   for (let index = 0; index < toInvoice.length; index += 1) {
     const row = toInvoice[index];
+    const learner =
+      processedLearners.find((item) => item.id === row.learnerId) ||
+      allActiveLearners.find((item) => item.id === row.learnerId);
+    const planItems = learner
+      ? resolveLearnerBillingPlanItems(
+          learner,
+          plansByLearnerId,
+          planIndexes,
+          explicitlyEmpty
+        )
+      : plansByLearnerId[row.learnerId] || [];
+    const extraFees = extraFeesByLearnerId[row.learnerId] || [];
+    const chargeSnapshot = buildInvoiceChargeLines(planItems, extraFees);
+    if (!chargeSnapshot.ok) {
+      const failed: InvoiceRunExecuteResult = {
+        ...baseResult,
+        success: false,
+        error: `${chargeSnapshot.error} (learner ${row.learnerId})`,
+        errorCode: "CHARGE_LINES_INVALID",
+      };
+      writeIntegrityAuditReport(schoolId, runId, failed);
+      return failed;
+    }
+    if (!invoiceMoneyEqual(chargeSnapshot.total, Number(row.amount) || 0)) {
+      const failed: InvoiceRunExecuteResult = {
+        ...baseResult,
+        success: false,
+        error: `Charge line total (${chargeSnapshot.total}) does not match invoice amount (${row.amount}) for learner ${row.learnerId}`,
+        errorCode: "CHARGE_LINES_MISMATCH",
+      };
+      writeIntegrityAuditReport(schoolId, runId, failed);
+      return failed;
+    }
+    const chargeDescription = formatInvoiceChargeDescription(chargeSnapshot.lines);
+    const description = chargeDescription || fallbackRunDescription;
+
     const built = await buildInvoiceEntry(
       schoolId,
       {
@@ -749,6 +790,7 @@ export async function executeInvoiceRun(
         date: invoiceDate,
         dueDate: runDueDate,
         description,
+        chargeLines: chargeSnapshot.lines,
         runId,
         invoicePeriod,
         lineKey: row.learnerId,
@@ -764,7 +806,7 @@ export async function executeInvoiceRun(
         ...baseResult,
         success: false,
         error: built.error || `Could not build invoice for learner ${row.learnerId}`,
-        errorCode: "BUILD_FAILED",
+        errorCode: built.errorCode || "BUILD_FAILED",
       };
       writeIntegrityAuditReport(schoolId, runId, failed);
       return failed;

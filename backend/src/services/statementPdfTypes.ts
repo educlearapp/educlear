@@ -1,3 +1,5 @@
+import type { BillingInvoiceChargeLine } from "../utils/billingLedgerStore";
+
 export type StatementPdfTransaction = {
   date: string;
   type: string;
@@ -7,6 +9,8 @@ export type StatementPdfTransaction = {
   amountOut: number;
   balance: number | null;
   learner?: string;
+  /** Present only when the ledger invoice stored an immutable charge-line snapshot. */
+  chargeLines?: BillingInvoiceChargeLine[];
 };
 
 export type StatementPdfContact = {

@@ -704,6 +704,7 @@ export default function StatementManage({
     isOpeningBalance: boolean;
     canUndo: boolean;
     sortTime: number;
+    chargeLines?: Array<{ lineKey: string; description: string; amount: number }>;
   };
 
   const transactions = accountTransactions as TransactionDisplayRow[];
@@ -1859,6 +1860,57 @@ export default function StatementManage({
         ) : transactionsError ? (
           <div style={{ padding: "8px 12px", color: "#b45309", fontWeight: 700, fontSize: 13 }}>
             {transactionsError}
+          </div>
+        ) : null}
+        {selectedTransaction?.chargeLines && selectedTransaction.chargeLines.length > 0 ? (
+          <div
+            style={{
+              padding: "10px 12px",
+              borderBottom: "1px solid #e5e7eb",
+              background: "#fffbeb",
+            }}
+          >
+            <div style={{ fontWeight: 900, color: INK, marginBottom: 6, fontSize: 12 }}>
+              Invoice charges
+            </div>
+            <div style={{ display: "grid", gap: 4 }}>
+              {selectedTransaction.chargeLines.map((line) => (
+                <div
+                  key={line.lineKey}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    fontWeight: 700,
+                    fontSize: 13,
+                    color: INK,
+                  }}
+                >
+                  <span>{line.description}</span>
+                  <span>{formatMoney(line.amount)}</span>
+                </div>
+              ))}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  fontWeight: 900,
+                  fontSize: 13,
+                  color: INK,
+                  marginTop: 4,
+                  paddingTop: 6,
+                  borderTop: "1px solid #fcd34d",
+                }}
+              >
+                <span>Total</span>
+                <span>
+                  {formatMoney(
+                    selectedTransaction.amountIn || selectedTransaction.amountOut || 0
+                  )}
+                </span>
+              </div>
+            </div>
           </div>
         ) : null}
         <div style={{ overflowX: "auto" }}>

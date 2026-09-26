@@ -487,6 +487,15 @@ router.get("/billing", parentAuthMiddleware, async (req, res) => {
         amountIn: isDebit ? amount : 0,
         amountOut: !isDebit ? amount : 0,
         balance: running,
+        ...(Array.isArray(entry.chargeLines) && entry.chargeLines.length
+          ? {
+              chargeLines: entry.chargeLines.map((line) => ({
+                lineKey: String(line.lineKey || "").trim(),
+                description: String(line.description || "").trim(),
+                amount: Number(line.amount) || 0,
+              })),
+            }
+          : {}),
       };
     });
 

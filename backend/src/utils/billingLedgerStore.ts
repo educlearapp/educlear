@@ -5,6 +5,13 @@ import { resolveSchoolJsonStoreKey } from "../services/daSilvaSchoolResolve";
 
 export type BillingLedgerEntryType = "invoice" | "payment" | "credit" | "penalty";
 
+/** Immutable fee breakdown snapshotted onto an invoice at generation time. Optional for historical rows. */
+export type BillingInvoiceChargeLine = {
+  lineKey: string;
+  description: string;
+  amount: number;
+};
+
 export type BillingLedgerEntry = {
   id: string;
   schoolId: string;
@@ -24,6 +31,11 @@ export type BillingLedgerEntry = {
   lineKey?: string;
   /** Learner actually billed on this invoice line (may differ from posting learnerId on family accounts). */
   billedLearnerId?: string;
+  /**
+   * Snapshotted charge composition for invoice-run (and similar) invoices.
+   * Historical invoices omit this field — do not reconstruct from current billing plans.
+   */
+  chargeLines?: BillingInvoiceChargeLine[];
   /** Set when payment was posted from bank reconciliation. */
   bankTransactionId?: string;
   bankImportId?: string;

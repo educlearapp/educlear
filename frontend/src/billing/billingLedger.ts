@@ -50,6 +50,12 @@ import { isDaSilvaAcademySchool } from "./billingSummaryDisplayOverride";
 
 export type BillingLedgerEntryType = "invoice" | "payment" | "credit" | "penalty";
 
+export type BillingInvoiceChargeLine = {
+  lineKey: string;
+  description: string;
+  amount: number;
+};
+
 export type BillingLedgerEntry = {
   id: string;
   schoolId: string;
@@ -71,6 +77,8 @@ export type BillingLedgerEntry = {
   undoneAt?: string;
   undoneByCorrectionId?: string;
   correctsEntryId?: string;
+  /** Immutable fee breakdown when present (invoice-run snapshots). */
+  chargeLines?: BillingInvoiceChargeLine[];
 };
 
 export type BillingAccountRow = {

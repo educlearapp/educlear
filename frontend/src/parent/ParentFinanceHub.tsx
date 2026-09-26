@@ -105,6 +105,14 @@ export default function ParentFinanceHub({
     .filter((row) => Number(row.amountIn) > 0)
     .slice()
     .reverse();
+  const invoiceChargeRows = billing.transactions
+    .filter(
+      (row) =>
+        String(row.type || "").toLowerCase() === "invoice" &&
+        Array.isArray(row.chargeLines) &&
+        row.chargeLines.length > 0
+    )
+    .slice(0, 5);
 
   if (showArrangementPage) {
     return (
@@ -190,6 +198,34 @@ export default function ParentFinanceHub({
           <FinanceMetric label="Next School Fee Due" value={formatFinanceDate(summary.nextSchoolFeeDueDate)} />
           <FinanceMetric label="School Settlement Deadline" value={formatFinanceDate(summary.settlementDeadlineDate)} />
         </div>
+        {invoiceChargeRows.length ? (
+          <div className="parent-finance-family" style={{ marginTop: 16 }}>
+            <strong>Recent invoice charges</strong>
+            <div style={{ display: "grid", gap: 12, marginTop: 8 }}>
+              {invoiceChargeRows.map((row) => (
+                <div key={row.id}>
+                  <div style={{ fontWeight: 700 }}>
+                    {formatFinanceDate(row.date)}
+                    {row.reference ? ` · ${row.reference}` : ""}
+                  </div>
+                  {(row.chargeLines || []).map((line) => (
+                    <div
+                      key={line.lineKey}
+                      style={{ display: "flex", justifyContent: "space-between", gap: 12 }}
+                    >
+                      <span>{line.description}</span>
+                      <span>{formatFinanceMoney(line.amount)}</span>
+                    </div>
+                  ))}
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontWeight: 700 }}>
+                    <span>Total</span>
+                    <span>{formatFinanceMoney(row.amountIn || 0)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <section className="parent-portal-card">

@@ -18,6 +18,10 @@ import {
   normaliseAmount,
   type BillingLedgerEntry,
 } from "../utils/billingLedgerStore";
+import {
+  normalizeInvoiceChargeLines,
+  validateChargeLinesMatchAmount,
+} from "./invoiceChargeLines";
 
 export type InvoiceInputBody = Record<string, unknown>;
 
@@ -179,6 +183,23 @@ export async function buildInvoiceEntry(
     ? buildInvoiceRunEntryId(runId, billedLearnerId || learnerId, resolvedAccountNo, lineKey || String(index))
     : `invoice-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`;
 
+  const chargeLines = normalizeInvoiceChargeLines(body.chargeLines);
+  if (body.chargeLines !== undefined && body.chargeLines !== null) {
+    if (!chargeLines?.length) {
+      return {
+        error: "Invalid chargeLines snapshot",
+        errorCode: "CHARGE_LINES_INVALID",
+      };
+    }
+    const match = validateChargeLinesMatchAmount(chargeLines, amount);
+    if (!match.ok) {
+      return {
+        error: match.error,
+        errorCode: "CHARGE_LINES_MISMATCH",
+      };
+    }
+  }
+
   const entry: BillingLedgerEntry = {
     id: String(body.id || defaultId).trim() || defaultId,
     schoolId,
@@ -194,6 +215,7 @@ export async function buildInvoiceEntry(
     invoicePeriod,
     lineKey: lineKey || billedLearnerId || undefined,
     billedLearnerId,
+    ...(chargeLines ? { chargeLines } : {}),
     createdAt: new Date().toISOString(),
   };
 

@@ -103,6 +103,59 @@ async function testBuildInvoiceEntryRejectsMismatchWithoutLedgerWrite() {
   console.log("✓ buildInvoiceEntry mismatch guard (no prisma learner — skipped live reject)");
 }
 
+async function testBuildInvoiceEntryChargeLinesMismatchRejected() {
+  const settings = defaultBillingSettings();
+  const built = await buildInvoiceEntry(
+    TEST_SCHOOL,
+    {
+      schoolId: TEST_SCHOOL,
+      learnerId: "l-charge",
+      accountNo: "TST001",
+      amount: 3000,
+      date: "2026-09-01",
+      description: "PRIMARY 2026; Graduation Fee",
+      chargeLines: [{ lineKey: "p1", description: "PRIMARY 2026", amount: 2500 }],
+      id: `test-inv-charge-mismatch-${Date.now()}`,
+    },
+    settings,
+    0,
+    0,
+    { accountPrevalidated: true }
+  );
+  assert(!built.entry, "no entry when chargeLines mismatch amount");
+  assert(built.errorCode === "CHARGE_LINES_MISMATCH", `expected CHARGE_LINES_MISMATCH got ${built.errorCode}`);
+  console.log("✓ buildInvoiceEntry rejects CHARGE_LINES_MISMATCH");
+}
+
+async function testBuildInvoiceEntryChargeLinesSnapshotPersistedOnEntry() {
+  const settings = defaultBillingSettings();
+  const built = await buildInvoiceEntry(
+    TEST_SCHOOL,
+    {
+      schoolId: TEST_SCHOOL,
+      learnerId: "l-charge",
+      accountNo: "TST001",
+      amount: 3000,
+      date: "2026-09-01",
+      description: "PRIMARY 2026; Graduation Fee",
+      chargeLines: [
+        { lineKey: "p1", description: "PRIMARY 2026", amount: 2500 },
+        { lineKey: "e1", description: "Graduation Fee", amount: 500 },
+      ],
+      id: `test-inv-charge-ok-${Date.now()}`,
+    },
+    settings,
+    0,
+    0,
+    { accountPrevalidated: true }
+  );
+  assert(Boolean(built.entry), `expected entry, got ${built.error || "none"}`);
+  assert(built.entry?.amount === 3000, "amount preserved");
+  assert(built.entry?.chargeLines?.length === 2, "chargeLines snapshotted");
+  assert(built.entry?.description === "PRIMARY 2026; Graduation Fee", "description from charges");
+  console.log("✓ buildInvoiceEntry persists chargeLines snapshot");
+}
+
 async function main() {
   const ledgerBackup = backupFile(LEDGER_FILE);
 
@@ -110,6 +163,8 @@ async function main() {
     testDetectLearnerAccountMismatch();
     await testBuildInvoiceEntryMatchingAccountOnly();
     await testBuildInvoiceEntryRejectsMismatchWithoutLedgerWrite();
+    await testBuildInvoiceEntryChargeLinesMismatchRejected();
+    await testBuildInvoiceEntryChargeLinesSnapshotPersistedOnEntry();
     console.log("\nAll invoiceEntryBuilder guard tests passed.");
   } finally {
     restoreFile(LEDGER_FILE, ledgerBackup);
