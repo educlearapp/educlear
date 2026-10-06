@@ -11,9 +11,10 @@ import {
 } from "../communication/communicationEngine";
 import { resolveRenderedMessage } from "../communication/communicationTemplates";
 import {
-  classroomNameVariants,
-  normalizeClassroomInput,
-} from "../utils/classroomNormalization";
+  cleanClassroomLabel,
+  createClassroomResolver,
+  loadSchoolClassMembership,
+} from "../utils/classroomMembership";
 
 export function normalizeSaPhone(phone: string) {
   const digits = String(phone || "").replace(/\D/g, "");
@@ -87,35 +88,25 @@ export async function resolveClassroomForLearner(
   const rawClassName = String(learner.className || "").trim();
   if (!rawClassName) return null;
 
-  const normalized = normalizeClassroomInput(
-    rawClassName,
-    learner.grade != null ? String(learner.grade) : undefined
-  );
-  const canonicalName = normalized.classroomName || normalized.canonicalName || rawClassName;
-
   const existingClassrooms = await prisma.classroom.findMany({
     where: { schoolId },
-    select: { id: true, name: true, teacherName: true, teacherEmail: true, updatedAt: true },
+    select: {
+      id: true,
+      name: true,
+      teacherName: true,
+      teacherEmail: true,
+      updatedAt: true,
+      createdAt: true,
+    },
   });
 
-  for (const c of existingClassrooms) {
-    const key = normalizeClassroomInput(c.name).matchKey;
-    if (key && normalized.matchKey && key === normalized.matchKey) {
-      if (c.name !== canonicalName) {
-        return prisma.classroom.update({
-          where: { id: c.id },
-          data: { name: canonicalName },
-        });
-      }
-      return c;
-    }
-    if (c.name === canonicalName || c.name === rawClassName) return c;
-  }
+  const match = createClassroomResolver(existingClassrooms).classroomFor(rawClassName);
+  if (match) return match;
 
   return prisma.classroom.create({
     data: {
       schoolId,
-      name: canonicalName,
+      name: cleanClassroomLabel(rawClassName),
       teacherName: "",
       teacherEmail: "",
     },
@@ -268,7 +259,7 @@ export async function syncParentThreadsForClassroom(schoolId: string, classroomI
   });
   if (!classroom) return { updated: 0 };
 
-  const variants = classroomNameVariants(normalizeClassroomInput(classroom.name));
+  const variants = (await loadSchoolClassMembership(schoolId)).spellingsFor(classroom.name);
   const learners = await prisma.learner.findMany({
     where: { schoolId, className: { in: variants.length ? variants : [classroom.name] } },
     select: { id: true },

@@ -49,6 +49,7 @@ import {
   updateLearnerEnrollmentStatus,
 } from "../services/learnerRegistrationService";
 import { conflictPayload } from "../services/learnerIdentityGuard";
+import { resolveCanonicalClassName } from "../utils/classroomMembership";
 import {
   ALLERGIES_MAX_LENGTH,
   MEDICAL_ALERT_MAX_LENGTH,
@@ -1482,6 +1483,10 @@ router.put("/:id", async (req, res) => {
       enrollmentDate,
       allergies,
       medicalAlert,
+      homeLanguage,
+      citizenship,
+      nationality,
+      notes,
 
     } = req.body;
 
@@ -1539,6 +1544,14 @@ router.put("/:id", async (req, res) => {
       );
     }
 
+    const requestedClassName =
+      className !== undefined ? className : classroomName !== undefined ? classroomName : classroom;
+    const resolvedClassName =
+      requestedClassName !== undefined
+        ? await resolveCanonicalClassName(existingLearner.schoolId, cleanString(requestedClassName))
+        : undefined;
+    const requestedCitizenship = citizenship !== undefined ? citizenship : nationality;
+
 
 
     const updatedLearner = await prisma.learner.update({
@@ -1593,15 +1606,15 @@ router.put("/:id", async (req, res) => {
 
 
 
-        ...(className !== undefined && { className: cleanString(className) || null }),
+        ...(resolvedClassName !== undefined && { className: resolvedClassName }),
 
+        ...(homeLanguage !== undefined && { homeLanguage: cleanString(homeLanguage) || null }),
 
+        ...(requestedCitizenship !== undefined && {
+          citizenship: cleanString(requestedCitizenship) || null,
+        }),
 
-        ...(classroom !== undefined && { className: cleanString(classroom) || null }),
-
-
-
-        ...(classroomName !== undefined && { className: cleanString(classroomName) || null }),
+        ...(notes !== undefined && { notes: typeof notes === "string" ? notes.trim() || null : null }),
 
 
 

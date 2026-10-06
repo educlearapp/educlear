@@ -4,6 +4,7 @@ import { buildSetupRequiredPayload } from "./schoolEmailService";
 import { activeLearnerWhere } from "../utils/learnerEnrollment";
 import {
   classNameFromUnregisteredId,
+  classroomRosterLearnerIds,
   isUnregisteredClassroomId,
 } from "../routes/classrooms";
 import { buildAndGenerateLearnerReportPdf } from "./learnerReportPdfService";
@@ -45,12 +46,13 @@ async function loadClassroomLearners(
 ): Promise<{ classroomName: string; learners: ClassroomLearnerRow[] } | null> {
   if (isUnregisteredClassroomId(classroomId)) {
     const className = classNameFromUnregisteredId(classroomId);
+    const roster = await classroomRosterLearnerIds(schoolId, classroomId);
     const learners = await prisma.learner.findMany({
-      where: { ...activeLearnerWhere(schoolId), className },
+      where: { ...activeLearnerWhere(schoolId), id: { in: roster?.learnerIds ?? [] } },
       select: { id: true, firstName: true, lastName: true },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     });
-    return { classroomName: className, learners };
+    return { classroomName: roster?.classroomName ?? className, learners };
   }
 
   const classroom = await prisma.classroom.findFirst({
@@ -59,8 +61,9 @@ async function loadClassroomLearners(
   });
   if (!classroom) return null;
 
+  const roster = await classroomRosterLearnerIds(schoolId, classroom.id);
   const learners = await prisma.learner.findMany({
-    where: { ...activeLearnerWhere(schoolId), className: classroom.name },
+    where: { ...activeLearnerWhere(schoolId), id: { in: roster?.learnerIds ?? [] } },
     select: { id: true, firstName: true, lastName: true },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
   });

@@ -175,10 +175,13 @@ export default function LearnerBillingPlanTab({ learner, onLearnerUpdated, setLe
           method: "PUT",
           headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
           // Omit parents so this billing-only save does not trigger parent write auth/path.
+          // Medical fields are rejected here; they save via /sensitive-fields.
           body: JSON.stringify({
             ...learner,
             parents: undefined,
             parent: undefined,
+            allergies: undefined,
+            medicalAlert: undefined,
             billingPlan: normalizedPlan,
           }),
         });

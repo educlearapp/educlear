@@ -87,8 +87,17 @@ export function classDisplayFromMatchKeySuffix(classMatchKey: string): string {
     return norm.classroomName || guess;
   }
 
-  const norm = normalizeClassroomInput(classMatchKey);
-  return norm.classroomName || titleCaseWords(classMatchKey.replace(/\|/g, " "));
+  // buildMatchKey("", stream) emits "|stream" when no grade was parsed; that single
+  // leading "|" is the empty-grade delimiter, never part of the class label.
+  const gradeless = key.length > 1 && key.startsWith("|");
+  const labelKey = gradeless ? classMatchKey.trim().slice(1) : classMatchKey;
+  if (gradeless) {
+    const gradeRStream = labelKey.trim().match(/^grade\s+r([a-z])$/i);
+    if (gradeRStream) return `Grade R${gradeRStream[1].toUpperCase()}`;
+  }
+
+  const norm = normalizeClassroomInput(labelKey);
+  return norm.classroomName || titleCaseWords(labelKey.replace(/\|/g, " "));
 }
 
 function humanizeNormalizedName(normalized: string): string {

@@ -37,6 +37,7 @@ import {
   MODULE_NOT_ENTITLED,
 } from "../middleware/requireSchoolModule";
 import { lookupParentPortalBySchool } from "../services/parentPortalLookup";
+import { loadSchoolClassMembership, type SchoolClassMembership } from "../utils/classroomMembership";
 import { rateLimitParentPortalLookup } from "../middleware/parentPortalLookupRateLimit";
 import {
   allowSchool,
@@ -170,12 +171,13 @@ function resolveEntryLearnerLabel(
 }
 
 function learnerMatchesNotice(
+  membership: SchoolClassMembership,
   learner: { id: string; grade: string; className: string | null },
   notice: { learnerId: string | null; grade: string | null; className: string | null }
 ) {
   if (notice.learnerId && notice.learnerId === learner.id) return true;
   if (notice.grade && notice.grade === learner.grade) return true;
-  if (notice.className && notice.className === String(learner.className || "")) return true;
+  if (notice.className && membership.resolver.sameClassroom(notice.className, learner.className)) return true;
   if (!notice.learnerId && !notice.grade && !notice.className) return true;
   return false;
 }
@@ -349,6 +351,7 @@ router.get("/dashboard", parentAuthMiddleware, async (req, res) => {
       learners.find((l) => l.id === learnerId) || (learners.length === 1 ? learners[0] : null);
 
     const learnerIds = learners.map((l) => l.id);
+    const membership = await loadSchoolClassMembership(auth.schoolId);
 
     const [notifications, unreadMessages, incidents, homework, notices, documents] =
       await Promise.all([
@@ -382,7 +385,14 @@ router.get("/dashboard", parentAuthMiddleware, async (req, res) => {
                 OR: [
                   { learnerId: activeLearner.id },
                   { grade: activeLearner.grade, learnerId: null },
-                  { className: activeLearner.className || "", learnerId: null },
+                  {
+                    className: {
+                      in: activeLearner.className
+                        ? membership.spellingsFor(activeLearner.className)
+                        : [""],
+                    },
+                    learnerId: null,
+                  },
                 ],
               },
               orderBy: { createdAt: "desc" },
@@ -403,9 +413,9 @@ router.get("/dashboard", parentAuthMiddleware, async (req, res) => {
 
     const latestInvoice = notifications.find((n) => n.type === "INVOICE_READY") || null;
     const filteredNotices = activeLearner
-      ? notices.filter((n) => learnerMatchesNotice(activeLearner, n))
+      ? notices.filter((n) => learnerMatchesNotice(membership, activeLearner, n))
       : notices.filter((n) =>
-          learners.some((l) => learnerMatchesNotice(l, n))
+          learners.some((l) => learnerMatchesNotice(membership, l, n))
         );
     const filteredDocs = activeLearner
       ? documents.filter(
@@ -413,7 +423,8 @@ router.get("/dashboard", parentAuthMiddleware, async (req, res) => {
             (!d.learnerId && !d.grade && !d.className) ||
             d.learnerId === activeLearner.id ||
             d.grade === activeLearner.grade ||
-            d.className === activeLearner.className
+            d.className === activeLearner.className ||
+            (!!d.className && membership.resolver.sameClassroom(d.className, activeLearner.className))
         )
       : documents;
 
@@ -1036,7 +1047,13 @@ router.post("/staff/homework", async (req, res) => {
           schoolId,
           learner: {
             ...(post.grade ? { grade: post.grade } : {}),
-            ...(post.className ? { className: post.className } : {}),
+            ...(post.className
+              ? {
+                  className: {
+                    in: (await loadSchoolClassMembership(schoolId)).spellingsFor(post.className),
+                  },
+                }
+              : {}),
           },
         },
         select: { parentId: true, learnerId: true },
@@ -1096,8 +1113,9 @@ router.post("/staff/notices", async (req, res) => {
       include: { learner: true },
     });
 
+    const membership = await loadSchoolClassMembership(schoolId);
     for (const link of links) {
-      if (!learnerMatchesNotice(link.learner, notice)) continue;
+      if (!learnerMatchesNotice(membership, link.learner, notice)) continue;
       await createParentNotification({
         schoolId,
         parentId: link.parentId,
@@ -1142,8 +1160,9 @@ router.post("/staff/documents", async (req, res) => {
       where: { schoolId },
       include: { learner: true },
     });
+    const docMembership = await loadSchoolClassMembership(schoolId);
     for (const link of links) {
-      if (!learnerMatchesNotice(link.learner, {
+      if (!learnerMatchesNotice(docMembership, link.learner, {
         learnerId: doc.learnerId,
         grade: doc.grade,
         className: doc.className,

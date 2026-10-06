@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { apiFetch, API_URL } from "./api";
+import {
+  addLearnerCandidates,
+  addLearnersResultMessage,
+  classroomDetailChildrenCount,
+  classroomDetailLearners,
+  deleteClassroomConfirmMessage,
+  deleteClassroomResultMessage,
+} from "./classroomRoster";
 import "./Classrooms.css";
 
 function clampPage(page: number, totalPages: number): number {
@@ -147,7 +155,7 @@ type LearnerRow = {
   firstName: string;
   lastName: string;
   grade: string;
-  classroomId: string | null;
+  currentClass: string;
   birthDate: string | null;
 };
 
@@ -911,11 +919,7 @@ function ClassroomManage(props: {
             } as ClassroomDetail)
           : null;
 
-      const learnersRaw = Array.isArray(data?.learners)
-        ? (data.learners as any[])
-        : Array.isArray(data?.children)
-          ? (data.children as any[])
-          : [];
+      const learnersRaw = classroomDetailLearners(data);
 
       console.log("Loaded classroom for manage:", c);
       if (c) setClassroom(c);
@@ -986,7 +990,7 @@ function ClassroomManage(props: {
         props.setClassroomForm(finalMerged);
       }
 
-      if (learnersRaw.length) {
+      if (c) {
         props.setChildren(
           learnersRaw.map((k) => ({
             id: String(k?.id ?? ""),
@@ -997,7 +1001,7 @@ function ClassroomManage(props: {
             admissionNo: k?.admissionNo ? String(k.admissionNo) : null,
           }))
         );
-        props.setChildrenCount(Number(data?.childrenCount ?? learnersRaw.length) || 0);
+        props.setChildrenCount(classroomDetailChildrenCount(data, learnersRaw));
       }
 
       setSelectedChildIds(new Set());
@@ -1049,18 +1053,10 @@ function ClassroomManage(props: {
       setAddLoading(true);
       const data = await apiFetch(`/api/learners?schoolId=${encodeURIComponent(props.schoolId)}`);
       const list = Array.isArray(data?.learners) ? (data.learners as any[]) : [];
-      const rows: LearnerRow[] = list
-        .map((l) => ({
-          id: String(l?.id ?? ""),
-          firstName: String(l?.firstName ?? ""),
-          lastName: String(l?.lastName ?? ""),
-          grade: String(l?.grade ?? ""),
-          classroomId: l?.classroomId ? String(l.classroomId) : null,
-          birthDate: l?.birthDate ? String(l.birthDate) : null,
-        }))
-        .filter((l) => l.id && l.firstName && l.lastName)
-        // VERY IMPORTANT: only show learners not assigned to ANY classroom
-        .filter((l) => !l.classroomId);
+      const rows: LearnerRow[] = addLearnerCandidates(
+        list,
+        classroomChildren.map((c) => c.id)
+      );
       setAddCandidates(rows);
     } catch (e: any) {
       setMessage(e?.message || "Failed to load learners.");
@@ -1074,7 +1070,7 @@ function ClassroomManage(props: {
     if (!q) return addCandidates;
     return addCandidates.filter((l) => {
       const name = `${l.firstName} ${l.lastName}`.toLowerCase();
-      const gradeText = `${l.grade}`.toLowerCase();
+      const gradeText = `${l.grade} ${l.currentClass}`.toLowerCase();
       return name.includes(q) || gradeText.includes(q);
     });
   }, [addCandidates, addSearch]);
@@ -1115,15 +1111,19 @@ function ClassroomManage(props: {
       setMessage(null);
       setAddError(null);
       // POST /api/classrooms/:id/add-learners
-      await apiFetch(`/api/classrooms/${encodeURIComponent(props.classroomId)}/add-learners`, {
+      const result = await apiFetch(`/api/classrooms/${encodeURIComponent(props.classroomId)}/add-learners`, {
         method: "POST",
         body: JSON.stringify({ schoolId: props.schoolId, learnerIds: ids }),
       });
+      if (!result?.success || !Number(result?.assigned)) {
+        throw new Error(result?.error || "No learners were added to this classroom.");
+      }
       setAddOpen(false);
       setAddSelectedIds(new Set());
       setAddCandidates((prev) => prev.filter((l) => !ids.includes(l.id)));
       await load();
       await props.onRefreshList();
+      setMessage(addLearnersResultMessage(result, ids.length));
     } catch (e: any) {
       const msg = e?.message || "Could not add learners to classroom.";
       setAddError("Could not add learners to classroom.");
@@ -1334,14 +1334,15 @@ function ClassroomManage(props: {
   };
 
   const deleteClassroom = async () => {
-    const ok = window.confirm("Delete this classroom? Learners will NOT be deleted; their classroom will be cleared.");
+    const ok = window.confirm(deleteClassroomConfirmMessage(props.childrenCount));
     if (!ok) return;
     try {
       setMessage(null);
-      await apiFetch(
+      const result = await apiFetch(
         `/api/classrooms/${encodeURIComponent(props.classroomId)}?schoolId=${encodeURIComponent(props.schoolId)}`,
         { method: "DELETE" }
       );
+      window.alert(deleteClassroomResultMessage(result));
       await props.onRefreshList();
       await props.onBack();
     } catch (e: any) {
@@ -2147,7 +2148,7 @@ function ClassroomManage(props: {
               <div>
                 <div style={{ fontWeight: 900, fontSize: 18, color: "#0f172a" }}>Add learners to classroom</div>
                 <div style={{ marginTop: 6, fontWeight: 700, fontSize: 13, color: "#64748b" }}>
-                  Showing learners with no classroom assigned
+                  Showing active learners not already in this classroom
                 </div>
                 <div style={{ height: 3, width: 126, background: "linear-gradient(90deg, #d4af37, rgba(212,175,55,0.08))", marginTop: 10, borderRadius: 999 }} />
               </div>
@@ -2235,7 +2236,7 @@ function ClassroomManage(props: {
                             <td style={{ fontWeight: 900 }}>{l.firstName}</td>
                             <td>{l.lastName}</td>
                             <td style={{ fontWeight: 900 }}>
-                              {l.grade}
+                              {l.currentClass || l.grade}
                             </td>
                             <td style={{ fontWeight: 900 }}>{formatAge(l.birthDate)}</td>
                             <td>—</td>

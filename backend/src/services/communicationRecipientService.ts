@@ -1,5 +1,7 @@
 import { prisma } from "../prisma";
 import { normalizeSaPhone } from "./parentPortalService";
+import { loadSchoolClassMembership, type SchoolClassMembership } from "../utils/classroomMembership";
+import { ACTIVE_LEARNER_WHERE } from "../utils/learnerEnrollment";
 
 export type CommunicationRecipientChannel = "email" | "sms";
 export type CommunicationRecipientKind = "parents" | "learners" | "teachers" | "employees" | "all";
@@ -48,9 +50,9 @@ function normalizeSms(value: unknown) {
   return normalized.length >= 10 ? normalized : "";
 }
 
-function matchesClass(classNames: string[], className: string) {
+function matchesClass(membership: SchoolClassMembership, classNames: string[], className: string) {
   if (!className) return true;
-  return classNames.some((name) => name.toLowerCase() === className.toLowerCase());
+  return classNames.some((name) => membership.resolver.sameClassroom(name, className));
 }
 
 function contactKey(channel: CommunicationRecipientChannel, contact: CommunicationRecipient) {
@@ -69,25 +71,22 @@ function pushUnique(
   contacts.push(contact);
 }
 
-async function loadClassFilters(schoolId: string) {
-  const rows = await prisma.learner.findMany({
-    where: { schoolId },
-    select: { className: true },
-    distinct: ["className"],
-    orderBy: { className: "asc" },
-  });
-  return rows.map((row) => clean(row.className)).filter(Boolean);
+async function loadClassFilters(membership: SchoolClassMembership) {
+  return membership.classLabels();
 }
 
 async function loadParentRecipients(
   schoolId: string,
   channel: CommunicationRecipientChannel,
-  className: string
+  className: string,
+  membership: SchoolClassMembership
 ) {
   const links = await prisma.parentLearnerLink.findMany({
     where: {
       schoolId,
-      learner: className ? { className: { equals: className, mode: "insensitive" } } : undefined,
+      learner: className
+        ? { ...ACTIVE_LEARNER_WHERE, className: { in: membership.spellingsFor(className) } }
+        : undefined,
     },
     include: {
       parent: {
@@ -161,20 +160,24 @@ async function loadParentRecipients(
       learnerIds: Array.from(parent.learnerIds),
       classNames: Array.from(parent.classNames).sort((a, b) => a.localeCompare(b)),
     }))
-    .filter((contact) => matchesClass(contact.classNames, className));
+    .filter((contact) => matchesClass(membership, contact.classNames, className));
 }
 
 async function loadTeacherRecipients(
   schoolId: string,
   channel: CommunicationRecipientChannel,
-  className: string
+  className: string,
+  membership: SchoolClassMembership
 ) {
   if (channel !== "email") return [];
+  const targetClassroomId = className
+    ? membership.resolver.classroomFor(className)?.id ?? "__no_classroom__"
+    : null;
   const [classroomTeachers, classrooms] = await Promise.all([
     prisma.classroomTeacher.findMany({
       where: {
         schoolId,
-        classroom: className ? { name: { equals: className, mode: "insensitive" } } : undefined,
+        ...(targetClassroomId ? { classroomId: targetClassroomId } : {}),
       },
       include: {
         classroom: { select: { name: true } },
@@ -183,7 +186,7 @@ async function loadTeacherRecipients(
     prisma.classroom.findMany({
       where: {
         schoolId,
-        ...(className ? { name: { equals: className, mode: "insensitive" } } : {}),
+        ...(targetClassroomId ? { id: targetClassroomId } : {}),
       },
       select: { id: true, name: true, teacherName: true, teacherEmail: true },
     }),
@@ -222,7 +225,7 @@ async function loadTeacherRecipients(
     });
   }
 
-  return contacts.filter((contact) => matchesClass(contact.classNames, className));
+  return contacts.filter((contact) => matchesClass(membership, contact.classNames, className));
 }
 
 async function loadEmployeeRecipients(schoolId: string, channel: CommunicationRecipientChannel) {
@@ -273,10 +276,15 @@ export async function loadCommunicationRecipients(opts: {
   const channel = opts.channel === "sms" ? "sms" : "email";
   const kind = opts.kind || "parents";
   const className = clean(opts.className);
+  const membership = await loadSchoolClassMembership(schoolId);
   const [classFilters, parentContacts, teacherContacts, employeeContacts] = await Promise.all([
-    loadClassFilters(schoolId),
-    kind === "parents" || kind === "all" ? loadParentRecipients(schoolId, channel, className) : Promise.resolve([]),
-    kind === "teachers" || kind === "all" ? loadTeacherRecipients(schoolId, channel, className) : Promise.resolve([]),
+    loadClassFilters(membership),
+    kind === "parents" || kind === "all"
+      ? loadParentRecipients(schoolId, channel, className, membership)
+      : Promise.resolve([]),
+    kind === "teachers" || kind === "all"
+      ? loadTeacherRecipients(schoolId, channel, className, membership)
+      : Promise.resolve([]),
     kind === "employees" || kind === "all" ? loadEmployeeRecipients(schoolId, channel) : Promise.resolve([]),
   ]);
 

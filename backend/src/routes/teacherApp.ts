@@ -13,6 +13,7 @@ import {
   assignedClassroomIdsForTeacher,
   listTeachersForClassroom,
 } from "../utils/classroomTeachers";
+import { loadSchoolClassMembership, type SchoolClassMembership } from "../utils/classroomMembership";
 import {
   isSchoolAdminRole,
   normalizeTeacherVisibility,
@@ -146,36 +147,14 @@ function learnerMatchesClassFilter(
 }
 
 /** Learner/homework className aliases for a registered classroom name (not used for teacher assignment). */
-async function buildClassNameVariants(schoolId: string, classroomName: string): Promise<string[]> {
-  const base = String(classroomName || "").trim();
-  const variants = new Set<string>();
-  if (base) variants.add(base);
+function buildClassNameVariants(membership: SchoolClassMembership, classroomName: string): string[] {
+  return membership.spellingsFor(classroomName);
+}
 
-  const learners = await prisma.learner.findMany({
-    where: {
-      schoolId,
-      enrollmentStatus: "ACTIVE",
-      OR: [
-        { className: base },
-        { className: { endsWith: `/${base}` } },
-        { className: { endsWith: ` / ${base}` } },
-      ],
-    },
-    select: { className: true, grade: true },
-    take: 100,
-  });
-
-  for (const l of learners) {
-    const cn = String(l.className || "").trim();
-    if (cn) variants.add(cn);
-    const g = String(l.grade || "").trim();
-    if (g && base) {
-      variants.add(`${g} / ${base}`);
-      variants.add(`${g}/${base}`);
-    }
-  }
-
-  return [...variants];
+/** Stored className spellings for the assigned classroom matching `className` (or just `className`). */
+function classVariantsForAssigned(className: string, assigned: AssignedClassroomRow[]): string[] {
+  const room = assigned.find((c) => c.name === className || c.classNameVariants.includes(className));
+  return room?.classNameVariants.length ? room.classNameVariants : [className];
 }
 
 function allClassNameVariants(assigned: AssignedClassroomRow[]): string[] {
@@ -211,9 +190,11 @@ async function loadAssignedClassrooms(
     select: { classroomId: true, role: true, teacherEmail: true, userId: true },
   });
 
+  const membership = await loadSchoolClassMembership(schoolId);
+
   return Promise.all(
     rooms.map(async (c) => {
-      const classNameVariants = await buildClassNameVariants(schoolId, c.name);
+      const classNameVariants = buildClassNameVariants(membership, c.name);
       const learnerCount = await prisma.learner.count({
         where: {
           schoolId,
@@ -459,7 +440,10 @@ router.post("/homework", upload.array("files", TEACHER_APP_MAX_FILES), async (re
 
     if (shouldNotifyParents(visibility, isDraft)) {
       const links = await prisma.parentLearnerLink.findMany({
-        where: { schoolId, learner: { className } },
+        where: {
+          schoolId,
+          learner: { className: { in: classVariantsForAssigned(className, assignedClassrooms) } },
+        },
         select: { parentId: true, learnerId: true },
       });
       for (const link of links) {
@@ -574,9 +558,10 @@ router.post("/notices", upload.array("files", TEACHER_APP_MAX_FILES), async (req
         where: { schoolId },
         include: { learner: true },
       });
+      const noticeClassVariants = classVariantsForAssigned(className, teacherCtx.assignedClassrooms);
 
       for (const link of links) {
-        if (!learnerMatchesClassFilter(link.learner, { learnerId: null, grade: null, className }))
+        if (!noticeClassVariants.includes(String(link.learner.className || "")))
           continue;
         await createParentNotification({
           schoolId,
@@ -663,8 +648,9 @@ router.post("/documents", upload.single("file"), async (req, res) => {
         where: { schoolId },
         include: { learner: true },
       });
+      const docClassVariants = classVariantsForAssigned(className, assignedClassrooms);
       for (const link of links) {
-        if (!learnerMatchesClassFilter(link.learner, { learnerId: null, grade: null, className }))
+        if (!docClassVariants.includes(String(link.learner.className || "")))
           continue;
         await createParentNotification({
           schoolId,

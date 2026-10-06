@@ -18,13 +18,17 @@ import {
 } from "./parentIdConflict";
 import {
   calculateLearnerAge,
-  getBirthDateFromSouthAfricanId,
   getLearnerAccountNo,
   normaliseDateForInput,
 } from "./learnerIdentity";
 import "../AddLearner.css";
 import LearnerBillingPlanTab from "./LearnerBillingPlanTab";
 import { notifyLearnersRefresh } from "../billing/billingLedger";
+import {
+  applyLearnerFieldPatch,
+  assignedClassName,
+  buildManageLearnerSavePayload,
+} from "./manageLearnerEdit";
 
 const GOLD = "#d4af37";
 
@@ -199,7 +203,7 @@ function normalizeLearnerForManage(raw: any) {
   if (!raw || typeof raw !== "object") return raw;
   const firstName = learnerFirstName(raw);
   const surname = learnerSurname(raw);
-  const classroom = learnerClassroom(raw);
+  const classroom = assignedClassName(raw);
   const id = String(raw.id || raw.learnerId || "").trim();
   return {
     ...raw,
@@ -210,8 +214,8 @@ function normalizeLearnerForManage(raw: any) {
     lastName: surname,
     surname,
     classroom,
-    className: raw.className || classroom,
-    classroomName: raw.classroomName || classroom,
+    className: classroom,
+    classroomName: classroom,
     idNumber: raw.idNumber || raw.idNo || raw.identityNumber || "",
     idNo: raw.idNumber || raw.idNo || raw.identityNumber || "",
     admissionNo:
@@ -418,7 +422,7 @@ export default function ManageLearner({
         currentLearner?.birthDate || currentLearner?.dob || currentLearner?.dateOfBirth || ""
       ),
       gender: String(currentLearner?.gender || currentLearner?.Gender || currentLearner?.sex || "").trim(),
-      classroom: String(learnerClassroom(currentLearner) || "").trim(),
+      classroom: assignedClassName(currentLearner),
       homeLanguage: currentLearner?.homeLanguage || currentLearner?.language || "",
       nationality: currentLearner?.nationality || currentLearner?.citizenship || "",
       enrollmentDate: normaliseDateForInput(
@@ -626,35 +630,12 @@ export default function ManageLearner({
       }
     };
 
+    // Handlers update several alias fields in one event (firstName + name, …) before React
+    // re-renders, so each edit must build on the previous edit, not the render-time learner.
+    let latestLearner = learner;
     const updateLearnerField = (key: string, value: any) => {
-      const updated: any = { ...learner, [key]: value };
-
-      if (key === "idNumber" || key === "idNo") {
-        updated.idNumber = value;
-        updated.idNo = value;
-        const extractedBirthDate = getBirthDateFromSouthAfricanId(value);
-        if (extractedBirthDate) {
-          updated.birthDate = extractedBirthDate;
-          updated.dateOfBirth = extractedBirthDate;
-        }
-      }
-
-      if (key === "birthDate") {
-        updated.birthDate = value;
-        updated.dateOfBirth = value;
-      }
-
-      if (key === "classroom") {
-        updated.className = value;
-        updated.classroomName = value;
-      }
-
-      if (key === "className") {
-        updated.classroom = value;
-        updated.classroomName = value;
-      }
-
-      persistLearner(updated);
+      latestLearner = applyLearnerFieldPatch(latestLearner, { [key]: value });
+      persistLearner(latestLearner);
     };
 
     const handleUnenrolLearner = async () => {
@@ -1019,35 +1000,32 @@ export default function ManageLearner({
   
                 const result = await apiFetch(`/api/learners/${learner.id}`, {
                   method: "PUT",
-                  body: JSON.stringify({
-                    firstName: learner.firstName || "",
-                    lastName: learner.lastName || learner.surname || "",
-                    gender: learner.gender || "",
-                    birthDate: learner.birthDate || learner.dateOfBirth || "",
-                    homeLanguage: learner.homeLanguage || "",
-                    religion: learner.religion || "",
-                    nationality: learner.nationality || "",
-                    enrolmentDate: learner.enrolmentDate || "",
-                    idNumber: learner.idNumber || learner.idNo || "",
-                    classroom: learner.classroom || learner.className || "",
-                    classroomName: learner.classroomName || learner.classroom || learner.className || "",
-                    className: learner.className || learner.classroom || "",
-                    notes: learner.notes || "",
-                  }),
+                  body: JSON.stringify(buildManageLearnerSavePayload(learner)),
                 });
 
                 let updatedLearner = normalizeLearnerForManage(result.learner || result);
 
-                const sensitivePayload = await apiFetch(
-                  `/api/learners/${encodeURIComponent(learner.id)}/sensitive-fields`,
-                  {
-                    method: "PUT",
-                    body: JSON.stringify({
-                      allergies: (form.allergies || "").trim() || null,
-                      medicalAlert: (form.medicalAlert || "").trim() || null,
-                    }),
-                  }
-                );
+                let sensitivePayload: any;
+                try {
+                  sensitivePayload = await apiFetch(
+                    `/api/learners/${encodeURIComponent(learner.id)}/sensitive-fields`,
+                    {
+                      method: "PUT",
+                      body: JSON.stringify({
+                        allergies: (form.allergies || "").trim() || null,
+                        medicalAlert: (form.medicalAlert || "").trim() || null,
+                      }),
+                    }
+                  );
+                } catch (sensitiveError) {
+                  setDetailLearner(updatedLearner);
+                  setSelectedLearner(updatedLearner);
+                  throw new Error(
+                    `Learner details were saved, but medical fields could not be saved: ${
+                      sensitiveError instanceof Error ? sensitiveError.message : "unknown error"
+                    }`
+                  );
+                }
                 updatedLearner = normalizeLearnerForManage(
                   mergeSensitiveIntoLearner(updatedLearner, {
                     allergies: sensitivePayload.allergies,
@@ -1105,7 +1083,7 @@ export default function ManageLearner({
   
   
   
-                alert("Failed to save learner");
+                alert(error instanceof Error && error.message ? error.message : "Failed to save learner");
   
   
   

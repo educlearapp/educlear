@@ -4,6 +4,7 @@ import {
   activeLearnerWhere,
   resolveLearnerClassroomLabel,
 } from "../utils/learnerEnrollment";
+import { learnerRegisterLabel, loadSchoolClassMembership } from "../utils/classroomMembership";
 
 export type RegistrationStats = {
   children: number;
@@ -86,6 +87,7 @@ export async function buildRegistrationStats(schoolId: string): Promise<Registra
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
   });
 
+  const membership = await loadSchoolClassMembership(schoolId);
   let boys = 0;
   let girls = 0;
   const classroomSet = new Set<string>();
@@ -99,7 +101,7 @@ export async function buildRegistrationStats(schoolId: string): Promise<Registra
     if (resolved === "Male") boys += 1;
     else if (resolved === "Female") girls += 1;
 
-    const classroom = resolveLearnerClassroomLabel(learner);
+    const classroom = learnerRegisterLabel(membership, learner) || resolveLearnerClassroomLabel(learner);
     if (classroom && !/no classroom/i.test(classroom)) {
       classroomSet.add(classroom);
     }

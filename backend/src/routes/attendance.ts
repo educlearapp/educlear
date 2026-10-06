@@ -1,9 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../prisma";
-import {
-  activeLearnerWhere,
-  resolveLearnerClassroomLabel,
-} from "../utils/learnerEnrollment";
+import { activeLearnerWhere } from "../utils/learnerEnrollment";
 import {
   ATTENDANCE_PERIODS,
   bulkUpsertAttendance,
@@ -17,16 +14,22 @@ import {
   parseSubjectSlotIdFromPeriod,
   subjectSlotPeriodKey,
 } from "../utils/attendanceSessionKeys";
+import {
+  classOrGradeLearnerWhere,
+  learnerRegisterLabel,
+  loadSchoolClassMembership,
+} from "../utils/classroomMembership";
 import { buildAttendanceReport } from "../services/attendanceReportService";
 import { buildWeeklyPeriodSubjectRegister } from "../services/weeklyPeriodSubjectRegisterService";
 
 const router = Router();
 
 async function learnersForClass(schoolId: string, className: string) {
+  const membership = await loadSchoolClassMembership(schoolId);
   return prisma.learner.findMany({
     where: {
       ...activeLearnerWhere(schoolId),
-      OR: [{ className }, { grade: className }],
+      ...classOrGradeLearnerWhere(membership, className),
     },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     select: {
@@ -326,9 +329,10 @@ router.get("/classes", async (req, res) => {
       select: { className: true, grade: true },
     });
 
+    const membership = await loadSchoolClassMembership(schoolId);
     const classCounts = new Map<string, number>();
     for (const learner of activeLearners) {
-      const name = resolveLearnerClassroomLabel(learner);
+      const name = learnerRegisterLabel(membership, learner);
       if (!name || /no classroom/i.test(name)) continue;
       classCounts.set(name, (classCounts.get(name) || 0) + 1);
     }

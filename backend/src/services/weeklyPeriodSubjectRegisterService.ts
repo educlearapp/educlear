@@ -8,6 +8,11 @@ import {
   activeLearnerWhere,
   resolveLearnerClassroomLabel,
 } from "../utils/learnerEnrollment";
+import {
+  classOrGradeLearnerWhere,
+  learnerRegisterLabel,
+  loadSchoolClassMembership,
+} from "../utils/classroomMembership";
 import { parseDateOnly, periodLabel } from "../utils/attendancePeriods";
 import {
   buildAttendanceReasonLegend,
@@ -208,8 +213,9 @@ export async function buildWeeklyPeriodSubjectRegister(input: {
   });
   if (!school) throw new Error("School not found");
 
+  const membership = await loadSchoolClassMembership(schoolId);
   const classroom = await prisma.classroom.findFirst({
-    where: { schoolId, name: className },
+    where: { schoolId, id: membership.resolver.classroomFor(className)?.id ?? "__no_classroom__" },
     select: {
       id: true,
       name: true,
@@ -252,7 +258,7 @@ export async function buildWeeklyPeriodSubjectRegister(input: {
   const learnersRaw = await prisma.learner.findMany({
     where: {
       ...activeLearnerWhere(schoolId),
-      OR: [{ className }, { grade: className }],
+      ...classOrGradeLearnerWhere(membership, className),
       ...(gradeFilter ? { grade: gradeFilter } : {}),
     },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
@@ -465,7 +471,7 @@ export async function buildWeeklyPeriodSubjectRegister(input: {
       learnerId: learner.id,
       fullName: `${learner.firstName} ${learner.lastName}`.trim(),
       grade: learner.grade || "",
-      className: resolveLearnerClassroomLabel(learner) || className,
+      className: learnerRegisterLabel(membership, learner) || resolveLearnerClassroomLabel(learner) || className,
       cells,
       attendancePercentage: pct.percentage,
       present,

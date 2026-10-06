@@ -9,6 +9,11 @@ import {
   resolveLearnerClassroomLabel,
 } from "../utils/learnerEnrollment";
 import {
+  classOrGradeLearnerWhere,
+  learnerRegisterLabel,
+  loadSchoolClassMembership,
+} from "../utils/classroomMembership";
+import {
   normalizeAttendancePeriod,
   parseDateOnly,
   periodLabel,
@@ -406,11 +411,10 @@ export async function buildAttendanceReport(
   const applicableDates = listSchoolDaysInRange(startDate, endDate, includeWeekends);
   const dateDescriptors = applicableDates.map(describeSchoolDate);
 
+  const membership = await loadSchoolClassMembership(schoolId);
   const learnerWhere = {
     ...activeLearnerWhere(schoolId),
-    ...(classFilter
-      ? { OR: [{ className: classFilter }, { grade: classFilter }] }
-      : {}),
+    ...(classFilter ? classOrGradeLearnerWhere(membership, classFilter) : {}),
   };
 
   const learnersRaw = await prisma.learner.findMany({
@@ -497,6 +501,7 @@ export async function buildAttendanceReport(
 
   const learners: AttendanceReportLearner[] = learnersRaw.map((learner) => {
     const classroom =
+      learnerRegisterLabel(membership, learner) ||
       resolveLearnerClassroomLabel(learner) ||
       String(learner.className || learner.grade || "").trim() ||
       "No classroom";
