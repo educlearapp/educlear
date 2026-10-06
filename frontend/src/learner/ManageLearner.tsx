@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch, ApiError } from "../api";
 import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 import ParentsSection from "./ParentsSection";
@@ -342,6 +342,8 @@ export default function ManageLearner({
   const [detailError, setDetailError] = useState("");
   const [form, setForm] = useState<GeneralFormState>(emptyGeneralForm);
   const [unenrolling, setUnenrolling] = useState(false);
+  // Learner object produced by the latest General-tab keystroke; the form already holds those values.
+  const formEditedLearnerRef = useRef<any>(null);
 
   const seedLearner = useMemo(() => {
     if (learnerProp) return normalizeLearnerForManage(learnerProp);
@@ -413,6 +415,7 @@ export default function ManageLearner({
       setForm(emptyGeneralForm);
       return;
     }
+    if (currentLearner === formEditedLearnerRef.current) return;
 
     setForm({
       name: learnerFirstName(currentLearner),
@@ -635,6 +638,7 @@ export default function ManageLearner({
     let latestLearner = learner;
     const updateLearnerField = (key: string, value: any) => {
       latestLearner = applyLearnerFieldPatch(latestLearner, { [key]: value });
+      formEditedLearnerRef.current = latestLearner;
       persistLearner(latestLearner);
     };
 
@@ -1599,8 +1603,11 @@ export default function ManageLearner({
                   value={form.idNumber}
                   onChange={(e) => {
                     const next = e.target.value;
-                    setForm((prev) => ({ ...prev, idNumber: next }));
                     updateLearnerField("idNumber", next);
+                    const birthDate = normaliseDateForInput(
+                      latestLearner?.birthDate || latestLearner?.dateOfBirth || ""
+                    );
+                    setForm((prev) => ({ ...prev, idNumber: next, birthDate }));
                   }}
                 />
 
