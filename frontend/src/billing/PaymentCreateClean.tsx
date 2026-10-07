@@ -14,10 +14,28 @@ import {
   applyPaymentSaveResponse,
   createPayment,
   fetchOpenInvoices,
+  fetchPaymentAttemptStatus,
   logBillingSaveTiming,
   mapPostOpenInvoiceRows,
+  PaymentRequestError,
   syncBillingLedgerFromApi,
 } from "./billingApi";
+import {
+  buildPaymentAttemptIdentity,
+  formatPendingAttemptAmount,
+  listPendingPaymentAttemptsForAccount,
+  removePendingPaymentAttempt,
+  type PendingPaymentAttempt,
+} from "./paymentAttemptStore";
+import {
+  executePaymentSave,
+  PAYMENT_SAVE_MESSAGES,
+  paymentConfirmedMessage,
+  paymentCreateControlState,
+  paymentReconcileTiming,
+  reconcilePaymentAttempt,
+  type PaymentAttemptGate,
+} from "./paymentSaveFlow";
 import {
   normalizeStatementAccountRef,
   resolveStatementAccountRefFromLearner,
@@ -349,6 +367,19 @@ export default function PaymentCreateClean({
   const [saveJustSucceeded, setSaveJustSucceeded] = useState(false);
   const [saveError, setSaveError] = useState("");
   const paymentIdempotencyKeyRef = useRef<string | null>(null);
+  const [saveNotice, setSaveNotice] = useState<{
+    tone: "info" | "success" | "warning";
+    text: string;
+  } | null>(null);
+  const [attemptGate, setAttemptGate] = useState<PaymentAttemptGate>("idle");
+  const [unsavedEarlierAttempts, setUnsavedEarlierAttempts] = useState<PendingPaymentAttempt[]>([]);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
   const [allocationModal, setAllocationModal] = useState<{
     paymentId: string;
@@ -404,6 +435,58 @@ export default function PaymentCreateClean({
       if (!silent) setLoadingDetails(false);
     }
   }, [schoolId, accountNo]);
+
+  const refreshLedgerRef = useRef(refreshLedger);
+  refreshLedgerRef.current = refreshLedger;
+  const attemptFamilyAccountId = String(selectedAccount?.familyAccountId || "").trim();
+
+  const checkPendingPaymentAttempts = useCallback(async () => {
+    const pending = listPendingPaymentAttemptsForAccount(schoolId, attemptFamilyAccountId);
+    if (!pending.length) {
+      setAttemptGate("idle");
+      setUnsavedEarlierAttempts([]);
+      return;
+    }
+    setAttemptGate("checking");
+    setSaveNotice({ tone: "info", text: PAYMENT_SAVE_MESSAGES.checking });
+
+    const confirmedRefs: string[] = [];
+    const notFound: PendingPaymentAttempt[] = [];
+    let unknown = false;
+    for (const attempt of pending) {
+      const outcome = await reconcilePaymentAttempt(attempt.idempotencyKey, {
+        fetchStatus: fetchPaymentAttemptStatus,
+        delaysMs: paymentReconcileTiming.onOpenDelaysMs,
+        isCancelled: () => !mountedRef.current,
+      });
+      if (!mountedRef.current) return;
+      if (outcome.status === "found") {
+        removePendingPaymentAttempt(attempt.idempotencyKey);
+        confirmedRefs.push(outcome.payment.reference || outcome.payment.id);
+      } else if (outcome.status === "not_found") {
+        notFound.push(attempt);
+      } else {
+        unknown = true;
+      }
+    }
+
+    const messages = confirmedRefs.map((ref) => paymentConfirmedMessage(ref));
+    if (unknown) messages.push(PAYMENT_SAVE_MESSAGES.unknown);
+    setUnsavedEarlierAttempts(notFound);
+    setAttemptGate(unknown ? "unknown" : "idle");
+    setSaveNotice(
+      messages.length
+        ? { tone: unknown ? "warning" : "success", text: messages.join(" ") }
+        : null
+    );
+    if (confirmedRefs.length) void refreshLedgerRef.current({ silent: true });
+  }, [schoolId, attemptFamilyAccountId]);
+
+  useEffect(() => {
+    void checkPendingPaymentAttempts();
+  }, [checkPendingPaymentAttempts]);
+
+  const attemptControls = paymentCreateControlState({ saving, gate: attemptGate });
 
   const runBackgroundBillingSync = useCallback(
     async (
@@ -849,22 +932,28 @@ export default function PaymentCreateClean({
       return;
     }
 
-    if (saving) return;
+    if (saving || attemptGate !== "idle") return;
+
+    const paymentAmount = Math.round(normaliseBillingAmount(amount) * 100) / 100;
+    const attemptIdentity = buildPaymentAttemptIdentity({
+      schoolId,
+      familyAccountId,
+      amount: paymentAmount,
+      date: paymentDate,
+      method: paymentType,
+    });
+    if (!attemptIdentity) {
+      setSaveError("Enter a valid payment amount.");
+      return;
+    }
 
     setSaving(true);
     setSaveJustSucceeded(false);
     setSaveError("");
+    setSaveNotice(null);
     try {
-      const paymentAmount = Math.round(normaliseBillingAmount(amount) * 100) / 100;
       const paymentNote =
         draft.message.trim() || draft.description.trim() || "Payment";
-      if (!paymentIdempotencyKeyRef.current) {
-        paymentIdempotencyKeyRef.current =
-          typeof crypto !== "undefined" && crypto.randomUUID
-            ? crypto.randomUUID()
-            : `idem-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-      }
-      const idempotencyKey = paymentIdempotencyKeyRef.current;
       const allocationLines: AllocationLine[] = Object.entries(rowAllocations)
         .filter(([, amt]) => Number(amt || 0) > 0.001)
         .map(([invoiceId, allocatedAmount]) => ({
@@ -879,23 +968,101 @@ export default function PaymentCreateClean({
             ? [{ feeCategory: "account_credit" as const, allocatedAmount: unallocatedCredit }]
             : [];
       const postStarted = performance.now();
-      const result = (await createPayment({
-        schoolId,
-        familyAccountId,
-        idempotencyKey,
-        learnerId: "",
-        accountNo: displayAccountNo,
-        amount: paymentAmount,
-        date: paymentDate,
-        reference: paymentType,
-        description: paymentNote,
-        message: draft.message.trim(),
-        note: draft.message.trim(),
-        notes: draft.message.trim(),
-        bankReference: draft.message.trim(),
-        method: paymentType,
-        allocationLines: postAllocationLines,
-      })) as {
+      const saveOutcome = await executePaymentSave(
+        attemptIdentity,
+        (idempotencyKey) => {
+          paymentIdempotencyKeyRef.current = idempotencyKey;
+          return {
+            schoolId,
+            familyAccountId,
+            idempotencyKey,
+            learnerId: "",
+            accountNo: displayAccountNo,
+            amount: paymentAmount,
+            date: paymentDate,
+            reference: paymentType,
+            description: paymentNote,
+            message: draft.message.trim(),
+            note: draft.message.trim(),
+            notes: draft.message.trim(),
+            bankReference: draft.message.trim(),
+            method: paymentType,
+            allocationLines: postAllocationLines,
+          };
+        },
+        {
+          createPayment,
+          fetchStatus: fetchPaymentAttemptStatus,
+          isCancelled: () => !mountedRef.current,
+          onUncertain: (error) => {
+            setAttemptGate("checking");
+            setSaveNotice({
+              tone: "warning",
+              text:
+                error.kind === "malformed"
+                  ? PAYMENT_SAVE_MESSAGES.unexpectedResponse
+                  : PAYMENT_SAVE_MESSAGES.interrupted,
+            });
+          },
+        }
+      );
+
+      const stillPendingKeys = new Set(
+        listPendingPaymentAttemptsForAccount(schoolId, familyAccountId).map(
+          (attempt) => attempt.idempotencyKey
+        )
+      );
+      setUnsavedEarlierAttempts((prev) =>
+        prev.filter((attempt) => stillPendingKeys.has(attempt.idempotencyKey))
+      );
+
+      if (saveOutcome.kind === "rejected") {
+        throw saveOutcome.error;
+      }
+      if (saveOutcome.kind === "not_saved_after_interruption") {
+        setAttemptGate("idle");
+        setSaveNotice({ tone: "warning", text: PAYMENT_SAVE_MESSAGES.notSaved });
+        setSaving(false);
+        return;
+      }
+      if (saveOutcome.kind === "unconfirmed") {
+        setAttemptGate("unknown");
+        setSaveNotice({ tone: "warning", text: PAYMENT_SAVE_MESSAGES.unknown });
+        setSaving(false);
+        return;
+      }
+      if (saveOutcome.kind === "confirmed_after_interruption") {
+        const confirmed = saveOutcome.payment;
+        const confirmedReceipt = String(confirmed.reference || "").trim() || confirmed.id;
+        paymentIdempotencyKeyRef.current = null;
+        setAttemptGate("idle");
+        setSaveNotice({ tone: "success", text: paymentConfirmedMessage(confirmedReceipt) });
+        if (!saveOutcome.allocationSaved) {
+          setSaveError(
+            "Payment was recorded, but allocation could not be saved. Use Allocate to retry."
+          );
+        }
+        setLedgerTick((v) => v + 1);
+        setRowAllocations({});
+        setSelectedDetailId(null);
+        setSavedAccountNote(paymentNote);
+        setSelectedPaymentId(confirmed.id);
+        setDraft((prev: PaymentFormState) => ({
+          ...prev,
+          amount: "",
+          description: "Payment",
+          message: "",
+        }));
+        setSaving(false);
+        setSaveJustSucceeded(saveOutcome.allocationSaved);
+        logBillingSaveTiming("payment save total", performance.now() - saveStarted);
+
+        void onSaved({ paymentId: confirmed.id, receiptNumber: confirmedReceipt });
+        void refreshLedger({ silent: true });
+        return;
+      }
+
+      const result = saveOutcome.result as {
         success?: boolean;
         error?: string;
         payment?: Record<string, unknown>;
@@ -967,15 +1134,24 @@ export default function PaymentCreateClean({
       void refreshLedger({ silent: true });
     } catch (error) {
       console.error(error);
-      setSaveError(
-        error instanceof Error
-          ? error.message
-          : "Payment could not be saved. Check your connection and try again."
-      );
+      if (error instanceof PaymentRequestError && error.kind === "auth") {
+        setSaveError(
+          error.status === 401
+            ? "Your session has expired. Sign in again, then check this account before capturing the payment."
+            : error.message
+        );
+      } else {
+        setSaveError(
+          error instanceof Error
+            ? error.message
+            : "Payment could not be saved. Check your connection and try again."
+        );
+      }
       setSaving(false);
     }
   }, [
     saving,
+    attemptGate,
     draft,
     selectedAccount,
     schoolId,
@@ -1049,21 +1225,115 @@ export default function PaymentCreateClean({
         </p>
       ) : null}
 
+      {saveNotice ? (
+        <div
+          data-testid="payment-save-notice"
+          role="status"
+          style={{
+            marginTop: 14,
+            padding: "10px 14px",
+            borderRadius: 12,
+            fontWeight: 800,
+            border:
+              saveNotice.tone === "success"
+                ? "1px solid #86efac"
+                : saveNotice.tone === "warning"
+                  ? "1px solid #f59e0b"
+                  : "1px solid #d6c17a",
+            background:
+              saveNotice.tone === "success"
+                ? "#f0fdf4"
+                : saveNotice.tone === "warning"
+                  ? "#fffbeb"
+                  : "#fff",
+            color:
+              saveNotice.tone === "success"
+                ? "#166534"
+                : saveNotice.tone === "warning"
+                  ? "#92400e"
+                  : "#334155",
+          }}
+        >
+          {saveNotice.text}
+          {attemptGate === "unknown" && !saving ? (
+            <div style={{ marginTop: 8 }}>
+              <button
+                type="button"
+                style={payBtn}
+                onClick={() => void checkPendingPaymentAttempts()}
+              >
+                Check payment status
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {unsavedEarlierAttempts.length > 0 && attemptGate === "idle" ? (
+        <div
+          data-testid="payment-unsaved-attempts"
+          role="status"
+          style={{
+            marginTop: 14,
+            padding: "10px 14px",
+            borderRadius: 12,
+            fontWeight: 700,
+            border: "1px solid #d6c17a",
+            background: "#fff",
+            color: "#334155",
+          }}
+        >
+          {unsavedEarlierAttempts.map((attempt) => (
+            <div key={attempt.idempotencyKey}>
+              Earlier payment attempt: {formatMoney(formatPendingAttemptAmount(attempt))} via{" "}
+              {attempt.method} on {attempt.date}. {PAYMENT_SAVE_MESSAGES.notSaved}
+            </div>
+          ))}
+          <div style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              style={payBtn}
+              onClick={() => void checkPendingPaymentAttempts()}
+              disabled={saving}
+            >
+              Check payment status
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <div style={{ display: "flex", gap: 8, margin: "14px 0" }}>
-        <button type="button" style={payBtn} onClick={onBack}>
+        <button
+          type="button"
+          style={{
+            ...payBtn,
+            opacity: attemptControls.backDisabled ? 0.55 : 1,
+            cursor: attemptControls.backDisabled ? "not-allowed" : "pointer",
+          }}
+          onClick={onBack}
+          disabled={attemptControls.backDisabled}
+        >
           Back
         </button>
         <button
           type="button"
           style={{
             ...payGoldBtn,
-            opacity: saving ? 0.55 : 1,
-            cursor: saving ? "not-allowed" : "pointer",
+            opacity: attemptControls.saveDisabled ? 0.55 : 1,
+            cursor: attemptControls.saveDisabled ? "not-allowed" : "pointer",
           }}
           onClick={savePayment}
-          disabled={saving}
+          disabled={attemptControls.saveDisabled}
         >
-          {saving ? "Saving…" : saveJustSucceeded ? "Saved ✓" : "Save Payment"}
+          {saving
+            ? attemptGate === "checking"
+              ? "Checking…"
+              : "Saving…"
+            : attemptGate === "checking"
+              ? "Checking…"
+              : saveJustSucceeded
+                ? "Saved ✓"
+                : "Save Payment"}
         </button>
       </div>
 

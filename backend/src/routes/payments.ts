@@ -8,6 +8,7 @@ import {
 import { relinkSchoolBillingLedger } from "../services/billingLedgerRelink";
 import { sendSavedPaymentReceiptEmail } from "../services/receiptEmailService";
 import { captureManualPayment, CapturePaymentError } from "../services/capturePaymentService";
+import { lookupPaymentAttemptStatus } from "../services/paymentAttemptStatus";
 import { buildSetupRequiredPayload } from "../services/schoolEmailService";
 import { filterPaymentAccountsForSchool } from "../services/paymentAccountEligibility";
 import {
@@ -28,6 +29,13 @@ import {
   collectBillingPersistenceDiagnostics,
   getPaymentWriteGuard,
 } from "../utils/billingPersistenceDiagnostics";
+import {
+  getPaymentCaptureContext,
+  idempotencyKeyPrefix,
+  logPaymentCaptureEvent,
+  observePaymentCaptureRequest,
+  resolvePaymentRequestId,
+} from "../utils/paymentCaptureObservability";
 
 const router = Router();
 
@@ -166,6 +174,41 @@ router.get("/accounts", requireCapturePaymentReadAuth, async (req: CapturePaymen
   }
 });
 
+// GET /api/payments/attempts/:idempotencyKey — read-only Capture Payment attempt status.
+// School comes from the authenticated user only; another school's key reports not found.
+router.get(
+  "/attempts/:idempotencyKey",
+  requireCapturePaymentReadAuth,
+  async (req: CapturePaymentAuthRequest, res) => {
+    try {
+      const schoolId = String(req.capturePaymentAuth?.authorizedSchoolId || "").trim();
+      if (!schoolId) return res.status(401).json({ success: false, error: "Authentication required" });
+
+      const decision = lookupPaymentAttemptStatus({
+        authorizedSchoolId: schoolId,
+        idempotencyKey: req.params.idempotencyKey,
+      });
+      if (!decision.ok) {
+        return res
+          .status(decision.status)
+          .json({ success: false, error: decision.error, code: decision.code });
+      }
+      logPaymentCaptureEvent("payment_attempt_status", {
+        requestId: resolvePaymentRequestId(req),
+        schoolId,
+        userId: req.capturePaymentAuth?.userId || null,
+        keyPrefix: idempotencyKeyPrefix(req.params.idempotencyKey),
+        found: decision.body.found,
+      });
+      res.setHeader("Cache-Control", "no-store");
+      return res.json(decision.body);
+    } catch (error) {
+      console.error("[payments] GET /attempts/:idempotencyKey failed:", error);
+      return res.status(500).json({ success: false, error: "Server error" });
+    }
+  }
+);
+
 // POST /api/payments/:paymentId/send-receipt
 router.post("/:paymentId/send-receipt", async (req, res) => {
   try {
@@ -201,7 +244,8 @@ router.post("/:paymentId/send-receipt", async (req, res) => {
   }
 });
 
-router.post("/", requireCapturePaymentAuth, async (req: CapturePaymentAuthRequest, res) => {
+router.post("/", observePaymentCaptureRequest, requireCapturePaymentAuth, async (req: CapturePaymentAuthRequest, res) => {
+  const captureContext = getPaymentCaptureContext(res);
   try {
     const writeGuard = getPaymentWriteGuard();
     if (!writeGuard.allowed) {
@@ -223,6 +267,13 @@ router.post("/", requireCapturePaymentAuth, async (req: CapturePaymentAuthReques
     }
 
     const body = (req.body ?? {}) as Record<string, unknown>;
+    logPaymentCaptureEvent("payment_capture_start", {
+      requestId: captureContext?.requestId || null,
+      schoolId: auth.authorizedSchoolId,
+      userId: auth.userId,
+      familyAccountId: String(body.familyAccountId || "").trim() || null,
+      keyPrefix: idempotencyKeyPrefix(body.idempotencyKey),
+    });
     const result = await captureManualPayment({
       authorizedSchoolId: auth.authorizedSchoolId,
       familyAccountId: String(body.familyAccountId || "").trim(),
@@ -242,6 +293,15 @@ router.post("/", requireCapturePaymentAuth, async (req: CapturePaymentAuthReques
             allocatedAmount: number;
           }>)
         : undefined,
+    });
+
+    logPaymentCaptureEvent("payment_capture_post_write", {
+      requestId: captureContext?.requestId || null,
+      schoolId: auth.authorizedSchoolId,
+      paymentId: result.payment?.id || null,
+      outcome: result.duplicate ? "duplicate" : "created",
+      allocationSaved: result.allocationSaved,
+      elapsedMs: captureContext ? Date.now() - captureContext.startedAt : null,
     });
 
     const status = result.allocationSaved ? 200 : 207;

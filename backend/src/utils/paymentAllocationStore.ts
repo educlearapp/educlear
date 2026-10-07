@@ -79,6 +79,20 @@ export function listPaymentAllocations(
   return school[pid];
 }
 
+/** Read-only allocation count for one payment. Never creates the store file. */
+export function countPaymentAllocationsReadOnly(schoolId: string, paymentId: string): number {
+  const sid = String(schoolId || "").trim();
+  const pid = String(paymentId || "").trim();
+  if (!sid || !pid) return 0;
+  if (!fs.existsSync(getAllocationFile())) return 0;
+  const all = readAll();
+  const storeKey = resolveSchoolJsonStoreKey(sid, all, (value) =>
+    value && typeof value === "object" ? Object.keys(value).length > 0 : false
+  );
+  const rows = all[storeKey]?.[pid];
+  return Array.isArray(rows) ? rows.length : 0;
+}
+
 export function writePaymentAllocations(
   schoolId: string,
   paymentId: string,

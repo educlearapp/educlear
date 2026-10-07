@@ -962,8 +962,191 @@ export function applyInvoiceRunExecuteResponse(
   });
 }
 
-export const createPayment = async (data: Record<string, unknown>) =>
-  postJson(`${API_URL}/api/payments`, data, "Failed to create payment", staffAuthHeaders());
+/**
+ * network   — fetch rejected / timed out / body cut off: the server may have saved the payment.
+ * malformed — 2xx with an unreadable body: the server may have saved the payment.
+ * http      — readable 4xx/5xx from EduClear.
+ * auth      — 401/403 from EduClear.
+ */
+export type PaymentRequestErrorKind = "network" | "malformed" | "http" | "auth";
+
+export class PaymentRequestError extends Error {
+  readonly kind: PaymentRequestErrorKind;
+  readonly status: number | null;
+
+  constructor(kind: PaymentRequestErrorKind, message: string, status: number | null = null) {
+    super(message);
+    this.name = "PaymentRequestError";
+    this.kind = kind;
+    this.status = status;
+  }
+}
+
+/** True when the outcome of a payment POST is unknown and must be reconciled, never re-captured. */
+export function isUncertainPaymentRequestError(error: unknown): error is PaymentRequestError {
+  return (
+    error instanceof PaymentRequestError && (error.kind === "network" || error.kind === "malformed")
+  );
+}
+
+export const PAYMENT_POST_TIMEOUT_MS = 90_000;
+export const PAYMENT_ATTEMPT_STATUS_TIMEOUT_MS = 10_000;
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number
+): Promise<Response> {
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  try {
+    return await authenticatedFetch(url, { ...init, signal: controller?.signal });
+  } catch {
+    throw new PaymentRequestError("network", "Connection to EduClear was interrupted.");
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function readJsonBody(
+  response: Response
+): Promise<{ readable: true; body: unknown } | { readable: false; cutOff: boolean }> {
+  let text: string;
+  try {
+    text = await response.text();
+  } catch {
+    return { readable: false, cutOff: true };
+  }
+  if (!text.trim()) return { readable: false, cutOff: false };
+  try {
+    return { readable: true, body: JSON.parse(text) };
+  } catch {
+    return { readable: false, cutOff: false };
+  }
+}
+
+export const createPayment = async (data: Record<string, unknown>) => {
+  const fallback = "Failed to create payment";
+  const response = await fetchWithTimeout(
+    `${API_URL}/api/payments`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
+      body: JSON.stringify(data),
+      cache: "no-store",
+    },
+    PAYMENT_POST_TIMEOUT_MS
+  );
+  const parsed = await readJsonBody(response);
+
+  if (!response.ok) {
+    if (
+      response.status === 408 ||
+      response.status === 429 ||
+      response.status === 502 ||
+      response.status === 504 ||
+      !parsed.readable
+    ) {
+      throw new PaymentRequestError(
+        "network",
+        "Connection to EduClear was interrupted.",
+        response.status
+      );
+    }
+    const body = parsed.readable ? parsed.body : {};
+    const kind: PaymentRequestErrorKind =
+      response.status === 401 || response.status === 403 ? "auth" : "http";
+    throw new PaymentRequestError(kind, readApiErrorMessage(response, body, fallback), response.status);
+  }
+  if (!parsed.readable) {
+    if (parsed.cutOff) {
+      throw new PaymentRequestError(
+        "network",
+        "Connection to EduClear was interrupted.",
+        response.status
+      );
+    }
+    throw new PaymentRequestError(
+      "malformed",
+      "EduClear returned an unexpected response.",
+      response.status
+    );
+  }
+  const body = parsed.body;
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw new PaymentRequestError(
+      "malformed",
+      "EduClear returned an unexpected response.",
+      response.status
+    );
+  }
+  if ((body as { success?: boolean }).success === false) {
+    throw new PaymentRequestError("http", readApiErrorMessage(response, body, fallback), response.status);
+  }
+  return body as Record<string, unknown>;
+};
+
+export type PaymentAttemptStatusPayment = {
+  id: string;
+  reference: string;
+  amount: number;
+  date: string;
+  method: string;
+  createdAt: string;
+};
+
+export type PaymentAttemptStatus =
+  | { found: false }
+  | { found: true; payment: PaymentAttemptStatusPayment; allocationSaved: boolean };
+
+/** Read-only: has this Capture Payment idempotency key been saved for the signed-in school? */
+export async function fetchPaymentAttemptStatus(idempotencyKey: string): Promise<PaymentAttemptStatus> {
+  const response = await fetchWithTimeout(
+    `${API_URL}/api/payments/attempts/${encodeURIComponent(idempotencyKey)}`,
+    { cache: "no-store", headers: { ...staffAuthHeaders() } },
+    PAYMENT_ATTEMPT_STATUS_TIMEOUT_MS
+  );
+  const parsed = await readJsonBody(response);
+  if (!response.ok) {
+    const body = parsed.readable ? parsed.body : {};
+    const kind: PaymentRequestErrorKind =
+      response.status === 401 || response.status === 403 ? "auth" : "http";
+    throw new PaymentRequestError(
+      kind,
+      readApiErrorMessage(response, body, "Payment status check failed"),
+      response.status
+    );
+  }
+  if (!parsed.readable) {
+    throw new PaymentRequestError(
+      parsed.cutOff ? "network" : "malformed",
+      "Payment status check returned an unexpected response.",
+      response.status
+    );
+  }
+  const body = parsed.body as Record<string, unknown> | null;
+  if (body && body.found === false) return { found: false };
+  const payment = body?.payment as Record<string, unknown> | undefined;
+  if (body && body.found === true && payment && typeof payment.id === "string" && payment.id) {
+    return {
+      found: true,
+      payment: {
+        id: payment.id,
+        reference: String(payment.reference || ""),
+        amount: Number(payment.amount) || 0,
+        date: String(payment.date || ""),
+        method: String(payment.method || ""),
+        createdAt: String(payment.createdAt || ""),
+      },
+      allocationSaved: body.allocationSaved !== false,
+    };
+  }
+  throw new PaymentRequestError(
+    "malformed",
+    "Payment status check returned an unexpected response.",
+    response.status
+  );
+}
 
 /** Merge one updated account row into cached GET /api/statements data. */
 export function patchStatementApiAccount(schoolId: string, accountRow: unknown) {

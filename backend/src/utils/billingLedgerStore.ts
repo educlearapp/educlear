@@ -548,6 +548,39 @@ export function readSchoolLedger(schoolId: string): BillingLedgerEntry[] {
   return Array.isArray(all[storeKey]) ? all[storeKey] : [];
 }
 
+/** Must stay identical to the stable payment id assigned in appendSchoolEntrySafe. */
+export function paymentEntryIdForIdempotencyKey(idempotencyKey: string): string {
+  const key = String(idempotencyKey || "").trim();
+  return `pay-${key.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80)}`;
+}
+
+/**
+ * Read-only lookup of a Capture Payment attempt within one school's ledger.
+ * Never creates the store file (unlike readAll/ensureStore) and never writes.
+ */
+export function findSchoolPaymentByIdempotencyKey(
+  schoolId: string,
+  idempotencyKey: string
+): BillingLedgerEntry | null {
+  const sid = String(schoolId || "").trim();
+  const key = String(idempotencyKey || "").trim();
+  if (!sid || !key) return null;
+  if (!fs.existsSync(getLedgerFile())) return null;
+  const all = readAll();
+  const storeKey = resolveSchoolJsonStoreKey(sid, all, (value) =>
+    Array.isArray(value) ? value.length > 0 : false
+  );
+  const entries = Array.isArray(all[storeKey]) ? all[storeKey] : [];
+  const stableId = paymentEntryIdForIdempotencyKey(key);
+  return (
+    entries.find(
+      (entry) =>
+        entry?.type === "payment" &&
+        (entry.id === stableId || String(entry.idempotencyKey || "").trim() === key)
+    ) || null
+  );
+}
+
 export function writeSchoolLedger(schoolId: string, entries: BillingLedgerEntry[]) {
   const key = String(schoolId || "").trim();
   if (!key) return;
