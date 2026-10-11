@@ -36,6 +36,7 @@ router.get("/", requireOutstandingAccountsAuth, async (req: OutstandingAccountsA
       asOfDate: report.asOfDate,
       summary: report.summary,
       accounts: report.accounts,
+      classOptions: report.classOptions,
     });
   } catch (error) {
     console.error("[outstanding-accounts] GET / failed:", error);

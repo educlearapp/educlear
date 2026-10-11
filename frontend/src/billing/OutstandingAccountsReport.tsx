@@ -15,6 +15,16 @@ import {
   type OutstandingBalanceRangeKey,
   type OutstandingDaysOverdueKey,
 } from "./outstandingAccountsFilters";
+import {
+  ALL_CLASSES_VALUE,
+  buildClassSelectOptions,
+  buildOutstandingClassView,
+  reconcileClassView,
+  rowClassLabels,
+  type OutstandingClassGroup,
+} from "./outstandingFeesByClass";
+import { downloadOutstandingFeesExcel } from "./buildOutstandingFeesExcel";
+import { downloadOutstandingFeesPdf } from "./buildOutstandingFeesPdf";
 
 const GOLD = "#d4af37";
 
@@ -26,6 +36,8 @@ export type OutstandingAccountApiRow = {
   memberLearnerIds: string[];
   grades: string[];
   classes: string[];
+  /** Canonical current class labels of ACTIVE member learners (grouping only). */
+  classLabels?: string[];
   outstandingBalance: number;
   parentGuardianName: string | null;
   primaryCellphone: string | null;
@@ -45,6 +57,7 @@ type Summary = {
 
 type Props = {
   schoolId: string;
+  schoolName?: string;
 };
 
 const pageWrap: React.CSSProperties = {
@@ -146,6 +159,41 @@ const td: React.CSSProperties = {
   verticalAlign: "top",
 };
 
+const goldButton = (enabled: boolean): React.CSSProperties => ({
+  border: "1px solid #b89329",
+  background: enabled ? "linear-gradient(135deg, #f7d56a, #d4af37)" : "#e2e8f0",
+  borderRadius: 10,
+  padding: "8px 14px",
+  fontWeight: 900,
+  cursor: enabled ? "pointer" : "not-allowed",
+  fontSize: 13,
+  color: "#111827",
+  opacity: enabled ? 1 : 0.55,
+});
+
+const classSection: React.CSSProperties = {
+  marginBottom: 18,
+};
+
+const classSectionHeader: React.CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  alignItems: "baseline",
+  gap: 12,
+  padding: "10px 14px",
+  borderRadius: "14px 14px 0 0",
+  background: "#111827",
+  color: "#ffffff",
+  borderBottom: `3px solid ${GOLD}`,
+};
+
+const totalRowTd: React.CSSProperties = {
+  ...td,
+  fontWeight: 900,
+  background: "#fdf6e3",
+  borderBottom: "none",
+};
+
 function dash(value: string | null | undefined): string {
   const s = String(value || "").trim();
   return s || "—";
@@ -165,17 +213,25 @@ function joinLabels(values: string[]): string {
   return cleaned.length ? cleaned.join(" · ") : "—";
 }
 
-export default function OutstandingAccountsReport({ schoolId }: Props) {
+function countLabel(accounts: number, learners: number): string {
+  return `${accounts} account${accounts === 1 ? "" : "s"} · ${learners} learner${learners === 1 ? "" : "s"}`;
+}
+
+const TABLE_COLUMN_COUNT = 12;
+
+export default function OutstandingAccountsReport({ schoolId, schoolName }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<OutstandingAccountApiRow[]>([]);
   const [serverSummary, setServerSummary] = useState<Summary | null>(null);
+  const [serverClassOptions, setServerClassOptions] = useState<string[]>([]);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [bulkSmsOpen, setBulkSmsOpen] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
   const [grade, setGrade] = useState("all");
-  const [className, setClassName] = useState("all");
+  const [className, setClassName] = useState(ALL_CLASSES_VALUE);
   const [balanceRange, setBalanceRange] = useState<OutstandingBalanceRangeKey>("all");
   const [daysOverdue, setDaysOverdue] = useState<OutstandingDaysOverdueKey>("all");
 
@@ -205,11 +261,13 @@ export default function OutstandingAccountsReport({ schoolId }: Props) {
         if (cancelled) return;
         setAccounts(Array.isArray(data.accounts) ? data.accounts : []);
         setServerSummary(data.summary || null);
+        setServerClassOptions(Array.isArray(data.classOptions) ? data.classOptions : []);
         setSelected({});
       } catch (err) {
         if (!cancelled) {
           setAccounts([]);
           setServerSummary(null);
+          setServerClassOptions([]);
           setError(err instanceof Error ? err.message : "Failed to load outstanding accounts");
         }
       } finally {
@@ -228,48 +286,65 @@ export default function OutstandingAccountsReport({ schoolId }: Props) {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [accounts]);
 
-  const classOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const row of accounts) for (const c of row.classes || []) if (c) set.add(c);
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [accounts]);
+  const classOptions = useMemo(
+    () => buildClassSelectOptions(serverClassOptions, accounts),
+    [serverClassOptions, accounts]
+  );
 
+  /** Search/grade/balance/overdue filters; class is applied by grouping below. */
   const filtered = useMemo(
     () =>
       filterOutstandingAccounts(accounts, {
         search,
         grade,
-        className,
+        className: "all",
         balanceRange,
         daysOverdue,
       }),
-    [accounts, search, grade, className, balanceRange, daysOverdue]
+    [accounts, search, grade, balanceRange, daysOverdue]
+  );
+
+  const classView = useMemo(() => buildOutstandingClassView(filtered, className), [filtered, className]);
+
+  const groupedRows = useMemo(() => classView.groups.flatMap((g) => g.rows), [classView]);
+
+  /** Every row rendered on screen (grouped rows plus shared rows in single-class view). */
+  const visibleRows = useMemo(
+    () => [...groupedRows, ...classView.sharedRows],
+    [groupedRows, classView]
+  );
+
+  const nonClassFiltersActive = Boolean(
+    search.trim() || grade !== "all" || balanceRange !== "all" || daysOverdue !== "all"
   );
 
   const summary = useMemo(() => {
-    const filtersActive =
-      search.trim() ||
-      (grade !== "all") ||
-      (className !== "all") ||
-      balanceRange !== "all" ||
-      daysOverdue !== "all";
+    const filtersActive = nonClassFiltersActive || className !== ALL_CLASSES_VALUE;
     if (!filtersActive && serverSummary) return serverSummary;
-    return summarizeFilteredOutstanding(filtered);
-  }, [filtered, search, grade, className, balanceRange, daysOverdue, serverSummary]);
+    return summarizeFilteredOutstanding(groupedRows);
+  }, [groupedRows, nonClassFiltersActive, className, serverSummary]);
+
+  /** All Classes grouping must equal the ungrouped total (and the server total when unfiltered). */
+  const reconciliation = useMemo(() => {
+    const allView = buildOutstandingClassView(filtered, ALL_CLASSES_VALUE);
+    const expected =
+      !nonClassFiltersActive && serverSummary ? serverSummary : summarizeFilteredOutstanding(filtered);
+    return reconcileClassView(allView, expected);
+  }, [filtered, nonClassFiltersActive, serverSummary]);
 
   const allFilteredSelected =
-    filtered.length > 0 &&
-    filtered.every((row) => selected[outstandingSelectionKey(row)]);
+    visibleRows.length > 0 &&
+    visibleRows.every((row) => selected[outstandingSelectionKey(row)]);
 
   function toggleAllFiltered() {
     if (allFilteredSelected) {
       const next = { ...selected };
-      for (const row of filtered) delete next[outstandingSelectionKey(row)];
+      for (const row of visibleRows) delete next[outstandingSelectionKey(row)];
       setSelected(next);
       return;
     }
     const next = { ...selected };
-    for (const row of filtered) next[outstandingSelectionKey(row)] = true;
+    for (const row of visibleRows) next[outstandingSelectionKey(row)] = true;
     setSelected(next);
   }
 
@@ -280,14 +355,14 @@ export default function OutstandingAccountsReport({ schoolId }: Props) {
   function resetFilters() {
     setSearch("");
     setGrade("all");
-    setClassName("all");
+    setClassName(ALL_CLASSES_VALUE);
     setBalanceRange("all");
     setDaysOverdue("all");
   }
 
   const selectionSummary = useMemo(
-    () => summarizeSelectedOutstanding(filtered, selected, outstandingSelectionKey),
-    [filtered, selected]
+    () => summarizeSelectedOutstanding(visibleRows, selected, outstandingSelectionKey),
+    [visibleRows, selected]
   );
   const selectedCount = selectionSummary.count;
   const selectedTotal = selectionSummary.total;
@@ -295,28 +370,204 @@ export default function OutstandingAccountsReport({ schoolId }: Props) {
 
   /** Keys selected but currently hidden by filters — excluded from Bulk SMS until visible again. */
   const hiddenSelectedCount = useMemo(() => {
-    const visible = new Set(filtered.map((row) => outstandingSelectionKey(row)));
+    const visible = new Set(visibleRows.map((row) => outstandingSelectionKey(row)));
     let n = 0;
     for (const [key, on] of Object.entries(selected)) {
       if (on && !visible.has(key)) n += 1;
     }
     return n;
-  }, [filtered, selected]);
+  }, [visibleRows, selected]);
+
+  function describeActiveFilters(): string {
+    const parts: string[] = [];
+    if (search.trim()) parts.push(`Search "${search.trim()}"`);
+    if (grade !== "all") parts.push(`Grade ${grade}`);
+    if (balanceRange !== "all") {
+      parts.push(`Balance ${OUTSTANDING_BALANCE_RANGES.find((o) => o.key === balanceRange)?.label || balanceRange}`);
+    }
+    if (daysOverdue !== "all") {
+      parts.push(
+        `Days overdue ${OUTSTANDING_DAYS_OVERDUE_OPTIONS.find((o) => o.key === daysOverdue)?.label || daysOverdue}`
+      );
+    }
+    return parts.join("; ");
+  }
+
+  const canExport = !loading && !error && reconciliation.ok;
+
+  function handleExport(kind: "excel" | "pdf") {
+    if (!canExport) return;
+    setExportError(null);
+    try {
+      const meta = {
+        schoolName: String(schoolName || "").trim() || "School",
+        generatedAt: new Date(),
+        filtersNote: describeActiveFilters() || undefined,
+      };
+      if (kind === "excel") downloadOutstandingFeesExcel(classView, meta);
+      else downloadOutstandingFeesPdf(classView, meta);
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : "Export failed");
+    }
+  }
+
+  function renderAccountRow(row: OutstandingAccountApiRow) {
+    const key = outstandingSelectionKey(row);
+    return (
+      <tr key={key}>
+        <td style={td}>
+          <input
+            type="checkbox"
+            checked={Boolean(selected[key])}
+            onChange={() =>
+              setSelected((prev) => ({
+                ...prev,
+                [key]: !prev[key],
+              }))
+            }
+            aria-label={`Select ${row.accountNumber}`}
+          />
+        </td>
+        <td style={{ ...td, fontWeight: 700, maxWidth: 220 }}>
+          {joinLabels(row.learnerNames)}
+        </td>
+        <td style={{ ...td, fontWeight: 800 }}>{row.accountNumber}</td>
+        <td style={td}>{joinLabels(row.grades)}</td>
+        <td style={td}>{joinLabels(rowClassLabels(row))}</td>
+        <td style={{ ...td, fontWeight: 900, color: "#b91c1c", whiteSpace: "nowrap" }}>
+          {formatMoney(row.outstandingBalance)}
+        </td>
+        <td style={td}>{dash(row.parentGuardianName)}</td>
+        <td style={td}>{dash(row.primaryCellphone)}</td>
+        <td style={td}>{dash(row.alternateContact)}</td>
+        <td style={td}>{dash(row.email)}</td>
+        <td style={{ ...td, whiteSpace: "nowrap" }}>
+          {formatLastPayment(row.lastPaymentDate, row.lastPaymentAmount)}
+        </td>
+        <td style={td}>
+          {row.daysOverdue != null && Number.isFinite(row.daysOverdue)
+            ? String(row.daysOverdue)
+            : "Unknown"}
+        </td>
+      </tr>
+    );
+  }
+
+  function renderTableHead() {
+    return (
+      <thead>
+        <tr>
+          <th style={th} aria-label="Select" />
+          <th style={th}>Learner / Family</th>
+          <th style={th}>Account No.</th>
+          <th style={th}>Grade</th>
+          <th style={th}>Class</th>
+          <th style={th}>Outstanding</th>
+          <th style={th}>Parent / Guardian</th>
+          <th style={th}>Cellphone</th>
+          <th style={th}>Alternate Contact</th>
+          <th style={th}>Email</th>
+          <th style={th}>Last Payment</th>
+          <th style={th}>Days Overdue</th>
+        </tr>
+      </thead>
+    );
+  }
+
+  function renderClassSection(group: OutstandingClassGroup<OutstandingAccountApiRow>) {
+    return (
+      <div key={group.value} style={classSection}>
+        <div style={classSectionHeader}>
+          <span style={{ fontSize: 17, fontWeight: 900 }}>{group.label}</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#cbd5e1" }}>
+            {countLabel(group.outstandingAccountCount, group.learnersAffected)}
+          </span>
+          <span style={{ flex: 1 }} />
+          <span style={{ fontSize: 14, fontWeight: 900, color: GOLD }}>
+            Class Total: {formatMoney(group.totalOutstanding)}
+          </span>
+        </div>
+        {group.kind === "multiple" ? (
+          <div style={{ fontSize: 12, color: "#64748b", padding: "8px 14px", background: "#f8fafc" }}>
+            Family accounts with learners in more than one class. Each balance is counted once, here.
+          </div>
+        ) : null}
+        <div style={{ ...tableWrap, borderRadius: "0 0 14px 14px" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1100 }}>
+            {renderTableHead()}
+            <tbody>
+              {group.rows.length === 0 ? (
+                <tr>
+                  <td style={{ ...td, color: "#64748b", fontWeight: 700 }} colSpan={TABLE_COLUMN_COUNT}>
+                    No outstanding accounts in this class
+                  </td>
+                </tr>
+              ) : (
+                group.rows.map((row) => renderAccountRow(row))
+              )}
+              <tr>
+                <td style={totalRowTd} colSpan={5}>
+                  Class Total — {group.label}
+                </td>
+                <td style={{ ...totalRowTd, color: "#b91c1c", whiteSpace: "nowrap" }}>
+                  {formatMoney(group.totalOutstanding)}
+                </td>
+                <td style={totalRowTd} colSpan={TABLE_COLUMN_COUNT - 6}>
+                  {countLabel(group.outstandingAccountCount, group.learnersAffected)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={pageWrap}>
-      <h1 style={heading}>Outstanding Accounts</h1>
+      <h1 style={heading}>Outstanding Fees</h1>
       <div style={subtitle}>
-        Family accounts with an outstanding balance greater than R0.00. Select accounts to send bulk
+        Family accounts with an outstanding balance greater than R0.00, organised by class. Select accounts to send bulk
         statement SMS.
       </div>
+
+      <div style={filterRow}>
+        <label style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }} htmlFor="outstanding-class-select">
+          Class:
+        </label>
+        <select
+          id="outstanding-class-select"
+          style={{ ...selectStyle, minWidth: 200, fontWeight: 700 }}
+          value={className}
+          onChange={(e) => setClassName(e.target.value)}
+        >
+          {classOptions.map((c) => (
+            <option key={c.value} value={c.value}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+        <span style={{ flex: 1 }} />
+        <button type="button" disabled={!canExport} onClick={() => handleExport("excel")} style={goldButton(canExport)}>
+          Export Excel
+        </button>
+        <button type="button" disabled={!canExport} onClick={() => handleExport("pdf")} style={goldButton(canExport)}>
+          Export PDF
+        </button>
+      </div>
+
+      {exportError ? (
+        <div style={{ marginBottom: 12, color: "#991b1b", fontWeight: 700, fontSize: 13 }}>{exportError}</div>
+      ) : null}
 
       <div style={summaryWrap}>
         <div style={summaryCard}>
           <div style={{ ...summaryValue, color: "#b91c1c" }}>
             {formatMoney(summary.totalOutstanding)}
           </div>
-          <div style={summaryLabel}>Total Outstanding</div>
+          <div style={summaryLabel}>
+            {classView.isAllClasses ? "Total Outstanding" : `Class Outstanding Total · ${classView.selectionLabel}`}
+          </div>
         </div>
         <div style={summaryCard}>
           <div style={summaryValue}>{summary.outstandingAccountCount}</div>
@@ -340,14 +591,6 @@ export default function OutstandingAccountsReport({ schoolId }: Props) {
           {gradeOptions.map((g) => (
             <option key={g} value={g}>
               {g}
-            </option>
-          ))}
-        </select>
-        <select style={selectStyle} value={className} onChange={(e) => setClassName(e.target.value)}>
-          <option value="all">All classes</option>
-          {classOptions.map((c) => (
-            <option key={c} value={c}>
-              {c}
             </option>
           ))}
         </select>
@@ -391,9 +634,20 @@ export default function OutstandingAccountsReport({ schoolId }: Props) {
       </div>
 
       <div style={{ fontSize: 13, color: "#64748b", marginBottom: 10, display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 700, color: "#0f172a" }}>
+          <input
+            type="checkbox"
+            checked={allFilteredSelected}
+            onChange={toggleAllFiltered}
+            disabled={visibleRows.length === 0}
+            aria-label="Select all visible accounts"
+          />
+          Select all visible
+        </label>
         <span>
-          Showing {filtered.length} of {accounts.length} outstanding account
+          Showing {groupedRows.length} of {accounts.length} outstanding account
           {accounts.length === 1 ? "" : "s"}
+          {classView.sharedRows.length ? ` (+${classView.sharedRows.length} shared)` : ""}
           {selectedCount
             ? ` · ${selectedCount} selected · ${formatMoney(selectedTotal)}`
             : ""}
@@ -423,23 +677,28 @@ export default function OutstandingAccountsReport({ schoolId }: Props) {
           type="button"
           disabled={!selectedFamilyAccountIds.length}
           onClick={() => setBulkSmsOpen(true)}
-          style={{
-            border: "1px solid #b89329",
-            background: selectedFamilyAccountIds.length
-              ? "linear-gradient(135deg, #f7d56a, #d4af37)"
-              : "#e2e8f0",
-            borderRadius: 10,
-            padding: "8px 14px",
-            fontWeight: 900,
-            cursor: selectedFamilyAccountIds.length ? "pointer" : "not-allowed",
-            fontSize: 13,
-            color: "#111827",
-            opacity: selectedFamilyAccountIds.length ? 1 : 0.55,
-          }}
+          style={goldButton(selectedFamilyAccountIds.length > 0)}
         >
           Bulk SMS
         </button>
       </div>
+
+      {!loading && !error && !reconciliation.ok ? (
+        <div
+          style={{
+            padding: 14,
+            marginBottom: 12,
+            borderRadius: 12,
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            color: "#991b1b",
+            fontWeight: 700,
+          }}
+        >
+          Class totals do not reconcile ({formatMoney(reconciliation.groupsTotal)} vs{" "}
+          {formatMoney(reconciliation.expectedTotal)}). Exports are disabled — please refresh or contact support.
+        </div>
+      ) : null}
 
       {loading ? (
         <div style={{ padding: 28, color: "#64748b", fontWeight: 700 }}>Loading outstanding accounts…</div>
@@ -456,7 +715,7 @@ export default function OutstandingAccountsReport({ schoolId }: Props) {
         >
           {error}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : classView.isAllClasses && groupedRows.length === 0 ? (
         <div
           style={{
             padding: 28,
@@ -471,75 +730,54 @@ export default function OutstandingAccountsReport({ schoolId }: Props) {
           No outstanding accounts
         </div>
       ) : (
-        <div style={tableWrap}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1100 }}>
-            <thead>
-              <tr>
-                <th style={th}>
-                  <input
-                    type="checkbox"
-                    checked={allFilteredSelected}
-                    onChange={toggleAllFiltered}
-                    aria-label="Select all visible accounts"
-                  />
-                </th>
-                <th style={th}>Learner / Family</th>
-                <th style={th}>Account No.</th>
-                <th style={th}>Grade</th>
-                <th style={th}>Class</th>
-                <th style={th}>Outstanding</th>
-                <th style={th}>Parent / Guardian</th>
-                <th style={th}>Cellphone</th>
-                <th style={th}>Alternate Contact</th>
-                <th style={th}>Email</th>
-                <th style={th}>Last Payment</th>
-                <th style={th}>Days Overdue</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((row) => {
-                const key = outstandingSelectionKey(row);
-                return (
-                <tr key={key}>
-                  <td style={td}>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(selected[key])}
-                      onChange={() =>
-                        setSelected((prev) => ({
-                          ...prev,
-                          [key]: !prev[key],
-                        }))
-                      }
-                      aria-label={`Select ${row.accountNumber}`}
-                    />
-                  </td>
-                  <td style={{ ...td, fontWeight: 700, maxWidth: 220 }}>
-                    {joinLabels(row.learnerNames)}
-                  </td>
-                  <td style={{ ...td, fontWeight: 800 }}>{row.accountNumber}</td>
-                  <td style={td}>{joinLabels(row.grades)}</td>
-                  <td style={td}>{joinLabels(row.classes)}</td>
-                  <td style={{ ...td, fontWeight: 900, color: "#b91c1c", whiteSpace: "nowrap" }}>
-                    {formatMoney(row.outstandingBalance)}
-                  </td>
-                  <td style={td}>{dash(row.parentGuardianName)}</td>
-                  <td style={td}>{dash(row.primaryCellphone)}</td>
-                  <td style={td}>{dash(row.alternateContact)}</td>
-                  <td style={td}>{dash(row.email)}</td>
-                  <td style={{ ...td, whiteSpace: "nowrap" }}>
-                    {formatLastPayment(row.lastPaymentDate, row.lastPaymentAmount)}
-                  </td>
-                  <td style={td}>
-                    {row.daysOverdue != null && Number.isFinite(row.daysOverdue)
-                      ? String(row.daysOverdue)
-                      : "Unknown"}
-                  </td>
-                </tr>
-              );
-              })}
-            </tbody>
-          </table>
+        <div>
+          {classView.groups.map((group) => renderClassSection(group))}
+
+          {!classView.isAllClasses && classView.sharedRows.length ? (
+            <div style={classSection}>
+              <div style={{ ...classSectionHeader, background: "#334155" }}>
+                <span style={{ fontSize: 15, fontWeight: 900 }}>Also linked to this class</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#cbd5e1" }}>
+                  {countLabel(classView.sharedTotals.outstandingAccountCount, classView.sharedTotals.learnersAffected)}
+                </span>
+              </div>
+              <div style={{ fontSize: 12, color: "#64748b", padding: "8px 14px", background: "#f8fafc" }}>
+                Shared family accounts with learners in more than one class. Their balances are counted once under
+                “Multiple classes” and are not included in the Class Total above.
+              </div>
+              <div style={{ ...tableWrap, borderRadius: "0 0 14px 14px" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1100 }}>
+                  {renderTableHead()}
+                  <tbody>{classView.sharedRows.map((row) => renderAccountRow(row))}</tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
+
+          {classView.isAllClasses ? (
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "baseline",
+                gap: 12,
+                padding: "14px 16px",
+                borderRadius: 14,
+                background: "#111827",
+                color: "#ffffff",
+                borderTop: `3px solid ${GOLD}`,
+              }}
+            >
+              <span style={{ fontSize: 16, fontWeight: 900, letterSpacing: "0.04em" }}>GRAND TOTAL</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#cbd5e1" }}>
+                {countLabel(classView.totals.outstandingAccountCount, classView.totals.learnersAffected)}
+              </span>
+              <span style={{ flex: 1 }} />
+              <span style={{ fontSize: 18, fontWeight: 900, color: GOLD }}>
+                {formatMoney(classView.totals.totalOutstanding)}
+              </span>
+            </div>
+          ) : null}
         </div>
       )}
 

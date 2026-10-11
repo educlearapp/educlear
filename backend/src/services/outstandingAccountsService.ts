@@ -16,6 +16,7 @@ import {
   resolveEntryDueDate,
   type BillingLedgerEntry,
 } from "../utils/billingLedgerStore";
+import { cleanClassroomLabel, loadSchoolClassMembership } from "../utils/classroomMembership";
 
 export type OutstandingAccountContact = {
   parentId: string | null;
@@ -36,6 +37,11 @@ export type OutstandingAccountRow = {
   memberLearnerIds: string[];
   grades: string[];
   classes: string[];
+  /**
+   * Canonical current class labels (classroom membership resolver) of ACTIVE member learners.
+   * Display/grouping only — never splits outstandingBalance.
+   */
+  classLabels: string[];
   outstandingBalance: number;
   parentGuardianName: string | null;
   primaryCellphone: string | null;
@@ -59,6 +65,8 @@ export type OutstandingAccountsReport = {
   asOfDate: string;
   summary: OutstandingAccountsSummary;
   accounts: OutstandingAccountRow[];
+  /** Registered classrooms plus any class labels on returned rows, natural name order. */
+  classOptions: string[];
 };
 
 type ParentContactRecord = {
@@ -287,7 +295,35 @@ type LearnerGradeClass = {
   lastName: string;
   grade: string;
   className: string | null;
+  /** Absent means ACTIVE (schema default). */
+  enrollmentStatus?: string | null;
 };
+
+/** Natural, case-insensitive class name order ("Grade 2A" before "Grade 10A"). */
+export function compareClassLabels(a: string, b: string): number {
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }) || a.localeCompare(b);
+}
+
+/**
+ * Canonical current class labels for an account's ACTIVE members.
+ * Learners without a class, or not ACTIVE, contribute no label.
+ */
+export function resolveAccountClassLabels(
+  memberLearnerIds: string[],
+  learnersById: Map<string, LearnerGradeClass>,
+  classLabelFor: (raw: string | null | undefined) => string = cleanClassroomLabel
+): string[] {
+  const labels = new Set<string>();
+  for (const id of memberLearnerIds) {
+    const learner = learnersById.get(id);
+    if (!learner) continue;
+    const status = String(learner.enrollmentStatus || "ACTIVE").toUpperCase();
+    if (status !== "ACTIVE") continue;
+    const label = String(classLabelFor(learner.className) || "").trim();
+    if (label) labels.add(label);
+  }
+  return Array.from(labels).sort(compareClassLabels);
+}
 
 /** Display name from batch-loaded Learner fields (no invented placeholders). */
 export function formatOutstandingLearnerName(learner: {
@@ -330,6 +366,7 @@ export function mapOutstandingRows(input: {
   ledger: BillingLedgerEntry[];
   asOfDate: string;
   runDueDates?: Record<string, string>;
+  classLabelFor?: (raw: string | null | undefined) => string;
 }): OutstandingAccountRow[] {
   const positive = filterPositiveBalanceAccounts(input.statementAccounts);
   const runDueDates = input.runDueDates || {};
@@ -374,6 +411,7 @@ export function mapOutstandingRows(input: {
       memberLearnerIds,
       grades: uniqueSortedLabels(grades),
       classes: uniqueSortedLabels(classes),
+      classLabels: resolveAccountClassLabels(memberLearnerIds, input.learnersById, input.classLabelFor),
       outstandingBalance: roundStatementMoney(account.balance),
       parentGuardianName: contact.name,
       primaryCellphone: contact.primaryCellphone,
@@ -408,7 +446,14 @@ async function batchLoadLearnersAndContacts(
     memberIds.length
       ? prisma.learner.findMany({
           where: { schoolId, id: { in: memberIds } },
-          select: { id: true, firstName: true, lastName: true, grade: true, className: true },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            grade: true,
+            className: true,
+            enrollmentStatus: true,
+          },
         })
       : Promise.resolve([]),
     memberIds.length
@@ -461,6 +506,7 @@ async function batchLoadLearnersAndContacts(
       lastName: String(l.lastName || "").trim(),
       grade: String(l.grade || "").trim(),
       className: l.className ? String(l.className).trim() : null,
+      enrollmentStatus: l.enrollmentStatus ? String(l.enrollmentStatus) : null,
     });
   }
 
@@ -507,6 +553,7 @@ export async function buildOutstandingAccountsReport(input: {
       asOfDate: "",
       summary: { totalOutstanding: 0, outstandingAccountCount: 0, learnersAffected: 0 },
       accounts: [],
+      classOptions: [],
     };
   }
 
@@ -517,10 +564,10 @@ export async function buildOutstandingAccountsReport(input: {
     input.statementAccounts ?? (await buildAccountsFromAgeAnalysisSnapshots(schoolId, { ledger }));
   const positive = filterPositiveBalanceAccounts(statementAccounts);
 
-  const { learnersById, links, parentsByFamilyId } = await batchLoadLearnersAndContacts(
-    schoolId,
-    positive
-  );
+  const [{ learnersById, links, parentsByFamilyId }, classMembership] = await Promise.all([
+    batchLoadLearnersAndContacts(schoolId, positive),
+    loadSchoolClassMembership(schoolId),
+  ]);
 
   const accounts = mapOutstandingRows({
     statementAccounts: positive,
@@ -530,6 +577,7 @@ export async function buildOutstandingAccountsReport(input: {
     ledger,
     asOfDate,
     runDueDates: input.runDueDates,
+    classLabelFor: classMembership.labelFor,
   });
 
   // Stable sort: highest outstanding first, then account number
@@ -545,5 +593,22 @@ export async function buildOutstandingAccountsReport(input: {
     asOfDate,
     summary: buildOutstandingSummary(accounts),
     accounts,
+    classOptions: buildOutstandingClassOptions(
+      classMembership.resolver.classrooms.map((c) => c.name),
+      accounts
+    ),
   };
+}
+
+export function buildOutstandingClassOptions(
+  registeredClassNames: string[],
+  accounts: Array<{ classLabels: string[] }>
+): string[] {
+  const labels = new Set<string>();
+  for (const name of registeredClassNames) {
+    const label = String(name || "").trim();
+    if (label) labels.add(label);
+  }
+  for (const row of accounts) for (const label of row.classLabels || []) if (label) labels.add(label);
+  return Array.from(labels).sort(compareClassLabels);
 }

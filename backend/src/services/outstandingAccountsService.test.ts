@@ -6,6 +6,7 @@ import assert from "assert";
 import type { BillingStatementAccountRow } from "./statementAccounts";
 import type { BillingLedgerEntry } from "../utils/billingLedgerStore";
 import {
+  buildOutstandingClassOptions,
   buildOutstandingSummary,
   calendarDaysBetween,
   filterPositiveBalanceAccounts,
@@ -14,6 +15,7 @@ import {
   resolveOutstandingLearnerNames,
   selectOutstandingBillingContact,
 } from "./outstandingAccountsService";
+import { cleanClassroomLabel, createClassroomResolver } from "../utils/classroomMembership";
 
 function learner(
   id: string,
@@ -387,7 +389,77 @@ function testWorkNoPreferredOverHomeNo() {
   console.log("✓ alternate contact prefers workNo over homeNo");
 }
 
+function labelForClassrooms(names: string[]) {
+  const resolver = createClassroomResolver(
+    names.map((name, i) => ({ id: `C${i}`, name, createdAt: new Date(2026, 0, i + 1) }))
+  );
+  return (raw: string | null | undefined) => {
+    const c = resolver.classroomFor(raw);
+    return c ? c.name : cleanClassroomLabel(raw);
+  };
+}
+
+function testClassLabelsCanonicalActiveOnly() {
+  const classLabelFor = labelForClassrooms(["Grade 1A", "Grade 2B"]);
+  const mapped = mapOutstandingRows({
+    statementAccounts: [
+      baseAccount({ accountNo: "SAME", balance: 900, memberLearnerIds: ["L1", "L2"] }),
+      baseAccount({ accountNo: "SPLIT", familyAccountId: "FA2", balance: 1200, memberLearnerIds: ["L3", "L4"] }),
+      baseAccount({ accountNo: "HIST", familyAccountId: "FA3", balance: 300, memberLearnerIds: ["L5", "L6"] }),
+    ],
+    learnersById: new Map([
+      // Different stored spellings resolve to the same current classroom.
+      ["L1", learner("L1", "A", "Same", "1", "grade 1a")],
+      ["L2", learner("L2", "B", "Same", "1", "Grade 1A")],
+      ["L3", learner("L3", "C", "Split", "1", "Grade 1A")],
+      ["L4", learner("L4", "D", "Split", "2", "Grade 2B")],
+      // Historical learner's stale class is not current membership; L6 has no class.
+      ["L5", { ...learner("L5", "E", "Hist", "5", "Grade 5C"), enrollmentStatus: "HISTORICAL" }],
+      ["L6", learner("L6", "F", "Hist", "R", null)],
+    ]),
+    links: [],
+    parentsByFamilyId: new Map(),
+    ledger: [],
+    asOfDate: "2026-09-09",
+    classLabelFor,
+  });
+  const byRef = new Map(mapped.map((r) => [r.accountRef, r]));
+  assert.deepEqual(byRef.get("SAME")!.classLabels, ["Grade 1A"]);
+  assert.deepEqual(byRef.get("SAME")!.classes, ["grade 1a", "Grade 1A"].sort((a, b) => a.localeCompare(b)));
+  assert.deepEqual(byRef.get("SPLIT")!.classLabels, ["Grade 1A", "Grade 2B"]);
+  assert.deepEqual(byRef.get("HIST")!.classLabels, []);
+  assert.deepEqual(byRef.get("HIST")!.classes, ["Grade 5C"], "raw classes field unchanged");
+  assert.equal(byRef.get("SPLIT")!.outstandingBalance, 1200, "balance never split by class");
+  assert.equal(buildOutstandingSummary(mapped).totalOutstanding, 2400);
+  console.log("✓ classLabels: canonical classroom, ACTIVE learners only; balances unchanged");
+}
+
+function testClassLabelsWithoutResolverStillSafe() {
+  const mapped = mapOutstandingRows({
+    statementAccounts: [baseAccount({ memberLearnerIds: ["L1"], balance: 50 })],
+    learnersById: new Map([["L1", learner("L1", "A", "B", "3", "  3A  ")]]),
+    links: [],
+    parentsByFamilyId: new Map(),
+    ledger: [],
+    asOfDate: "2026-09-09",
+  });
+  assert.deepEqual(mapped[0].classLabels, ["3A"]);
+  console.log("✓ classLabels default to cleaned className when no resolver supplied");
+}
+
+function testClassOptionsIncludeEmptyClassesNaturalOrder() {
+  const options = buildOutstandingClassOptions(
+    ["Grade 10A", "Grade 2A", "Grade 1A", "Empty Class"],
+    [{ classLabels: ["Unregistered 3X"] }, { classLabels: ["Grade 2A"] }]
+  );
+  assert.deepEqual(options, ["Empty Class", "Grade 1A", "Grade 2A", "Grade 10A", "Unregistered 3X"]);
+  console.log("✓ classOptions: registered (incl. empty) + row labels, natural order");
+}
+
 testBalanceInclusion();
+testClassLabelsCanonicalActiveOnly();
+testClassLabelsWithoutResolverStillSafe();
+testClassOptionsIncludeEmptyClassesNaturalOrder();
 testTwoMemberIdsTwoNames();
 testThreeMemberIdsThreeNames();
 testDuplicateIdsDoNotDuplicateNames();

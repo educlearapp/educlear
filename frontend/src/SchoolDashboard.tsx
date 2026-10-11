@@ -455,7 +455,7 @@ const MOBILE_PAGE_TITLES: Partial<Record<PageKey, string>> = {
   plans: "Billing Plans",
   runs: "Invoice Runs",
   reports: "Billing Reports",
-  outstandingAccounts: "Outstanding Accounts",
+  outstandingAccounts: "Outstanding Fees",
   financeHub: "Finance Hub",
   financeCollections: "Collections Centre",
   documents: "Documents",
@@ -17139,7 +17139,7 @@ return (
           );
 
         case "outstandingAccounts":
-          return <OutstandingAccountsReport schoolId={schoolId || ""} />;
+          return <OutstandingAccountsReport schoolId={schoolId || ""} schoolName={schoolBranding.name} />;
 
         case "financeHub":
           return (
@@ -17865,7 +17865,7 @@ return (
                   className={`submenu-item ${activePage === "outstandingAccounts" ? "active" : ""}`}
                   onClick={() => go("outstandingAccounts")}
                 >
-                  Outstanding Accounts
+                  Outstanding Fees
                 </div>
                 ) : null}
 
