@@ -27,7 +27,7 @@ import {
   safeSheetName,
   type OutstandingFeesExportRow,
 } from "./buildOutstandingFeesExcel";
-import { buildOutstandingFeesPdf } from "./buildOutstandingFeesPdf";
+import { buildOutstandingFeesPdf, OUTSTANDING_FEES_PDF_COLUMNS } from "./buildOutstandingFeesPdf";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -191,16 +191,18 @@ function testExcelSelectedClass() {
   assert.ok(flat.some((l) => l.startsWith("Class|Grade 1A")));
   const header = rows.findIndex((r) => r[0] === "Class" && r[1] === "Learner(s)");
   const total = rows.find((r) => r[0] === "Class Total")!;
-  assert.equal(cents(Number(total[5])), cents(view.groups[0].totalOutstanding), "Excel Class Total == screen");
+  assert.deepEqual(rows[header], ["Class", "Learner(s)", "Account No", "Parent / Guardian", "Phone", "Days Overdue", "Outstanding"]);
+  assert.equal(cents(Number(total[6])), cents(view.groups[0].totalOutstanding), "Excel Class Total == screen");
   const detail = rows.slice(header + 1, rows.indexOf(total));
   assert.deepEqual(detail.map((r) => r[2]), ["SAME", "ONEA2"], "only the selected class in the class table");
-  assert.ok(!flat.some((l) => l.includes("0820000000") || l.includes("parent@example.com")), "no phone/email exported");
+  assert.deepEqual(detail.map((r) => r[4]), ["0820000000", "0820000000"], "phone column exported");
+  assert.ok(!flat.some((l) => l.includes("parent@example.com")), "no email exported");
   assert.ok(flat.some((l) => l.includes("Also linked to this class")), "shared block present");
   const sharedTotal = rows.find((r) => r[0] === "Shared (not in Class Total)")!;
-  assert.equal(cents(Number(sharedTotal[5])), cents(4200.25));
-  const moneyCell = wb.Sheets["Grade 1A"][XLSX.utils.encode_cell({ r: rows.indexOf(total), c: 5 })];
+  assert.equal(cents(Number(sharedTotal[6])), cents(4200.25));
+  const moneyCell = wb.Sheets["Grade 1A"][XLSX.utils.encode_cell({ r: rows.indexOf(total), c: 6 })];
   assert.equal(moneyCell.t, "n", "money stored as number");
-  console.log("✓ 11 Excel export matches displayed class (no contact PII)");
+  console.log("✓ 11 Excel export matches displayed class (phone included, no email)");
 }
 
 function testExcelAllClassesWorkbook() {
@@ -220,7 +222,7 @@ function testExcelAllClassesWorkbook() {
   for (const g of view.groups) {
     const sheetName = wb.SheetNames[view.groups.indexOf(g) + 1];
     const total = readSheet(wb, sheetName).find((r) => r[0] === "Class Total")!;
-    assert.equal(cents(Number(total[5])), cents(g.totalOutstanding));
+    assert.equal(cents(Number(total[6])), cents(g.totalOutstanding));
   }
   console.log("✓ 12 All Classes workbook: Summary + one sheet per class, Grand Total reconciles");
 }
@@ -253,7 +255,9 @@ function testPdfSelectedClass() {
   assert.ok(!lines.some((l) => l.includes("Eve Ten")), "learners from other classes not exported");
   assert.ok(lines.some((l) => l.includes("Also linked to this class")));
   assert.ok(!lines.includes("GRAND TOTAL"));
-  assert.ok(!lines.some((l) => l.includes("0820000000") || l.includes("parent@example.com")));
+  assert.ok(lines.includes("Phone"), "PDF Phone column header");
+  assert.ok(lines.includes("0820000000"), "PDF phone value");
+  assert.ok(!lines.some((l) => l.includes("parent@example.com")), "no email in PDF");
   assert.ok(lines.includes(`Page 1 of ${doc.getNumberOfPages()}`));
   assert.ok(String(doc.output()).startsWith("%PDF-"));
   console.log("✓ 14 PDF selected-class export");
@@ -318,9 +322,102 @@ function testMultiClassFamilyOwnerExample() {
     assert.equal(lines[lines.indexOf(`Class Total: ${cls}`) + 1], formatMoney(own), `${cls}: PDF class total`);
     const wb = roundTrip(buildOutstandingFeesWorkbook(v, META));
     const sheet = readSheet(wb, wb.SheetNames[0]);
-    assert.equal(Number(sheet.find((r) => r[0] === "Class Total")![5]), own, `${cls}: Excel class total`);
+    assert.equal(Number(sheet.find((r) => r[0] === "Class Total")![6]), own, `${cls}: Excel class total`);
   }
   console.log("✓ owner example: R5,000 family (3A + 5B) counted once; excluded from 3A and 5B Class Totals");
+}
+
+const PHONE_ROWS: Row[] = [
+  row({ accountRef: "ZERO", learnerNames: ["Ida Zero"], memberLearnerIds: ["P1"], classLabels: ["Grade 4A"], outstandingBalance: 1500, primaryCellphone: "0821234567" }),
+  row({ accountRef: "INTL", learnerNames: ["Jon Intl"], memberLearnerIds: ["P2"], classLabels: ["Grade 4A"], outstandingBalance: 900.5, primaryCellphone: "+27 82 123 4567" }),
+  row({ accountRef: "LONG", learnerNames: ["Kim Long"], memberLearnerIds: ["P3"], classLabels: ["Grade 4A"], outstandingBalance: 300, primaryCellphone: "27821234567" }),
+  row({ accountRef: "NONE", learnerNames: ["Lee None"], memberLearnerIds: ["P4"], classLabels: ["Grade 4A"], outstandingBalance: 200, primaryCellphone: null }),
+  row({ accountRef: "BLANK", learnerNames: ["Max Blank"], memberLearnerIds: ["P5"], classLabels: ["Grade 4A"], outstandingBalance: 100, primaryCellphone: "   " }),
+];
+
+function testExcelPhoneStoredAsText() {
+  const view = buildOutstandingClassView(PHONE_ROWS, "Grade 4A");
+  const built = buildOutstandingFeesWorkbook(view, META);
+  const buf = XLSX.write(built, { bookType: "xlsx", type: "buffer" });
+  const wb = XLSX.read(buf, { type: "buffer", cellNF: true });
+  const sheet = wb.Sheets["Grade 4A"];
+  const rows = readSheet(wb, "Grade 4A");
+  const header = rows.findIndex((r) => r[0] === "Class" && r[4] === "Phone");
+  assert.ok(header >= 0, "Phone header on detail sheet");
+  const phoneCell = (accountRef: string) => {
+    const r = rows.findIndex((x) => x[2] === accountRef);
+    return sheet[XLSX.utils.encode_cell({ r, c: 4 })];
+  };
+  for (const [ref, expected] of [["ZERO", "0821234567"], ["INTL", "+27 82 123 4567"], ["LONG", "27821234567"]] as const) {
+    const cell = phoneCell(ref);
+    assert.equal(cell.t, "s", `${ref}: phone stored as text`);
+    assert.equal(cell.v, expected, `${ref}: phone value preserved exactly`);
+    assert.equal(cell.z, "@", `${ref}: Excel text number format`);
+    assert.equal(cell.w ?? cell.v, expected, `${ref}: displayed without numeric/scientific conversion`);
+  }
+  assert.equal(phoneCell("NONE")?.v ?? "", "", "missing phone exported as an empty cell");
+  assert.equal(phoneCell("BLANK")?.v ?? "", "", "whitespace-only phone exported as an empty cell");
+  const flat = rows.map((r) => r.join("|")).join("\n");
+  assert.ok(!/null|undefined/.test(flat), "no raw null/undefined in Excel");
+  const total = rows.find((r) => r[0] === "Class Total")!;
+  assert.equal(cents(Number(total[6])), cents(3000.5), "class total unchanged by phone column");
+
+  const numericFromApi = row({ accountRef: "NUM", memberLearnerIds: ["P6"], classLabels: ["Grade 4A"], primaryCellphone: 821234567 as unknown as string });
+  const numWb = buildOutstandingFeesWorkbook(buildOutstandingClassView([numericFromApi], "Grade 4A"), META);
+  const numSheet = numWb.Sheets["Grade 4A"];
+  const numRows = readSheet(numWb, "Grade 4A");
+  const numCell = numSheet[XLSX.utils.encode_cell({ r: numRows.findIndex((x) => x[2] === "NUM"), c: 4 })];
+  assert.equal(numCell.t, "s", "a numeric phone value is still written as text");
+  console.log("✓ phone 3/4/5/6 Excel phone column is text; leading 0, +27 and long numbers survive; missing is blank");
+}
+
+function testPdfPhoneColumn() {
+  const view = buildOutstandingClassView(PHONE_ROWS, "Grade 4A");
+  const { doc, lines } = buildOutstandingFeesPdf(view, META);
+  assert.ok(lines.includes("Phone"), "Phone header");
+  for (const phone of ["0821234567", "+27 82 123 4567", "27821234567"]) {
+    assert.ok(lines.includes(phone), `PDF shows ${phone} on one line (not clipped or wrapped)`);
+  }
+  assert.ok(lines.filter((l) => l === "—").length >= 2, "missing / blank phone renders as —");
+  assert.ok(!lines.some((l) => /\bnull\b|\bundefined\b/.test(l)), "no raw null/undefined in PDF");
+  assert.equal(lines[lines.indexOf("Class Total: Grade 4A") + 1], formatMoney(3000.5), "PDF class total unchanged");
+
+  const widthSum = OUTSTANDING_FEES_PDF_COLUMNS.reduce((s, c) => s + c.width, 0);
+  assert.equal(widthSum, Math.round(doc.internal.pageSize.getWidth() - 28), "columns fill the page content width exactly");
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  const phoneCol = OUTSTANDING_FEES_PDF_COLUMNS.find((c) => c.title === "Phone")!;
+  assert.ok(doc.getTextWidth("+27 82 123 4567") <= phoneCol.width - 3, "+27 number fits the Phone column");
+  doc.setFont("helvetica", "bold");
+  const moneyCol = OUTSTANDING_FEES_PDF_COLUMNS.find((c) => c.title === "Outstanding")!;
+  assert.ok(doc.getTextWidth(formatMoney(1234567.89)) <= moneyCol.width - 3, "R1.2m amount fits Outstanding column");
+  doc.setFontSize(8);
+  for (const col of OUTSTANDING_FEES_PDF_COLUMNS) {
+    assert.ok(doc.getTextWidth(col.title) <= col.width - 1.5, `header "${col.title}" fits its column`);
+  }
+  const learnerCol = OUTSTANDING_FEES_PDF_COLUMNS.find((c) => c.title === "Learner(s)")!;
+  assert.ok(learnerCol.width >= 45, "learner names keep a readable column width");
+  console.log("✓ phone 7 PDF phone column; numbers not clipped; amounts visible; totals unchanged");
+}
+
+function testExportsMatchPhoneFilteredView() {
+  const all = [...ROWS, ...PHONE_ROWS];
+  const filtered = filterOutstandingAccounts(all, {
+    search: "+27 82",
+    grade: "all",
+    className: "all",
+    balanceRange: "all",
+    daysOverdue: "all",
+  });
+  assert.deepEqual(filtered.map((r) => r.accountRef), ["INTL"], "search by phone narrows to one account");
+  const view = buildOutstandingClassView(filtered, ALL_CLASSES_VALUE);
+  assert.equal(reconcileClassView(view, summarizeFilteredOutstanding(filtered)).ok, true);
+  const wb = roundTrip(buildOutstandingFeesWorkbook(view, META));
+  const detail = readSheet(wb, "Grade 4A").filter((r) => typeof r[2] === "string" && ["ZERO", "INTL", "LONG", "NONE", "BLANK"].includes(r[2] as string));
+  assert.deepEqual(detail.map((r) => [r[2], r[4]]), [["INTL", "+27 82 123 4567"]], "Excel exports only the visible row");
+  const { lines } = buildOutstandingFeesPdf(view, META);
+  assert.ok(lines.includes("+27 82 123 4567") && !lines.includes("0821234567"), "PDF exports only the visible row");
+  console.log("✓ phone 9 exports still match the visible filtered data");
 }
 
 function testFilenames() {
@@ -363,6 +460,9 @@ testSafeSheetNames();
 testPdfSelectedClass();
 testPdfAllClassesAndTotals();
 testMultiClassFamilyOwnerExample();
+testExcelPhoneStoredAsText();
+testPdfPhoneColumn();
+testExportsMatchPhoneFilteredView();
 testFilenames();
 testExportsReuseAuthorisedDataOnly();
 console.log("\nAll outstandingFeesByClass tests passed.");

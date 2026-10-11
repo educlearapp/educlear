@@ -11,6 +11,7 @@ export type OutstandingFeesExportRow = OutstandingClassRow & {
   learnerNames: string[];
   accountNumber: string;
   parentGuardianName: string | null;
+  primaryCellphone: string | null;
   daysOverdue: number | null;
 };
 
@@ -24,8 +25,10 @@ export type OutstandingFeesExportMeta = {
 type Cell = string | number | null;
 
 const MONEY_FORMAT = '"R" #,##0.00';
-const DETAIL_HEADER = ["Class", "Learner(s)", "Account No", "Parent / Guardian", "Days Overdue", "Outstanding"];
-const MONEY_COL_DETAIL = 5;
+const TEXT_FORMAT = "@";
+const DETAIL_HEADER = ["Class", "Learner(s)", "Account No", "Parent / Guardian", "Phone", "Days Overdue", "Outstanding"];
+const PHONE_COL_DETAIL = 4;
+const MONEY_COL_DETAIL = 6;
 
 const INVALID_SHEET_CHARS = /[\\/?*[\]:]/g;
 
@@ -80,6 +83,7 @@ function detailRow(row: OutstandingFeesExportRow, group: OutstandingClassGroup<O
     (row.learnerNames || []).filter(Boolean).join(", "),
     row.accountNumber || "",
     row.parentGuardianName || "",
+    String(row.primaryCellphone || "").trim(),
     row.daysOverdue != null && Number.isFinite(row.daysOverdue) ? row.daysOverdue : "Unknown",
     Math.round((Number(row.outstandingBalance) || 0) * 100) / 100,
   ];
@@ -93,6 +97,7 @@ function groupDetailRows(group: OutstandingClassGroup<OutstandingFeesExportRow>)
     [
       "Class Total",
       `${group.outstandingAccountCount} account(s) · ${group.learnersAffected} learner(s)`,
+      "",
       "",
       "",
       "",
@@ -112,11 +117,16 @@ function sharedRowsBlock(view: OutstandingClassView<OutstandingFeesExportRow>): 
     ],
     [...DETAIL_HEADER],
     ...view.sharedRows.map((row) => detailRow(row, null)),
-    ["Shared (not in Class Total)", `${view.sharedTotals.outstandingAccountCount} account(s)`, "", "", "", view.sharedTotals.totalOutstanding],
+    ["Shared (not in Class Total)", `${view.sharedTotals.outstandingAccountCount} account(s)`, "", "", "", "", view.sharedTotals.totalOutstanding],
   ];
 }
 
-function buildSheet(rows: Cell[][], moneyCols: Set<number>, firstMoneyRow: number): XLSX.WorkSheet {
+function buildSheet(
+  rows: Cell[][],
+  moneyCols: Set<number>,
+  firstMoneyRow: number,
+  textCols: Set<number> = new Set()
+): XLSX.WorkSheet {
   const sheet = XLSX.utils.aoa_to_sheet(rows);
   for (let r = firstMoneyRow; r < rows.length; r++) {
     for (const c of moneyCols) {
@@ -124,8 +134,20 @@ function buildSheet(rows: Cell[][], moneyCols: Set<number>, firstMoneyRow: numbe
       const cell = sheet[ref];
       if (cell && cell.t === "n") cell.z = MONEY_FORMAT;
     }
+    // Phone numbers must stay text: keeps leading 0 / +27 and prevents numeric or scientific conversion.
+    for (const c of textCols) {
+      const ref = XLSX.utils.encode_cell({ r, c });
+      const cell = sheet[ref];
+      if (cell && cell.v !== "") {
+        cell.t = "s";
+        cell.v = String(cell.v);
+        cell.z = TEXT_FORMAT;
+      }
+    }
   }
-  sheet["!cols"] = [{ wch: 30 }, { wch: 44 }, { wch: 22 }, { wch: 36 }, { wch: 13 }, { wch: 16 }];
+  sheet["!cols"] = textCols.size
+    ? [{ wch: 30 }, { wch: 44 }, { wch: 22 }, { wch: 36 }, { wch: 18 }, { wch: 13 }, { wch: 16 }]
+    : [{ wch: 30 }, { wch: 44 }, { wch: 22 }, { wch: 36 }, { wch: 13 }, { wch: 16 }];
   return sheet;
 }
 
@@ -151,7 +173,7 @@ export function buildOutstandingFeesWorkbook(
       const rows = [...groupHead, ...groupDetailRows(group)];
       XLSX.utils.book_append_sheet(
         workbook,
-        buildSheet(rows, new Set([MONEY_COL_DETAIL]), groupHead.length),
+        buildSheet(rows, new Set([MONEY_COL_DETAIL]), groupHead.length, new Set([PHONE_COL_DETAIL])),
         safeSheetName(group.label, used)
       );
     }
@@ -162,7 +184,7 @@ export function buildOutstandingFeesWorkbook(
   const rows: Cell[][] = [...head, ...groupDetailRows(group), ...sharedRowsBlock(view)];
   XLSX.utils.book_append_sheet(
     workbook,
-    buildSheet(rows, new Set([MONEY_COL_DETAIL]), head.length),
+    buildSheet(rows, new Set([MONEY_COL_DETAIL]), head.length, new Set([PHONE_COL_DETAIL])),
     safeSheetName(group.label, used)
   );
   return workbook;

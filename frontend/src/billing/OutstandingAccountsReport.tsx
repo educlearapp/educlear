@@ -438,7 +438,7 @@ export default function OutstandingAccountsReport({ schoolId, schoolName }: Prop
           {formatMoney(row.outstandingBalance)}
         </td>
         <td style={td}>{dash(row.parentGuardianName)}</td>
-        <td style={td}>{dash(row.primaryCellphone)}</td>
+        <td style={{ ...td, whiteSpace: "nowrap" }}>{dash(row.primaryCellphone)}</td>
         <td style={td}>{dash(row.alternateContact)}</td>
         <td style={td}>{dash(row.email)}</td>
         <td style={{ ...td, whiteSpace: "nowrap" }}>
@@ -464,7 +464,7 @@ export default function OutstandingAccountsReport({ schoolId, schoolName }: Prop
           <th style={th}>Class</th>
           <th style={th}>Outstanding</th>
           <th style={th}>Parent / Guardian</th>
-          <th style={th}>Cellphone</th>
+          <th style={th}>Phone</th>
           <th style={th}>Alternate Contact</th>
           <th style={th}>Email</th>
           <th style={th}>Last Payment</th>

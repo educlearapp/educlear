@@ -14,13 +14,16 @@ const FOOTER_SPACE = 14;
 
 type Column = { title: string; width: number; align?: "left" | "right" };
 
-const COLUMNS: Column[] = [
-  { title: "Learner(s)", width: 60 },
-  { title: "Account No", width: 26 },
-  { title: "Parent / Guardian", width: 46 },
-  { title: "Days Overdue", width: 18, align: "right" },
-  { title: "Outstanding", width: 32, align: "right" },
+/** Widths sum to the A4 portrait content width (210 − 2 × MARGIN = 182 mm). */
+export const OUTSTANDING_FEES_PDF_COLUMNS: Column[] = [
+  { title: "Learner(s)", width: 48 },
+  { title: "Account No", width: 23 },
+  { title: "Parent / Guardian", width: 36 },
+  { title: "Phone", width: 28 },
+  { title: "Days Overdue", width: 21, align: "right" },
+  { title: "Outstanding", width: 26, align: "right" },
 ];
+const COLUMNS = OUTSTANDING_FEES_PDF_COLUMNS;
 
 /** jsPDF core fonts are WinAnsi; map spacing characters some locales emit. */
 function pdfText(value: string): string {
@@ -139,6 +142,7 @@ export function buildOutstandingFeesPdf(
       learnerText,
       row.accountNumber || "—",
       row.parentGuardianName || "—",
+      String(row.primaryCellphone || "").trim() || "—",
       row.daysOverdue != null && Number.isFinite(row.daysOverdue) ? String(row.daysOverdue) : "Unknown",
       formatMoney(row.outstandingBalance),
     ];
