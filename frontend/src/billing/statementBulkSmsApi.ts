@@ -78,6 +78,7 @@ export type BulkStatementSmsSendResponse = {
   attemptedDestinations?: number;
   successfulDestinations?: number;
   failedDestinations?: number;
+  unconfirmedDestinations?: number;
   results?: Array<{
     familyAccountId: string;
     accountNo: string;

@@ -82,6 +82,50 @@ function disabledBtn(base: React.CSSProperties, locked: boolean): React.CSSPrope
   };
 }
 
+const RESULT_UNAVAILABLE_MESSAGE =
+  "The SMS result could not be displayed. Messages may already have been sent — check WinSMS sent history before resending.";
+
+function resultUnavailable(): React.ReactElement {
+  return (
+    <div
+      role="alert"
+      style={{
+        padding: 12,
+        borderRadius: 10,
+        background: "#fef2f2",
+        border: "1px solid #fecaca",
+        color: "#991b1b",
+        fontWeight: 800,
+      }}
+    >
+      {RESULT_UNAVAILABLE_MESSAGE}
+    </div>
+  );
+}
+
+function resultCount(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Keeps the header and Close button usable if the step body fails to render. */
+class SmsModalBodyBoundary extends React.Component<{ children: React.ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    return this.state.failed ? resultUnavailable() : this.props.children;
+  }
+}
+
+/** Evaluates the step body inside the boundary so its render errors are caught there. */
+function DeferredBody({ render }: { render: () => React.ReactNode }) {
+  return <>{render()}</>;
+}
+
 export default function BulkStatementSmsModal({
   schoolId,
   familyAccountIds,
@@ -196,6 +240,10 @@ export default function BulkStatementSmsModal({
         </div>
 
         <div style={{ padding: 20 }}>
+          <SmsModalBodyBoundary key={step}>
+          <DeferredBody
+            render={() => (
+          <>
           {step === 1 ? (
             <div>
               <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 8 }}>Selection summary</div>
@@ -406,13 +454,19 @@ export default function BulkStatementSmsModal({
               <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 8 }}>Send result</div>
               <div style={{ fontSize: 14, lineHeight: 1.65, color: "#334155" }}>
                 <div style={{ fontWeight: 800, marginBottom: 8 }}>
-                  {sendResult.summary || (sendResult.success ? "Completed" : "Failed")}
+                  {typeof sendResult.summary === "string" && sendResult.summary
+                    ? sendResult.summary
+                    : sendResult.success
+                      ? "Completed"
+                      : "Failed"}
                 </div>
-                <div>Successful destinations: {sendResult.successfulDestinations ?? 0}</div>
-                <div>Failed destinations: {sendResult.failedDestinations ?? 0}</div>
-                <div>Skipped accounts: {sendResult.skippedAccountCount ?? 0}</div>
-                {(sendResult.failedDestinations || 0) > 0 ||
-                (sendResult.skippedAccountCount || 0) > 0 ? (
+                <div>Attempted destinations: {resultCount(sendResult.attemptedDestinations)}</div>
+                <div>Successful destinations: {resultCount(sendResult.successfulDestinations)}</div>
+                <div>Failed destinations: {resultCount(sendResult.failedDestinations)}</div>
+                <div>Not confirmed by WinSMS: {resultCount(sendResult.unconfirmedDestinations)}</div>
+                <div>Skipped accounts: {resultCount(sendResult.skippedAccountCount)}</div>
+                {resultCount(sendResult.failedDestinations) > 0 ||
+                resultCount(sendResult.skippedAccountCount) > 0 ? (
                   <button type="button" style={{ ...ghostBtn, marginTop: 12 }} onClick={copyFailureSummary}>
                     Copy failure summary
                   </button>
@@ -420,6 +474,11 @@ export default function BulkStatementSmsModal({
               </div>
             </div>
           ) : null}
+          {step === 5 && !sendResult ? resultUnavailable() : null}
+          </>
+            )}
+          />
+          </SmsModalBodyBoundary>
         </div>
 
         <div
