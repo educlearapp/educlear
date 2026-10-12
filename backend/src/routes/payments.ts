@@ -7,7 +7,11 @@ import {
 } from "../middleware/requireCapturePaymentAuth";
 import { relinkSchoolBillingLedger } from "../services/billingLedgerRelink";
 import { sendSavedPaymentReceiptEmail } from "../services/receiptEmailService";
-import { captureManualPayment, CapturePaymentError } from "../services/capturePaymentService";
+import {
+  captureManualPayment,
+  CapturePaymentError,
+  type CapturePaymentDiagnostics,
+} from "../services/capturePaymentService";
 import { lookupPaymentAttemptStatus } from "../services/paymentAttemptStatus";
 import { buildSetupRequiredPayload } from "../services/schoolEmailService";
 import { filterPaymentAccountsForSchool } from "../services/paymentAccountEligibility";
@@ -246,6 +250,8 @@ router.post("/:paymentId/send-receipt", async (req, res) => {
 
 router.post("/", observePaymentCaptureRequest, requireCapturePaymentAuth, async (req: CapturePaymentAuthRequest, res) => {
   const captureContext = getPaymentCaptureContext(res);
+  const preHandlerMs = captureContext ? Date.now() - captureContext.startedAt : null;
+  const captureDiagnostics: CapturePaymentDiagnostics = { stages: {} };
   try {
     const writeGuard = getPaymentWriteGuard();
     if (!writeGuard.allowed) {
@@ -293,7 +299,7 @@ router.post("/", observePaymentCaptureRequest, requireCapturePaymentAuth, async 
             allocatedAmount: number;
           }>)
         : undefined,
-    });
+    }, captureDiagnostics);
 
     logPaymentCaptureEvent("payment_capture_post_write", {
       requestId: captureContext?.requestId || null,
@@ -302,6 +308,8 @@ router.post("/", observePaymentCaptureRequest, requireCapturePaymentAuth, async 
       outcome: result.duplicate ? "duplicate" : "created",
       allocationSaved: result.allocationSaved,
       elapsedMs: captureContext ? Date.now() - captureContext.startedAt : null,
+      preHandlerMs,
+      stages: captureDiagnostics.stages,
     });
 
     const status = result.allocationSaved ? 200 : 207;

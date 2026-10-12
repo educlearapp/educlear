@@ -15,6 +15,8 @@ export type SendStatementEmailInput = {
   statementNote?: string;
   /** Legacy: client-supplied base64 (ignored when learnerId is set). */
   pdfBase64?: string;
+  /** Provider idempotency key for this logical statement delivery (bulk jobs). */
+  idempotencyKey?: string;
 };
 
 /**
@@ -81,6 +83,7 @@ export async function sendStatementEmail(input: SendStatementEmailInput) {
         contentType: "application/pdf",
       },
     ],
+    ...(input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : {}),
   };
 
   return sendEmailWithAttachment(payload);

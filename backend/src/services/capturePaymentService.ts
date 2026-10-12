@@ -141,7 +141,22 @@ function buildAllocationRows(input: {
   return stored;
 }
 
-export async function captureManualPayment(input: CapturePaymentInput) {
+/** Optional out-param for log-only stage timings (milliseconds). Never affects the payment. */
+export type CapturePaymentDiagnostics = {
+  stages: Record<string, number>;
+};
+
+export async function captureManualPayment(
+  input: CapturePaymentInput,
+  diagnostics?: CapturePaymentDiagnostics
+) {
+  const stages = diagnostics?.stages;
+  let stageStartedAt = Date.now();
+  const markStage = (name: string) => {
+    const now = Date.now();
+    if (stages) stages[name] = now - stageStartedAt;
+    stageStartedAt = now;
+  };
   const schoolId = String(input.authorizedSchoolId || "").trim();
   if (!schoolId) {
     throw new CapturePaymentError(403, "MISSING_SCHOOL", "Missing school authorization");
@@ -157,11 +172,13 @@ export async function captureManualPayment(input: CapturePaymentInput) {
   const paymentMethod = parseMethod(input.method);
   const paymentNote = String(input.description || "").trim() || "Payment";
   const bankReference = String(input.bankReference || "").trim();
+  markStage("validateMs");
 
   const familyDecision = await capturePaymentFamilyResolver({
     familyAccountId: input.familyAccountId,
     authorizedSchoolId: schoolId,
   });
+  markStage("familyResolveMs");
   if (!familyDecision.ok) {
     throw new CapturePaymentError(familyDecision.status, familyDecision.code, familyDecision.error);
   }
@@ -179,6 +196,7 @@ export async function captureManualPayment(input: CapturePaymentInput) {
     }
     throw error;
   }
+  markStage("familyGuardMs");
 
   const capturedAt = new Date().toISOString();
   const entry: BillingLedgerEntry = {
@@ -207,6 +225,7 @@ export async function captureManualPayment(input: CapturePaymentInput) {
     generatePaymentReference: true,
     skipPaymentFingerprint: true,
   });
+  markStage("ledgerWriteMs");
   const savedEntry = appendResult.entry;
 
   let allocationSaved = true;
@@ -229,11 +248,14 @@ export async function captureManualPayment(input: CapturePaymentInput) {
       allocationError = error instanceof Error ? error.message : "Allocation write failed";
     }
   }
+  markStage("allocationWriteMs");
 
   let post;
   try {
     await relinkSchoolBillingLedger(schoolId);
+    markStage("relinkMs");
     post = await buildBillingAccountPostResponse(schoolId, family.accountRef);
+    markStage("accountResponseMs");
   } catch (error) {
     console.error("[capturePayment] post-write account rebuild failed:", error);
     const ledger = readSchoolLedger(schoolId);
@@ -255,6 +277,7 @@ export async function captureManualPayment(input: CapturePaymentInput) {
       ),
       openInvoices: computeOpenInvoiceLines(scoped, "", family.accountRef),
     };
+    markStage("fallbackResponseMs");
   }
 
   return {

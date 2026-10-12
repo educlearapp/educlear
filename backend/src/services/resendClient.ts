@@ -64,6 +64,44 @@ export function isResendNetworkUnavailableError(
   return error instanceof ResendNetworkUnavailableError;
 }
 
+/** Non-2xx HTTP response from Resend. Message is unchanged from formatResendHttpError. */
+export class ResendHttpError extends Error {
+  readonly httpStatus: number;
+  /** Resend error `name`, e.g. invalid_idempotent_request. Empty when not provided. */
+  readonly errorName: string;
+
+  constructor(httpStatus: number, body: string) {
+    super(formatResendHttpError(httpStatus, body));
+    this.name = "ResendHttpError";
+    this.httpStatus = httpStatus;
+    let errorName = "";
+    try {
+      const parsed = JSON.parse(String(body || "").trim()) as { name?: unknown };
+      errorName = typeof parsed?.name === "string" ? parsed.name.trim() : "";
+    } catch {
+      errorName = "";
+    }
+    this.errorName = errorName;
+  }
+}
+
+/**
+ * Resend idempotency conflicts (HTTP 409) — https://resend.com/docs/dashboard/emails/idempotency-keys
+ * - concurrent_idempotent_requests: same key still in progress; safe to re-check later with the same key.
+ * - invalid_idempotent_request: key already used with a different payload; delivery state is unknown
+ *   to EduClear and must be reconciled manually (never treated as delivered, never auto-resent).
+ */
+export type ResendIdempotencyConflict = "in_progress" | "key_reused_different_payload";
+
+export function classifyResendIdempotencyConflict(error: unknown): ResendIdempotencyConflict | null {
+  if (!(error instanceof ResendHttpError) || error.httpStatus !== 409) return null;
+  if (error.errorName === "concurrent_idempotent_requests") return "in_progress";
+  if (error.errorName === "invalid_idempotent_request") return "key_reused_different_payload";
+  return null;
+}
+
+export const RESEND_IDEMPOTENCY_KEY_MAX_LENGTH = 256;
+
 function collectErrorCodes(error: unknown, into: Set<string>, depth = 0): void {
   if (!error || depth > 6) return;
   if (typeof error === "object") {
@@ -160,6 +198,8 @@ export type ResendPostOptions = {
   attemptTimeoutMs?: number;
   retryDelayMs?: number;
   maxAttempts?: number;
+  /** Sent as the Resend Idempotency-Key header (24h window). Reused by the network retry below. */
+  idempotencyKey?: string;
 };
 
 function logResend(event: Record<string, unknown>) {
@@ -261,7 +301,8 @@ async function fetchOnce(
   apiKey: string,
   payload: ResendSendPayload,
   attemptTimeoutMs: number,
-  useIpv4Transport: boolean
+  useIpv4Transport: boolean,
+  idempotencyKey = ""
 ): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), attemptTimeoutMs);
@@ -270,6 +311,7 @@ async function fetchOnce(
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
+      ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
     },
     body: JSON.stringify(payload),
     signal: controller.signal,
@@ -308,6 +350,10 @@ export async function postResendEmail(opts: ResendPostOptions): Promise<ResendSe
   const attemptTimeoutMs = opts.attemptTimeoutMs ?? RESEND_ATTEMPT_TIMEOUT_MS;
   const retryDelayMs = opts.retryDelayMs ?? RESEND_RETRY_DELAY_MS;
   const maxAttempts = opts.maxAttempts ?? RESEND_MAX_ATTEMPTS;
+  const idempotencyKey = String(opts.idempotencyKey || "").trim();
+  if (idempotencyKey.length > RESEND_IDEMPOTENCY_KEY_MAX_LENGTH) {
+    throw new Error("Resend idempotency key exceeds 256 characters");
+  }
 
   let lastNetworkError: unknown = null;
   let timedOut = false;
@@ -321,10 +367,12 @@ export async function postResendEmail(opts: ResendPostOptions): Promise<ResendSe
         opts.apiKey,
         opts.payload,
         attemptTimeoutMs,
-        useIpv4Transport
+        useIpv4Transport,
+        idempotencyKey
       );
       const body = await response.text();
       if (!response.ok) {
+        const httpError = new ResendHttpError(response.status, body);
         logResend({
           attempt,
           retryCount: attempt - 1,
@@ -332,8 +380,10 @@ export async function postResendEmail(opts: ResendPostOptions): Promise<ResendSe
           timedOut: false,
           outcome: "http_error",
           httpStatus: response.status,
+          ...(httpError.errorName ? { providerErrorName: httpError.errorName } : {}),
+          idempotent: Boolean(idempotencyKey),
         });
-        throw new Error(formatResendHttpError(response.status, body));
+        throw httpError;
       }
       const parsed = body ? (JSON.parse(body) as { id?: string }) : {};
       logResend({

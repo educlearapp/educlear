@@ -103,10 +103,256 @@ export function formatBulkSmsPreviewRecipientLine(
   return `${name} — ${masked} — ${accountNo}`;
 }
 
-export type BulkStatementSmsDestinationResult = StatementSmsSendResultRow & {
+export type BulkStatementSmsDestinationResult = Omit<StatementSmsSendResultRow, "status"> & {
   familyAccountId: string;
   accountNo: string;
+  status: "sent" | "failed" | "unconfirmed";
 };
+
+/**
+ * Privacy-safe Bulk SMS diagnostics. Only counts, codes, timings and the school id —
+ * never names, phone numbers, emails, message text, account numbers or credentials.
+ */
+export type BulkStatementSmsLogEvent =
+  | "bulk_sms_preview_started"
+  | "bulk_sms_preview_completed"
+  | "bulk_sms_preview_failed"
+  | "bulk_sms_send_started"
+  | "bulk_sms_send_completed"
+  | "bulk_sms_send_failed";
+
+export type BulkStatementSmsLogger = (event: BulkStatementSmsLogEvent, fields: Record<string, unknown>) => void;
+
+const defaultBulkStatementSmsLogger: BulkStatementSmsLogger = (event, fields) => {
+  const line = JSON.stringify({ event, ...fields });
+  if (event.endsWith("_failed")) console.error(line);
+  else console.info(line);
+};
+
+let bulkStatementSmsLogger: BulkStatementSmsLogger = defaultBulkStatementSmsLogger;
+
+/** @internal Test hook — capture structured events instead of writing to stdout. */
+export function setBulkStatementSmsLoggerForTests(logger: BulkStatementSmsLogger | null): void {
+  bulkStatementSmsLogger = logger || defaultBulkStatementSmsLogger;
+}
+
+function logBulkStatementSms(event: BulkStatementSmsLogEvent, fields: Record<string, unknown>) {
+  try {
+    bulkStatementSmsLogger(event, fields);
+  } catch {
+    /* diagnostics must never break an SMS request */
+  }
+}
+
+export function safeBulkSmsErrorCode(error: unknown): string {
+  if (error instanceof WinSmsApiError) return `WINSMS_${error.statusCode}`;
+  if (error instanceof Error) return String(error.name || "Error").replace(/[^A-Za-z0-9_]/g, "").slice(0, 40) || "Error";
+  return "UNKNOWN";
+}
+
+function safeProviderCode(raw: unknown): string {
+  return String(raw || "").replace(/[^A-Za-z0-9_]/g, "").toUpperCase().slice(0, 32) || "UNSPECIFIED";
+}
+
+function incrementCount(map: Record<string, number>, key: string) {
+  map[key] = (map[key] || 0) + 1;
+}
+
+/** Counts WinSMS per-recipient acceptance from a send response (recipients[].accepted / acceptError). */
+export function summariseWinSmsAcceptance(response: unknown): {
+  accepted: number;
+  rejected: number;
+  unknown: number;
+  rejectCodes: Record<string, number>;
+} {
+  const out = { accepted: 0, rejected: 0, unknown: 0, rejectCodes: {} as Record<string, number> };
+  const data = (response && typeof response === "object" ? response : {}) as Record<string, unknown>;
+  const rows: unknown[] = [];
+  if (Array.isArray(data.recipients)) rows.push(...data.recipients);
+  if (Array.isArray(data.messages)) {
+    for (const message of data.messages) {
+      const recipients = (message as Record<string, unknown> | null)?.recipients;
+      if (Array.isArray(recipients)) rows.push(...recipients);
+    }
+  }
+  if (!rows.length) {
+    out.unknown = 1;
+    return out;
+  }
+  for (const row of rows) {
+    const accepted = (row as Record<string, unknown> | null)?.accepted;
+    if (accepted === true) out.accepted += 1;
+    else if (accepted === false) {
+      out.rejected += 1;
+      incrementCount(out.rejectCodes, safeProviderCode((row as Record<string, unknown>).acceptError));
+    } else out.unknown += 1;
+  }
+  return out;
+}
+
+export const BULK_SMS_UNCONFIRMED_MESSAGE =
+  "WinSMS did not confirm acceptance. Check WinSMS sent history before resending.";
+
+/**
+ * WinSMS answers HTTP 200 even when it refuses the number (recipients[].accepted=false).
+ * Only an explicit accepted=true is confirmed delivery. An unreadable or unrecognised response
+ * is "unconfirmed": the message may have been sent, so it is neither counted as sent nor
+ * reported as failed (which would invite a duplicate resend).
+ */
+export function classifyWinSmsDestinationOutcome(acceptance: ReturnType<typeof summariseWinSmsAcceptance>): {
+  status: "sent" | "failed" | "unconfirmed";
+  error: string | null;
+} {
+  if (acceptance.accepted > 0) return { status: "sent", error: null };
+  if (acceptance.rejected > 0) {
+    const codes = Object.keys(acceptance.rejectCodes).join(", ");
+    return { status: "failed", error: `WinSMS rejected this number${codes ? ` (${codes})` : ""}` };
+  }
+  return { status: "unconfirmed", error: BULK_SMS_UNCONFIRMED_MESSAGE };
+}
+
+/**
+ * Any unconfirmed destination keeps the response ok (207) so the client shows the summary
+ * warning instead of a generic failure that would invite resending the whole batch.
+ */
+export function summariseBulkSmsDestinationOutcome(
+  rows: Array<{ status: BulkStatementSmsDestinationResult["status"] }>,
+  eligibleAccountCount: number,
+  skippedAccountCount: number
+): {
+  successfulDestinations: number;
+  failedDestinations: number;
+  unconfirmedDestinations: number;
+  ok: boolean;
+  status: 200 | 207 | 502;
+  summary: string;
+} {
+  let successfulDestinations = 0;
+  let failedDestinations = 0;
+  let unconfirmedDestinations = 0;
+  for (const row of rows) {
+    if (row.status === "sent") successfulDestinations += 1;
+    else if (row.status === "unconfirmed") unconfirmedDestinations += 1;
+    else failedDestinations += 1;
+  }
+  const counts = { successfulDestinations, failedDestinations, unconfirmedDestinations };
+  const skippedText = `${skippedAccountCount} account${skippedAccountCount === 1 ? "" : "s"} skipped.`;
+
+  if (failedDestinations === 0 && unconfirmedDestinations === 0 && successfulDestinations > 0) {
+    return {
+      ...counts,
+      ok: true,
+      status: 200,
+      summary: `Bulk SMS sent successfully to ${successfulDestinations} destination${
+        successfulDestinations === 1 ? "" : "s"
+      } across ${eligibleAccountCount} account${eligibleAccountCount === 1 ? "" : "s"}.`,
+    };
+  }
+  if (unconfirmedDestinations > 0) {
+    return {
+      ...counts,
+      ok: true,
+      status: 207,
+      summary: `${successfulDestinations} SMS sent. ${failedDestinations} SMS failed. ${unconfirmedDestinations} SMS not confirmed by WinSMS — check WinSMS sent history before resending these. ${skippedText}`,
+    };
+  }
+  if (successfulDestinations > 0 && failedDestinations > 0) {
+    return {
+      ...counts,
+      ok: true,
+      status: 207,
+      summary: `${successfulDestinations} SMS sent. ${failedDestinations} SMS failed. ${skippedText}`,
+    };
+  }
+  return { ...counts, ok: false, status: 502, summary: "Bulk SMS send failed." };
+}
+
+export type BulkStatementSmsSendDiagnostics = {
+  stage: "validate" | "readiness" | "resolve" | "provider" | "summarise";
+  resolveMs: number | null;
+  providerMs: number | null;
+  providerAccepted: number;
+  providerRejected: number;
+  providerAcceptanceUnknown: number;
+  providerRejectCodes: Record<string, number>;
+  errorCodes: Record<string, number>;
+};
+
+export function createBulkStatementSmsSendDiagnostics(): BulkStatementSmsSendDiagnostics {
+  return {
+    stage: "validate",
+    resolveMs: null,
+    providerMs: null,
+    providerAccepted: 0,
+    providerRejected: 0,
+    providerAcceptanceUnknown: 0,
+    providerRejectCodes: {},
+    errorCodes: {},
+  };
+}
+
+function countSkipReasons(rows: Array<{ skipReason?: string | null }> | undefined): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const row of rows || []) {
+    if (row?.skipReason) incrementCount(out, safeProviderCode(row.skipReason));
+  }
+  return out;
+}
+
+export function buildBulkSmsPreviewCompletedLog(
+  schoolId: string,
+  result: Record<string, any>,
+  durationMs: number
+): Record<string, unknown> {
+  return {
+    schoolId,
+    ok: Boolean(result?.ok),
+    httpStatus: result?.ok ? 200 : result?.status ?? null,
+    code: result?.ok ? null : result?.code ?? null,
+    requestedAccountCount: result?.requestedAccountCount ?? null,
+    eligibleAccountCount: result?.eligibleAccountCount ?? null,
+    skippedAccountCount: result?.skippedAccountCount ?? null,
+    destinationCount: result?.destinationCount ?? null,
+    skipReasons: countSkipReasons(
+      Array.isArray(result?.accounts) ? result.accounts.filter((a: any) => a?.status === "skipped") : []
+    ),
+    smsReady: result?.smsReady ?? null,
+    outboundDisabled: result?.outboundDisabled ?? null,
+    canSend: result?.canSend ?? null,
+    durationMs,
+  };
+}
+
+export function buildBulkSmsSendCompletedLog(
+  schoolId: string,
+  result: Record<string, any>,
+  diagnostics: BulkStatementSmsSendDiagnostics,
+  durationMs: number
+): Record<string, unknown> {
+  return {
+    schoolId,
+    ok: Boolean(result?.ok),
+    httpStatus: result?.status ?? null,
+    code: result?.code ?? null,
+    stage: diagnostics.stage,
+    requestedAccountCount: result?.requestedAccountCount ?? null,
+    eligibleAccountCount: result?.eligibleAccountCount ?? null,
+    skippedAccountCount: result?.skippedAccountCount ?? null,
+    skipReasons: countSkipReasons(result?.skippedAccounts),
+    attemptedDestinations: result?.attemptedDestinations ?? 0,
+    successfulDestinations: result?.successfulDestinations ?? 0,
+    failedDestinations: result?.failedDestinations ?? 0,
+    unconfirmedDestinations: result?.unconfirmedDestinations ?? 0,
+    providerAccepted: diagnostics.providerAccepted,
+    providerRejected: diagnostics.providerRejected,
+    providerAcceptanceUnknown: diagnostics.providerAcceptanceUnknown,
+    providerRejectCodes: diagnostics.providerRejectCodes,
+    errorCodes: diagnostics.errorCodes,
+    resolveMs: diagnostics.resolveMs,
+    providerMs: diagnostics.providerMs,
+    durationMs,
+  };
+}
 
 async function mapPool<T, R>(
   items: T[],
@@ -441,13 +687,41 @@ async function resolveOneBulkAccount(input: {
   };
 }
 
-export async function previewBulkStatementSms(input: {
+type PreviewBulkStatementSmsInput = {
   schoolId: string;
   familyAccountIds: string[];
   recipientStrategy?: BulkStatementSmsRecipientStrategy | string;
   accountOverrides?: BulkStatementSmsAccountOverride[];
   messageTemplate?: string | null;
-}) {
+};
+
+export async function previewBulkStatementSms(input: PreviewBulkStatementSmsInput) {
+  const startedAt = Date.now();
+  const schoolId = String(input.schoolId || "").trim();
+  logBulkStatementSms("bulk_sms_preview_started", {
+    schoolId,
+    requestedAccountCount: dedupeFamilyAccountIds(input.familyAccountIds).length,
+    recipientStrategy: parseBulkRecipientStrategy(input.recipientStrategy),
+  });
+  try {
+    const result = await previewBulkStatementSmsUnlogged(input);
+    logBulkStatementSms(
+      "bulk_sms_preview_completed",
+      buildBulkSmsPreviewCompletedLog(schoolId, result as Record<string, any>, Date.now() - startedAt)
+    );
+    return result;
+  } catch (error) {
+    logBulkStatementSms("bulk_sms_preview_failed", {
+      schoolId,
+      stage: "resolve",
+      errorCode: safeBulkSmsErrorCode(error),
+      durationMs: Date.now() - startedAt,
+    });
+    throw error;
+  }
+}
+
+async function previewBulkStatementSmsUnlogged(input: PreviewBulkStatementSmsInput) {
   const schoolId = String(input.schoolId || "").trim();
   const familyAccountIds = dedupeFamilyAccountIds(input.familyAccountIds);
   const strategy = parseBulkRecipientStrategy(input.recipientStrategy);
@@ -581,7 +855,7 @@ export async function previewBulkStatementSms(input: {
   };
 }
 
-export async function sendBulkStatementSms(input: {
+type SendBulkStatementSmsInput = {
   schoolId: string;
   familyAccountIds: string[];
   recipientStrategy?: BulkStatementSmsRecipientStrategy | string;
@@ -591,7 +865,43 @@ export async function sendBulkStatementSms(input: {
   mobileNumbers?: unknown;
   cellNo?: unknown;
   phone?: unknown;
-}) {
+};
+
+export async function sendBulkStatementSms(input: SendBulkStatementSmsInput) {
+  const startedAt = Date.now();
+  const schoolId = String(input.schoolId || "").trim();
+  const diagnostics = createBulkStatementSmsSendDiagnostics();
+  logBulkStatementSms("bulk_sms_send_started", {
+    schoolId,
+    requestedAccountCount: dedupeFamilyAccountIds(input.familyAccountIds).length,
+    recipientStrategy: parseBulkRecipientStrategy(input.recipientStrategy),
+  });
+  try {
+    const result = await sendBulkStatementSmsUnlogged(input, diagnostics);
+    diagnostics.stage = "summarise";
+    logBulkStatementSms(
+      "bulk_sms_send_completed",
+      buildBulkSmsSendCompletedLog(schoolId, result as Record<string, any>, diagnostics, Date.now() - startedAt)
+    );
+    return result;
+  } catch (error) {
+    logBulkStatementSms("bulk_sms_send_failed", {
+      schoolId,
+      stage: diagnostics.stage,
+      errorCode: safeBulkSmsErrorCode(error),
+      providerAccepted: diagnostics.providerAccepted,
+      providerRejected: diagnostics.providerRejected,
+      errorCodes: diagnostics.errorCodes,
+      durationMs: Date.now() - startedAt,
+    });
+    throw error;
+  }
+}
+
+async function sendBulkStatementSmsUnlogged(
+  input: SendBulkStatementSmsInput,
+  diagnostics: BulkStatementSmsSendDiagnostics
+) {
   void input.mobileNumbers;
   void input.cellNo;
   void input.phone;
@@ -631,6 +941,7 @@ export async function sendBulkStatementSms(input: {
     };
   }
 
+  diagnostics.stage = "readiness";
   const ready = await isSchoolSmsReady(schoolId);
   if (!ready) {
     return {
@@ -644,6 +955,8 @@ export async function sendBulkStatementSms(input: {
   }
 
   // Full revalidation at send time (never trust preview).
+  diagnostics.stage = "resolve";
+  const resolveStartedAt = Date.now();
   const resolved = await mapPool(familyAccountIds, BULK_STATEMENT_SMS_CONCURRENCY, async (familyAccountId) =>
     resolveOneBulkAccount({
       schoolId,
@@ -653,6 +966,7 @@ export async function sendBulkStatementSms(input: {
       messageTemplate: input.messageTemplate,
     })
   );
+  diagnostics.resolveMs = Date.now() - resolveStartedAt;
 
   type SendJob = {
     familyAccountId: string;
@@ -736,9 +1050,11 @@ export async function sendBulkStatementSms(input: {
     };
   }
 
+  diagnostics.stage = "provider";
+  const providerStartedAt = Date.now();
   const destinationResults = await mapPool(jobs, BULK_STATEMENT_SMS_CONCURRENCY, async (job) => {
     try {
-      await sendSchoolSms(schoolId, {
+      const providerResponse = await sendSchoolSms(schoolId, {
         message: job.message,
         recipients: [
           {
@@ -749,16 +1065,25 @@ export async function sendBulkStatementSms(input: {
         maxSegments: job.segments,
         clientMessageIdPrefix: `bstmt-${job.familyAccountId}`,
       });
+      const acceptance = summariseWinSmsAcceptance(providerResponse);
+      diagnostics.providerAccepted += acceptance.accepted;
+      diagnostics.providerRejected += acceptance.rejected;
+      diagnostics.providerAcceptanceUnknown += acceptance.unknown;
+      for (const [code, n] of Object.entries(acceptance.rejectCodes)) {
+        diagnostics.providerRejectCodes[code] = (diagnostics.providerRejectCodes[code] || 0) + n;
+      }
+      const outcome = classifyWinSmsDestinationOutcome(acceptance);
       return {
         familyAccountId: job.familyAccountId,
         accountNo: job.accountNo,
         parentIds: job.dest.parentIds,
         displayNames: job.dest.displayNames,
         mobileMasked: job.dest.mobileMasked,
-        status: "sent" as const,
-        error: null,
-      };
+        status: outcome.status,
+        error: outcome.error,
+      } satisfies BulkStatementSmsDestinationResult;
     } catch (error) {
+      incrementCount(diagnostics.errorCodes, safeBulkSmsErrorCode(error));
       const errMsg =
         error instanceof WinSmsApiError
           ? error.message
@@ -773,16 +1098,18 @@ export async function sendBulkStatementSms(input: {
         mobileMasked: job.dest.mobileMasked,
         status: "failed" as const,
         error: errMsg,
-      };
+      } satisfies BulkStatementSmsDestinationResult;
     }
   });
 
-  let successfulDestinations = 0;
-  let failedDestinations = 0;
-  for (const row of destinationResults) {
-    if (row.status === "sent") successfulDestinations += 1;
-    else failedDestinations += 1;
-  }
+  diagnostics.providerMs = Date.now() - providerStartedAt;
+
+  const outcome = summariseBulkSmsDestinationOutcome(
+    destinationResults,
+    eligibleAccounts.length,
+    skippedAccounts.length
+  );
+  const { successfulDestinations, failedDestinations, unconfirmedDestinations } = outcome;
 
   const accountResults: Array<{
     familyAccountId: string;
@@ -790,23 +1117,28 @@ export async function sendBulkStatementSms(input: {
     balance: number;
     sentCount: number;
     failedCount: number;
-    status: "skipped" | "sent" | "partial" | "failed";
+    unconfirmedCount?: number;
+    status: "skipped" | "sent" | "partial" | "failed" | "unconfirmed";
   }> = eligibleAccounts.map((acct) => {
     const rows = destinationResults.filter((r) => r.familyAccountId === acct.familyAccountId);
     const sentCount = rows.filter((r) => r.status === "sent").length;
     const failedCount = rows.filter((r) => r.status === "failed").length;
+    const unconfirmedCount = rows.filter((r) => r.status === "unconfirmed").length;
     const status =
-      failedCount === 0 && sentCount > 0
+      failedCount === 0 && unconfirmedCount === 0 && sentCount > 0
         ? ("sent" as const)
-        : sentCount > 0 && failedCount > 0
+        : sentCount > 0
           ? ("partial" as const)
-          : ("failed" as const);
+          : unconfirmedCount > 0
+            ? ("unconfirmed" as const)
+            : ("failed" as const);
     return {
       familyAccountId: acct.familyAccountId,
       accountNo: acct.accountNo,
       balance: acct.balance,
       sentCount,
       failedCount,
+      unconfirmedCount,
       status,
     };
   });
@@ -822,23 +1154,11 @@ export async function sendBulkStatementSms(input: {
     });
   }
 
-  const allSent = failedDestinations === 0 && successfulDestinations > 0;
-  const partial = successfulDestinations > 0 && failedDestinations > 0;
-  const summary = allSent
-    ? `Bulk SMS sent successfully to ${successfulDestinations} destination${
-        successfulDestinations === 1 ? "" : "s"
-      } across ${eligibleAccounts.length} account${eligibleAccounts.length === 1 ? "" : "s"}.`
-    : partial
-      ? `${successfulDestinations} SMS sent. ${failedDestinations} SMS failed. ${skippedAccounts.length} account${
-          skippedAccounts.length === 1 ? "" : "s"
-        } skipped.`
-      : "Bulk SMS send failed.";
-
   return {
-    ok: allSent || partial,
-    status: allSent ? 200 : partial ? 207 : 502,
+    ok: outcome.ok,
+    status: outcome.status,
     simulated: false,
-    summary,
+    summary: outcome.summary,
     recipientStrategy: strategy,
     requestedAccountCount: familyAccountIds.length,
     eligibleAccountCount: eligibleAccounts.length,
@@ -846,6 +1166,7 @@ export async function sendBulkStatementSms(input: {
     attemptedDestinations: destinationResults.length,
     successfulDestinations,
     failedDestinations,
+    unconfirmedDestinations,
     concurrency: BULK_STATEMENT_SMS_CONCURRENCY,
     skippedAccounts,
     results: destinationResults,

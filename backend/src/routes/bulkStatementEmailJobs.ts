@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { SchoolModuleGateRequest } from "../middleware/requireSchoolModule";
 import { prisma } from "../prisma";
 import {
-  createBulkStatementEmailJob,
+  createOrAttachBulkStatementEmailJob,
   retryFailedBulkStatementEmailJob,
   serializeBulkStatementEmailJob,
   type BulkStatementEmailRecipientInput,
@@ -40,7 +40,7 @@ router.post("/", async (req: SchoolModuleGateRequest, res) => {
       skipReason: r?.skipReason != null ? String(r.skipReason) : undefined,
     }));
 
-    const job = await createBulkStatementEmailJob(prisma, {
+    const { job, created } = await createOrAttachBulkStatementEmailJob(prisma, {
       schoolId,
       createdBy: authUserId(req),
       subject: String(req.body?.subject || "").trim(),
@@ -57,8 +57,18 @@ router.post("/", async (req: SchoolModuleGateRequest, res) => {
     // Kick the recoverable processor without blocking the response.
     void tickBulkStatementEmailJobProcessor(prisma);
 
+    if (!created) {
+      return res.status(200).json({
+        success: true,
+        existingActiveJob: true,
+        message: "A statement email job is already running for this school. Showing its progress; no new job was created.",
+        job: serializeBulkStatementEmailJob(job, { includeRecipients: true }),
+      });
+    }
+
     return res.status(201).json({
       success: true,
+      existingActiveJob: false,
       job: serializeBulkStatementEmailJob(job, { includeRecipients: true }),
     });
   } catch (error: unknown) {
@@ -144,11 +154,12 @@ router.post("/:id/retry-failed", async (req: SchoolModuleGateRequest, res) => {
     return res.json({
       success: true,
       requeued: result.requeued,
+      heldForReconciliation: result.heldForReconciliation,
       job: serializeBulkStatementEmailJob(job, { includeRecipients: true }),
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to retry failed recipients";
-    const status = message.includes("not found") ? 404 : 500;
+    const status = message.includes("not found") ? 404 : message.includes("still active") ? 409 : 500;
     console.error("[bulk-statement-email-jobs] retry-failed:", error);
     return res.status(status).json({ success: false, error: message });
   }

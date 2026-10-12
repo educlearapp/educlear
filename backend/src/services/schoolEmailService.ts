@@ -241,6 +241,7 @@ async function sendWithResend(input: {
   html: string;
   replyTo?: string;
   attachments?: SendSchoolEmailInput["attachments"];
+  idempotencyKey?: string;
 }) {
   const apiKey = resendApiKey();
   if (!apiKey) {
@@ -248,8 +249,10 @@ async function sendWithResend(input: {
   }
 
   const replyTo = String(input.replyTo || "").trim();
+  const idempotencyKey = String(input.idempotencyKey || "").trim();
   return postResendEmail({
     apiKey,
+    ...(idempotencyKey ? { idempotencyKey } : {}),
     payload: {
       // Always the verified EduClear From — never stale EDUCLEAR_MAIL_FROM_EMAIL.
       from: input.from,
@@ -649,6 +652,8 @@ export type SendSchoolEmailInput = {
   }[];
   /** Ignored — reply-to is resolved server-side per school (saved replyTo → registered school email). */
   replyTo?: string;
+  /** Resend Idempotency-Key for this logical email. Not applied on the SMTP fallback path. */
+  idempotencyKey?: string;
 };
 
 /** Resolve Reply-To for outbound mail (ignores client-supplied values). */
@@ -685,6 +690,7 @@ export async function sendSchoolEmail(schoolId: string, input: SendSchoolEmailIn
       html: input.html,
       replyTo,
       attachments: input.attachments || [],
+      idempotencyKey: input.idempotencyKey,
     });
   }
 

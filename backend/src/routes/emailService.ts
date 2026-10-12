@@ -21,5 +21,6 @@ export async function sendEmailWithAttachment(input: SendEmailWithAttachmentInpu
     subject: input.subject,
     html: input.html,
     attachments: input.attachments,
+    ...(input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : {}),
   });
 }

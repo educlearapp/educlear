@@ -27,6 +27,12 @@ function createMemoryPrisma() {
   const id = () => `id_${seq++}`;
 
   const api: any = {
+    async $transaction(fn: (tx: any) => Promise<unknown>) {
+      return fn(api);
+    },
+    async $executeRaw() {
+      return 1;
+    },
     bulkStatementEmailJob: {
       async create(args: any) {
         const jobId = id();
@@ -100,8 +106,10 @@ function createMemoryPrisma() {
       },
       async findFirst(args: any) {
         for (const job of jobs.values()) {
-          if (args.where?.id && job.id !== args.where.id) continue;
+          if (typeof args.where?.id === "string" && job.id !== args.where.id) continue;
+          if (args.where?.id?.not && job.id === args.where.id.not) continue;
           if (args.where?.schoolId && job.schoolId !== args.where.schoolId) continue;
+          if (args.where?.status?.in && !args.where.status.in.includes(job.status)) continue;
           if (args.include?.recipients) {
             return {
               ...job,
@@ -134,6 +142,7 @@ function createMemoryPrisma() {
         for (const job of jobs.values()) {
           if (args.where?.id && job.id !== args.where.id) continue;
           if (args.where?.status?.in && !args.where.status.in.includes(job.status)) continue;
+          if (args.where && "startedAt" in args.where && args.where.startedAt === null && job.startedAt) continue;
           Object.assign(job, args.data, { updatedAt: new Date() });
           count += 1;
         }
@@ -169,10 +178,23 @@ function createMemoryPrisma() {
         if (args.include?.job) return { ...row, job: { ...jobs.get(row.jobId) } };
         return { ...row };
       },
+      async findMany(args: any) {
+        return [...recipients.values()]
+          .filter((r) => {
+            if (args.where?.jobId && r.jobId !== args.where.jobId) return false;
+            if (args.where?.schoolId && r.schoolId !== args.where.schoolId) return false;
+            if (typeof args.where?.status === "string" && r.status !== args.where.status) return false;
+            if (args.where?.id?.in && !args.where.id.in.includes(r.id)) return false;
+            return true;
+          })
+          .map((r) => ({ ...r }));
+      },
       async updateMany(args: any) {
         let count = 0;
         for (const r of recipients.values()) {
-          if (args.where?.id && r.id !== args.where.id) continue;
+          if (typeof args.where?.id === "string" && r.id !== args.where.id) continue;
+          if (args.where?.id?.in && !args.where.id.in.includes(r.id)) continue;
+          if (args.where?.lastAttemptAt?.lt && !(r.lastAttemptAt && r.lastAttemptAt < args.where.lastAttemptAt.lt)) continue;
           if (args.where?.jobId && r.jobId !== args.where.jobId) continue;
           if (args.where?.schoolId && r.schoolId !== args.where.schoolId) continue;
           if (args.where?.status) {
