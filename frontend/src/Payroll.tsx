@@ -12,6 +12,8 @@ import { apiFetch } from "./api";
 
 import { useSchoolId } from "./useSchoolId";
 import PayrollEduClockImportPanel from "./PayrollEduClockImportPanel";
+import { buildPayslipPdf } from "./payroll/buildPayslipPdf";
+import { loadPayslipLetterheadImages } from "./payroll/payslipLetterheadAssets";
 import { hasSchoolModule } from "./modules/schoolModuleEntitlements";
 import { ACCOUNTING_COA_UPDATED_EVENT } from "./accounting/accountingPayrollCoa";
 import { repairPayrollCoaForSchool } from "./accounting/AccountingChartOfAccounts";
@@ -266,6 +268,9 @@ type PayrollRow = {
 
   extraDeduction: number;
 
+  /** Already included in gross; carried for payslip display only. */
+  allowances: number;
+
 
 
 };
@@ -512,7 +517,8 @@ function calculatePAYE(monthlyGross: number): number {
 
 
 
-function calculatePayroll(
+// eslint-disable-next-line react-refresh/only-export-components
+export function calculatePayroll(
 
 
 
@@ -725,6 +731,8 @@ function calculatePayroll(
 
 
     extraDeduction,
+
+    allowances,
 
 
 
@@ -1541,358 +1549,20 @@ export default function Payroll() {
 
 
 
-  function createPayslipPdf(row: PayrollRow): jsPDF {
-
-
-
-    const doc = new jsPDF();
-
-
-
-    const pageW = doc.internal.pageSize.getWidth();
-
-
-
-    doc.setFillColor(15, 23, 42);
-
-
-
-    doc.rect(0, 0, pageW, 32, "F");
-
-
-
-    doc.setTextColor(212, 175, 55);
-
-
-
-    doc.setFont("helvetica", "bold");
-
-
-
-    doc.setFontSize(22);
-
-
-
-    doc.text("EduClear Payroll", 14, 18);
-
-
-
-    doc.setFontSize(13);
-
-
-
-    doc.text("PAYSLIP", pageW - 14, 18, {
-
-
-
-      align: "right",
-
-
-
-    });
-
-
-
-    doc.setTextColor(17, 24, 39);
-
-
-
-    doc.setFontSize(14);
-
-
-
-    doc.text(row.employeeName, 14, 48);
-
-
-
-    doc.setFontSize(9);
-
-
-
-    doc.text(`Period: ${period}`, 14, 56);
-
-
-
-    doc.text(`Employee Number: ${row.employeeNumber}`, 14, 62);
-
-
-
-    doc.text(`ID Number: ${row.idNumber}`, 14, 68);
-
-
-
-    doc.text(`Tax Number: ${row.taxNumber}`, 14, 74);
-
-
-
-    doc.text(`Position: ${row.jobTitle}`, 14, 80);
-
-
-
-    let y = 100;
-
-
-
-    const line = (
-
-
-
-      label: string,
-
-
-
-      value: string,
-
-
-
-      bold = false
-
-
-
-    ) => {
-
-
-
-      doc.setFont("helvetica", bold ? "bold" : "normal");
-
-
-
-      doc.text(label, 18, y);
-
-
-
-      doc.text(value, pageW - 18, y, {
-
-
-
-        align: "right",
-
-
-
-      });
-
-
-
-      y += 8;
-
-
-
-    };
-
-
-
-    doc.setFont("helvetica", "bold");
-
-
-
-    doc.text("Earnings", 18, y);
-
-
-
-    y += 10;
-
-
-
-    line("Basic Salary", money(row.basicSalary));
-
-
-
-    line("Overtime", money(row.overtimePay));
-
-
-
-    line("Bonus", money(row.bonus));
-
-
-
-    line(
-
-
-
-      "Employer Medical Aid",
-
-
-
-      money(row.medicalAidEmployer)
-
-
-
-    );
-
-
-
-    line("Gross Earnings", money(row.gross), true);
-
-
-
-    y += 8;
-
-
-
-    doc.setFont("helvetica", "bold");
-
-
-
-    doc.text("Deductions", 18, y);
-
-
-
-    y += 10;
-
-
-
-    line("PAYE", money(row.paye));
-
-
-
-    line("UIF", money(row.uif));
-
-
-
-    line("Pension", money(row.pension));
-
-
-
-    line(
-
-
-
-      "Medical Aid Employee",
-
-
-
-      money(row.medicalAidEmployee)
-
-
-
-    );
-
-
-
-    line(
-
-
-
-      "Extra Deduction",
-
-
-
-      money(row.extraDeduction)
-
-
-
-    );
-
-
-
-    line("Total Deductions", money(row.deductions), true);
-
-
-
-    y += 10;
-
-
-
-    doc.setFillColor(15, 23, 42);
-
-
-
-    doc.rect(14, y, pageW - 28, 16, "F");
-
-
-
-    doc.setTextColor(255, 255, 255);
-
-
-
-    doc.setFont("helvetica", "bold");
-
-
-
-    doc.setFontSize(13);
-
-
-
-    doc.text("NET PAY", 20, y + 10);
-
-
-
-    doc.text(money(row.net), pageW - 20, y + 10, {
-
-
-
-      align: "right",
-
-
-
-    });
-
-
-
-    doc.setTextColor(140, 140, 140);
-
-
-
-    doc.setFontSize(8);
-
-
-
-    doc.text(
-
-
-
-      "Payroll processed by EduClear",
-
-
-
-      pageW / 2,
-
-
-
-      286,
-
-
-
-      {
-
-
-
-        align: "center",
-
-
-
-      }
-
-
-
-    );
-
-
-
-    return doc;
-
-
-
+  function createPayslipPdf(
+    row: PayrollRow,
+    images: Awaited<ReturnType<typeof loadPayslipLetterheadImages>> = {}
+  ) {
+    return buildPayslipPdf(row, { period, schoolId, images }).doc;
   }
 
 
 
-  function downloadPayslip(row: PayrollRow) {
-
-
-
-    createPayslipPdf(row).save(
-
-
-
+  async function downloadPayslip(row: PayrollRow) {
+    const images = await loadPayslipLetterheadImages(schoolId);
+    createPayslipPdf(row, images).save(
       `${row.employeeName}-Payslip.pdf`
-
-
-
     );
-
-
-
   }
 
 
