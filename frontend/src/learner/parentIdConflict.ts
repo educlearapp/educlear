@@ -181,6 +181,25 @@ export async function linkExistingParentToLearnerApi(input: {
   return payload;
 }
 
+export async function unlinkParentFromLearnerApi(input: {
+  parentId: string;
+  learnerId: string;
+}): Promise<{ success: true; unlinked: boolean; alreadyUnlinked: boolean }> {
+  const response = await fetch(`${API_URL}/api/parents/unlink-from-learner`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
+    body: JSON.stringify({
+      parentId: input.parentId,
+      learnerId: input.learnerId,
+    }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload?.success !== true) {
+    throw new Error(payload?.message || "Failed to remove parent from learner");
+  }
+  return payload;
+}
+
 export function existingParentDisplayName(parent: ExistingParentConflict | null | undefined) {
   if (!parent) return "existing parent";
   return `${parent.firstName || ""} ${parent.surname || ""}`.trim() || "existing parent";

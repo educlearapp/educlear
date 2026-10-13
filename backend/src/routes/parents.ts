@@ -19,6 +19,7 @@ import {
   requiresExplicitCreateConfirmation,
 } from "../services/applicationParentIdentity";
 import { ParentIdConflictError } from "../utils/parentIdConflict";
+import { unlinkParentFromLearner } from "../services/parentLinkService";
 import { resolveParentStaffAuth } from "../middleware/requireParentStaffAuth";
 import {
   formatDateOnlyUtc,
@@ -432,6 +433,49 @@ router.post("/link-to-learner", async (req, res) => {
       success: false,
       code: err.code || null,
       message: err.message || "Failed to link parent",
+    });
+  }
+});
+
+/**
+ * POST /api/parents/unlink-from-learner
+ * Trusted Owner/Admin only (staff JWT + DB role). Removes one learner-parent link;
+ * the Parent record and its other learner links are untouched. Idempotent.
+ */
+router.post("/unlink-from-learner", async (req, res) => {
+  try {
+    const authDecision = await resolveParentStaffAuth(req, {
+      requireOwnerAdmin: true,
+    });
+    if (!authDecision.allowed) {
+      return res.status(authDecision.status).json({
+        success: false,
+        code: authDecision.code || null,
+        message: authDecision.error,
+      });
+    }
+    const staffAuth = authDecision.auth;
+    const result = await unlinkParentFromLearner({
+      schoolId: staffAuth.authorizedSchoolId,
+      parentId: cleanString(req.body?.parentId),
+      learnerId: cleanString(req.body?.learnerId),
+      actorIsOwnerAdmin: true,
+    });
+    console.info("[parents] unlink-from-learner", {
+      schoolId: staffAuth.authorizedSchoolId,
+      actorUserId: staffAuth.userId,
+      parentId: result.parentId,
+      learnerId: result.learnerId,
+      unlinked: result.unlinked,
+    });
+    return res.json(result);
+  } catch (error: unknown) {
+    const err = error as { statusCode?: number; code?: string; message?: string };
+    const status = err.statusCode || 500;
+    return res.status(status).json({
+      success: false,
+      code: err.code || null,
+      message: err.message || "Failed to unlink parent",
     });
   }
 });

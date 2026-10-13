@@ -34,6 +34,8 @@ export type ParentsSectionProps = {
   onViewExistingParent?: (existing: ExistingParentConflict) => void | Promise<void>;
   /** Owner/Admin: link existing Parent to this learner via dedicated API. */
   onLinkExistingParent?: (existing: ExistingParentConflict) => void | Promise<void>;
+  /** Saved learner: remove the persisted link via API; host reloads authoritative parents. */
+  onUnlinkParent?: (parent: ParentRecord) => Promise<void>;
   learnerId?: string;
   schoolId?: string;
   /** Notify host when Manage/Add Parent form has an unsaved typed ID. */
@@ -57,6 +59,7 @@ export default function ParentsSection({
   onPersistParent,
   onViewExistingParent,
   onLinkExistingParent,
+  onUnlinkParent,
   learnerId,
   schoolId,
   onUnsavedParentIdEditChange,
@@ -296,20 +299,41 @@ export default function ParentsSection({
     cancelForm();
   };
 
-  const removeSelected = () => {
+  const removeSelected = async () => {
     if (!selectedParent) {
       window.alert("Please select a parent first.");
       return;
     }
     const ok = window.confirm("Remove this parent from the learner?");
     if (!ok) return;
+
+    const selectedParentId = String(selectedParent.id || "");
+    const isPersistedLink =
+      Boolean(learnerId) && Boolean(selectedParentId) && !selectedParentId.startsWith("local-parent-");
+
+    if (isPersistedLink && onUnlinkParent) {
+      setSaving(true);
+      try {
+        await onUnlinkParent(selectedParent);
+        setSelectedId("");
+        setParentMode("none");
+        window.alert("Parent removed from this learner.");
+      } catch (error) {
+        window.alert(error instanceof Error ? error.message : "Failed to remove parent");
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
+    // Local-only (Add Learner draft) — nothing persisted yet.
     onChange(parents.filter((p) => String(p.id) !== String(selectedParent.id)));
     setSelectedId("");
     setParentMode("none");
   };
 
   const deleteSelected = () => {
-    removeSelected();
+    void removeSelected();
   };
 
   const formTitle =
@@ -343,7 +367,12 @@ export default function ParentsSection({
         <button type="button" className="add-learner-btn add-learner-btn--secondary" onClick={startManage}>
           Manage
         </button>
-        <button type="button" className="add-learner-btn add-learner-btn--secondary" onClick={removeSelected}>
+        <button
+          type="button"
+          className="add-learner-btn add-learner-btn--secondary"
+          onClick={() => void removeSelected()}
+          disabled={saving}
+        >
           Remove
         </button>
         <div className="parents-section__more-wrap">

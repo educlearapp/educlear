@@ -87,6 +87,78 @@ export function buildLinkWriteData(rawParent: Record<string, unknown>) {
   };
 }
 
+/**
+ * Removes exactly one learner-parent association. Never deletes or edits the Parent row,
+ * the parent's links to other learners, family accounts, or billing history.
+ * Idempotent: an already-absent link returns alreadyUnlinked=true.
+ */
+export async function unlinkParentFromLearner(opts: {
+  schoolId: string;
+  parentId: string;
+  learnerId: string;
+  /** Server-derived Owner/Admin only — never from client role fields. */
+  actorIsOwnerAdmin: boolean;
+  db?: Db;
+}): Promise<{
+  success: true;
+  unlinked: boolean;
+  alreadyUnlinked: boolean;
+  parentId: string;
+  learnerId: string;
+}> {
+  const db = opts.db ?? prisma;
+  if (!opts.actorIsOwnerAdmin) {
+    throw Object.assign(new Error("Only Owner/Admin may unlink a parent from a learner."), {
+      statusCode: 403,
+      code: "FORBIDDEN_UNLINK_PARENT",
+    });
+  }
+  const schoolId = cleanString(opts.schoolId);
+  const parentId = cleanString(opts.parentId);
+  const learnerId = cleanString(opts.learnerId);
+  if (!schoolId || !parentId || !learnerId) {
+    throw Object.assign(new Error("schoolId, parentId, and learnerId are required"), {
+      statusCode: 400,
+      code: "MISSING_FIELDS",
+    });
+  }
+
+  const parent = await db.parent.findFirst({
+    where: { id: parentId, schoolId },
+    select: { id: true },
+  });
+  if (!parent) {
+    throw Object.assign(new Error("Parent not found in this school"), {
+      statusCode: 404,
+      code: "PARENT_NOT_FOUND",
+    });
+  }
+
+  const learner = await db.learner.findFirst({
+    where: { id: learnerId, schoolId },
+    select: { id: true },
+  });
+  if (!learner) {
+    throw Object.assign(new Error("Learner not found in this school"), {
+      statusCode: 404,
+      code: "LEARNER_NOT_FOUND",
+    });
+  }
+
+  // Parent and learner are both verified in this school; the pair is unique.
+  const deleted = await db.parentLearnerLink.deleteMany({
+    where: { parentId, learnerId },
+  });
+
+  return {
+    success: true,
+    unlinked: deleted.count > 0,
+    alreadyUnlinked: deleted.count === 0,
+    parentId,
+    learnerId,
+  };
+}
+
 export async function saveParentLinks({
   schoolId,
   learnerId,

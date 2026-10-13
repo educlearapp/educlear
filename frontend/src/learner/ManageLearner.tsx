@@ -10,6 +10,7 @@ import {
 } from "./parentFormUtils";
 import {
   linkExistingParentToLearnerApi,
+  unlinkParentFromLearnerApi,
   ParentIdConflictClientError,
   parseParentIdConflictPayload,
   parsePossibleParentMatchPayload,
@@ -21,6 +22,7 @@ import {
   getLearnerAccountNo,
   normaliseDateForInput,
 } from "./learnerIdentity";
+import { learnerLinkedParents } from "./learnerLinkedParents";
 import "../AddLearner.css";
 import LearnerBillingPlanTab from "./LearnerBillingPlanTab";
 import { notifyLearnersRefresh } from "../billing/billingLedger";
@@ -259,55 +261,8 @@ function parentWork(parent: any) {
   return parent?.workPhone || parent?.work || "";
 }
 
-function learnerParents(learner: any, parents: any[]) {
-  const learnerId = String(learner?.id || "");
-  const learnerSurname = String(learner?.lastName || learner?.surname || "").trim().toLowerCase();
-  const learnerFamilyId = String(
-    learner?.familyAccountId ||
-      learner?.familyAccount?.id ||
-      learner?.familyId ||
-      learner?.accountId ||
-      ""
-  );
-
-  const embeddedParents = [
-    ...(Array.isArray(learner?.parents) ? learner.parents : []),
-    ...(Array.isArray(learner?.parentLinks)
-      ? learner.parentLinks.map((link: any) => link.parent || link).filter(Boolean)
-      : []),
-  ];
-
-  if (embeddedParents.length > 0) return embeddedParents;
-
-  return parents.filter((parent: any) => {
-    const directLearnerIds = [
-      parent.learnerId,
-      parent.childId,
-      parent.studentId,
-      parent.learner?.id,
-      parent.child?.id,
-    ]
-      .filter(Boolean)
-      .map(String);
-
-    const nestedLearnerIds = Array.isArray(parent.learners)
-      ? parent.learners
-          .map((item: any) => item?.id || item?.learnerId || item?.learner?.id)
-          .filter(Boolean)
-          .map(String)
-      : [];
-
-    const parentFamilyId = String(
-      parent.familyAccountId || parent.familyAccount?.id || parent.familyId || parent.accountId || ""
-    );
-
-    const pSurname = String(parent.lastName || parent.surname || "").trim().toLowerCase();
-    const linkedByLearnerId = [...directLearnerIds, ...nestedLearnerIds].includes(learnerId);
-    const linkedByFamily = learnerFamilyId && parentFamilyId && learnerFamilyId === parentFamilyId;
-    const linkedBySurname = learnerSurname && pSurname && learnerSurname === pSurname;
-
-    return linkedByLearnerId || linkedByFamily || linkedBySurname;
-  });
+function learnerParents(learner: Parameters<typeof learnerLinkedParents>[0]) {
+  return learnerLinkedParents(learner);
 }
 
 export default function ManageLearner({
@@ -496,7 +451,7 @@ export default function ManageLearner({
   
   
   
-    const visibleParents = learnerParents(learner, parents);
+    const visibleParents = learnerParents(learner);
 
     const fullName = learnerFullName(learner);
     const classroom = learnerClassroom(learner);
@@ -609,6 +564,31 @@ export default function ManageLearner({
         ? reloaded.parents.map((p: Record<string, unknown>) => normalizeParentRecord(p))
         : [];
       if (normalized.length) syncParentsState(normalized);
+    };
+
+    const unlinkParentFromLearner = async (parent: ParentRecord) => {
+      if (!learner?.id || !parent?.id) {
+        throw new Error("Learner and parent are required to remove a parent.");
+      }
+      await unlinkParentFromLearnerApi({
+        parentId: String(parent.id),
+        learnerId: String(learner.id),
+      });
+      let reloaded: Awaited<ReturnType<typeof reloadLearnerProfile>> = null;
+      try {
+        reloaded = await reloadLearnerProfile();
+      } catch {
+        reloaded = null;
+      }
+      if (!reloaded) {
+        // Backend confirmed the unlink; reflect it even if the profile reload failed.
+        persistLearner({
+          ...learner,
+          parents: (Array.isArray(learner.parents) ? learner.parents : []).filter(
+            (p: { id?: unknown } | null) => String(p?.id || "") !== String(parent.id)
+          ),
+        });
+      }
     };
 
     const viewExistingParent = async (existing: ExistingParentConflict) => {
@@ -2110,6 +2090,7 @@ export default function ManageLearner({
           onPersistParent={persistParentsToApi}
           onViewExistingParent={(existing) => void viewExistingParent(existing)}
           onLinkExistingParent={(existing) => void linkExistingParentToLearner(existing)}
+          onUnlinkParent={unlinkParentFromLearner}
           learnerId={learner?.id}
           schoolId={learner?.schoolId}
           onUnsavedParentIdEditChange={setUnsavedParentIdEdit}
