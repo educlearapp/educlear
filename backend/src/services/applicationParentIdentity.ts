@@ -462,6 +462,23 @@ export async function linkExistingParentToLearner(opts: {
       statusCode: 400,
     });
   }
+  // Relationship is per learner and must be chosen for this learner — never copied.
+  // Enforced once PARENT_LINK_RELATION_REQUIRED=true; until then clients released before the
+  // relationship picker (which never send one) keep linking with a blank relationship.
+  const relation = cleanString(opts.relation);
+  if (!relation) {
+    if (process.env.PARENT_LINK_RELATION_REQUIRED === "true") {
+      throw Object.assign(new Error("Select the parent's relationship to this learner."), {
+        statusCode: 400,
+        code: "RELATION_REQUIRED",
+      });
+    }
+    console.warn("[parents] link-to-learner without relation (pre-picker client); stored blank", {
+      schoolId,
+      parentId,
+      learnerId,
+    });
+  }
 
   const parent = await opts.prisma.parent.findFirst({
     where: { id: parentId, schoolId },
@@ -505,7 +522,7 @@ export async function linkExistingParentToLearner(opts: {
       schoolId,
       parentId,
       learnerId,
-      relation: cleanString(opts.relation) || null,
+      relation: relation || null,
       isPrimary: opts.isPrimary !== undefined ? Boolean(opts.isPrimary) : true,
     },
     select: { id: true },

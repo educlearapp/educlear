@@ -548,7 +548,7 @@ export default function ManageLearner({
       return match || draft;
     };
 
-    const linkExistingParentToLearner = async (existing: ExistingParentConflict) => {
+    const linkExistingParentToLearner = async (existing: ExistingParentConflict, relation: string) => {
       if (!learner?.id || !learner?.schoolId) {
         window.alert("Learner context is required to link a parent.");
         return;
@@ -557,6 +557,7 @@ export default function ManageLearner({
         schoolId: String(learner.schoolId),
         parentId: String(existing.id),
         learnerId: String(learner.id),
+        relation,
         isPrimary: false,
       });
       const reloaded = await reloadLearnerProfile();
@@ -2089,7 +2090,7 @@ export default function ManageLearner({
           defaultSurname={learner.lastName || learner.surname || ""}
           onPersistParent={persistParentsToApi}
           onViewExistingParent={(existing) => void viewExistingParent(existing)}
-          onLinkExistingParent={(existing) => void linkExistingParentToLearner(existing)}
+          onLinkExistingParent={(existing, relation) => linkExistingParentToLearner(existing, relation)}
           onUnlinkParent={unlinkParentFromLearner}
           learnerId={learner?.id}
           schoolId={learner?.schoolId}

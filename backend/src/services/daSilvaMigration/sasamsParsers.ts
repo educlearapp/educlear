@@ -47,7 +47,8 @@ export type SasamsParsedLearner = {
 export type SasamsParsedParent = {
   firstName: string;
   surname: string;
-  relation: string;
+  /** Null when the SA-SAMS export has no relationship column — never invented. */
+  relation: string | null;
   cellNo: string;
   workNo: string;
   homeNo: string;
@@ -1188,7 +1189,7 @@ export function parseSasamsParentLearnerLinks(filePath: string): SasamsParsedPar
     out.push({
       firstName: parentFirst,
       surname: parentLast,
-      relation: "Guardian",
+      relation: null,
       cellNo:
         parentCellCol >= 0 ? String(row[parentCellCol] ?? "").trim() : String(row[8] ?? "").trim(),
       workNo:
@@ -1255,7 +1256,7 @@ export function parseSasamsParentRegister(filePath: string): SasamsParsedParent[
     out.push({
       firstName: parentFirst || firstName || "Parent",
       surname: parentLast || lastName || parentName || "Unknown",
-      relation: "Guardian",
+      relation: null,
       cellNo: rowValue(row, col, "parentPhone"),
       workNo: "",
       homeNo: "",
@@ -1373,7 +1374,7 @@ export function parseSasamsParentSources(
   const merge = (a: SasamsParsedParent, b: SasamsParsedParent): SasamsParsedParent => {
     return {
       ...a,
-      relation: pick(a.relation, b.relation) || "Guardian",
+      relation: pick(a.relation, b.relation),
       cellNo: pick(a.cellNo, b.cellNo) || "",
       workNo: pick(a.workNo, b.workNo) || "",
       homeNo: pick(a.homeNo, b.homeNo) || "",

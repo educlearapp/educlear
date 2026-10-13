@@ -60,6 +60,7 @@ function makeFakePrisma(state: {
         if (!existing) state.links.push({ parentId, learnerId });
         return { id: `link-${parentId}-${learnerId}` };
       },
+      updateMany: async () => ({ count: 0 }),
     },
   } as any;
 }

@@ -18,6 +18,7 @@ import {
 import { buildHistoryEntriesFromTransactions } from "./daSilvaTransactionHistory";
 import { readSchoolLedger } from "../../utils/billingLedgerStore";
 import { normalizeSaPhone } from "../parentPortalService";
+import { fillBlankLinkRelation, relationshipFillForParent } from "../../utils/parentLinkRelation";
 import { buildAccountsFromLearners } from "../statementAccounts";
 import { relinkSchoolBillingLedger } from "../billingLedgerRelink";
 import {
@@ -579,7 +580,7 @@ export async function repairDaSilvaSasamsParents(opts: {
       const surname = pickString(parentRow.surname, existingParent.surname);
       const email = pickString(parentRow.email, existingParent.email);
       const idNumber = pickString(parentRow.idNumber, existingParent.idNumber);
-      const relationship = pickString(parentRow.relation, existingParent.relationship);
+      const relationship = relationshipFillForParent(parentRow.relation, existingParent.relationship);
       const workNo = pickString(parentRow.workNo, existingParent.workNo);
       const homeNo = pickString(parentRow.homeNo, existingParent.homeNo);
       if (firstName) data.firstName = firstName;
@@ -623,10 +624,9 @@ export async function repairDaSilvaSasamsParents(opts: {
         relation: parentRow.relation,
         isPrimary: true,
       },
-      update: {
-        relation: hasText(parentRow.relation) ? parentRow.relation : undefined,
-      },
+      update: {},
     });
+    await fillBlankLinkRelation(prisma, parentId, match.learnerId, parentRow.relation);
     result.linksUpserted += 1;
   }
 

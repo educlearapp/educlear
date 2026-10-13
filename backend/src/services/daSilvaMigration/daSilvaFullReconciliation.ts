@@ -24,6 +24,7 @@ import { readSchoolKidesysHistory } from "../../utils/kidesysTransactionHistoryS
 import { normalizeClassroomInput } from "../../utils/classroomNormalization";
 import { normalizeMatchText } from "../../utils/kideesysSpreadsheet";
 import { normalizeSaPhone } from "../parentPortalService";
+import { fillBlankLinkRelation, relationshipFillForParent } from "../../utils/parentLinkRelation";
 import { buildAccountsFromLearners } from "../statementAccounts";
 import { relinkSchoolBillingLedger } from "../billingLedgerRelink";
 import {
@@ -446,11 +447,12 @@ async function repairAllSasamsParents(opts: {
         surname: parentRow.surname,
         cellNo,
       },
-      select: { id: true },
+      select: { id: true, relationship: true },
     });
 
     let parentId = existingParent?.id;
     if (parentId) {
+      const relationshipFill = relationshipFillForParent(parentRow.relation, existingParent?.relationship);
       await prisma.parent.update({
         where: { id: parentId },
         data: {
@@ -459,7 +461,7 @@ async function repairAllSasamsParents(opts: {
           cellNo,
           email: hasText(parentRow.email) ? parentRow.email : null,
           idNumber: parentRow.idNumber,
-          relationship: parentRow.relation,
+          ...(relationshipFill ? { relationship: relationshipFill } : {}),
           workNo: parentRow.workNo || null,
           homeNo: parentRow.homeNo || null,
         },
@@ -496,10 +498,10 @@ async function repairAllSasamsParents(opts: {
         isPrimary: true,
       },
       update: {
-        relation: hasText(parentRow.relation) ? parentRow.relation : undefined,
         schoolId: opts.schoolId,
       },
     });
+    await fillBlankLinkRelation(prisma, parentId, match.learnerId, parentRow.relation);
     linksRepaired += 1;
   }
 

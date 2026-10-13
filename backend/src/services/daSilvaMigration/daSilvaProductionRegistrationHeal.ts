@@ -5,6 +5,7 @@ import crypto from "crypto";
 import type { PrismaClient } from "@prisma/client";
 
 import { prisma as defaultPrisma } from "../../prisma";
+import { fillBlankLinkRelation, relationshipFillForParent } from "../../utils/parentLinkRelation";
 import { assertDaSilvaHistoricalParentToolAllowed } from "../migration/parentIdentity/daSilvaHistoricalParentToolGuard";
 import { buildRegistrationStats } from "../registrationStatsService";
 import { buildAccountsFromAgeAnalysisSnapshots } from "../statementAccounts";
@@ -467,7 +468,7 @@ async function healFromSourceDatabase(opts: {
         const surname = pickString(src.surname, existing.surname);
         const email = pickString(src.email, existing.email);
         const idNumber = pickString(src.idNumber, existing.idNumber);
-        const relationship = pickString(src.relationship, existing.relationship);
+        const relationship = relationshipFillForParent(src.relationship, existing.relationship);
         const workNo = pickString(src.workNo, existing.workNo);
         const homeNo = pickString(src.homeNo, existing.homeNo);
         if (firstName) data.firstName = firstName;
@@ -503,10 +504,10 @@ async function healFromSourceDatabase(opts: {
           isPrimary: link.isPrimary,
         },
         update: {
-          relation: hasText(link.relation) ? link.relation : undefined,
           isPrimary: link.isPrimary,
         },
       });
+      await fillBlankLinkRelation(defaultPrisma, parentId, targetLearnerId, link.relation);
     }
   }
 

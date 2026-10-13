@@ -124,6 +124,7 @@ function makeFakePrisma(state: ReturnType<typeof makeState>) {
         }
         return { id: `link-${parentId}-${learnerId}` };
       },
+      updateMany: async () => ({ count: 0 }),
     },
     learner: {
       findFirst: async ({ where }: { where: any }) => {

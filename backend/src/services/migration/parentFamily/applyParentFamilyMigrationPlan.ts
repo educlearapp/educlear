@@ -8,6 +8,7 @@
 import { randomUUID } from "crypto";
 import { prisma } from "../../../prisma";
 import { buildParentReuseUpdateData } from "../parentIdentity/loadSchoolParentCandidates";
+import { fillBlankLinkRelation } from "../../../utils/parentLinkRelation";
 import {
   normalizeParentCellphone,
   normalizeParentIdentityNumber,
@@ -140,10 +141,9 @@ export async function applyParentFamilyMigrationPlan(input: {
         relation: link.relation,
         isPrimary: false,
       },
-      update: {
-        relation: link.relation,
-      },
+      update: {},
     });
+    await fillBlankLinkRelation(prisma, parentId, link.canonicalLearnerId, link.relation);
     linksUpserted += 1;
   }
 

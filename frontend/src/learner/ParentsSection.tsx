@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import ParentFormPanel from "./ParentFormPanel";
-import type { ParentRecord } from "./parentFormTypes";
+import { RELATIONSHIP_OPTIONS, type ParentRecord } from "./parentFormTypes";
 import {
   emptyParentDraft,
   normalizeParentRecord,
@@ -33,7 +33,7 @@ export type ParentsSectionProps = {
   /** Owner/Admin: open the learner profile that owns the conflicting parent ID. */
   onViewExistingParent?: (existing: ExistingParentConflict) => void | Promise<void>;
   /** Owner/Admin: link existing Parent to this learner via dedicated API. */
-  onLinkExistingParent?: (existing: ExistingParentConflict) => void | Promise<void>;
+  onLinkExistingParent?: (existing: ExistingParentConflict, relation: string) => void | Promise<void>;
   /** Saved learner: remove the persisted link via API; host reloads authoritative parents. */
   onUnlinkParent?: (parent: ParentRecord) => Promise<void>;
   learnerId?: string;
@@ -69,6 +69,7 @@ export default function ParentsSection({
   const [parentMode, setParentMode] = useState<ParentMode>("none");
   const [parentDraft, setParentDraft] = useState<ParentRecord>(emptyParentDraft());
   const [existingPickId, setExistingPickId] = useState("");
+  const [existingRelation, setExistingRelation] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -121,12 +122,14 @@ export default function ParentsSection({
   const startExisting = () => {
     setParentMode("existing");
     setExistingPickId("");
+    setExistingRelation("");
   };
 
   const cancelForm = () => {
     setParentMode("none");
     setParentDraft(emptyParentDraft());
     setExistingPickId("");
+    setExistingRelation("");
   };
 
   const presentIdConflict = async (existing: ExistingParentConflict | null, message?: string) => {
@@ -144,8 +147,19 @@ export default function ParentsSection({
       const link = window.confirm(
         `Link existing parent (${existingParentDisplayName(existing)}) to this learner instead of creating a duplicate?`
       );
-      if (link) await onLinkExistingParent(existing);
+      if (link) await linkConflictParent(existing);
     }
+  };
+
+  /** Conflict flows link with the relationship chosen in this learner's parent form. */
+  const linkConflictParent = async (existing: ExistingParentConflict) => {
+    const relation = (parentDraft.relationship || "").trim();
+    if (!relation) {
+      window.alert("Select the parent's relationship to this learner first.");
+      return false;
+    }
+    if (onLinkExistingParent) await onLinkExistingParent(existing, relation);
+    return true;
   };
 
   const presentPossibleMatch = async (payload: PossibleParentMatchPayload) => {
@@ -162,8 +176,7 @@ export default function ParentsSection({
       const linkFirst = window.confirm(
         `${payload.message}\n\nLink existing parent (${label}) to this learner?\n\nOK = Link existing · Cancel = more options`
       );
-      if (linkFirst) {
-        await onLinkExistingParent(cand);
+      if (linkFirst && (await linkConflictParent(cand))) {
         return "linked";
       }
     }
@@ -268,21 +281,29 @@ export default function ParentsSection({
       window.alert("This parent is already linked.");
       return;
     }
+    const relation = existingRelation.trim();
+    if (!relation) {
+      window.alert("Please select the parent's relationship to this learner.");
+      return;
+    }
 
     if (onLinkExistingParent && normalized.id) {
       setSaving(true);
       try {
-        await onLinkExistingParent({
-          id: String(normalized.id),
-          schoolId: String(schoolId || ""),
-          firstName: normalized.firstName || "",
-          surname: normalized.surname || "",
-          cellNo: normalized.cellNo || "",
-          email: normalized.email || null,
-          idNumber: normalized.idNumber || null,
-          familyAccountId: null,
-          primaryLearnerId: null,
-        });
+        await onLinkExistingParent(
+          {
+            id: String(normalized.id),
+            schoolId: String(schoolId || ""),
+            firstName: normalized.firstName || "",
+            surname: normalized.surname || "",
+            cellNo: normalized.cellNo || "",
+            email: normalized.email || null,
+            idNumber: normalized.idNumber || null,
+            familyAccountId: null,
+            primaryLearnerId: null,
+          },
+          relation
+        );
         cancelForm();
         window.alert("Parent linked.");
       } catch (error) {
@@ -294,7 +315,7 @@ export default function ParentsSection({
     }
 
     // Local-only (Add Learner draft) — no API until learner create.
-    onChange([...parents, { ...normalized, isPrimary: parents.length === 0 }]);
+    onChange([...parents, { ...normalized, relationship: relation, isPrimary: parents.length === 0 }]);
     setSelectedId(String(normalized.id || ""));
     cancelForm();
   };
@@ -439,6 +460,19 @@ export default function ParentsSection({
                     <option key={p.id || idx} value={p.id || ""}>
                       {parentDisplayName(p)} — {p.cellNo || p.cell || "no cell"}
                       {p.email ? ` — ${p.email}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="add-learner-select"
+                  aria-label="Relationship to this learner"
+                  value={existingRelation}
+                  onChange={(e) => setExistingRelation(e.target.value)}
+                >
+                  <option value="">Relationship to this learner…</option>
+                  {RELATIONSHIP_OPTIONS.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
                     </option>
                   ))}
                 </select>

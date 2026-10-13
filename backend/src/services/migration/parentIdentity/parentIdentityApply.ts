@@ -11,6 +11,7 @@ import type { PrismaClient } from "@prisma/client";
 import { buildParentReuseUpdateData } from "./loadSchoolParentCandidates";
 import { normalizeParentCellphone, normalizeParentIdentityNumber } from "./normalizeParentIdentity";
 import { isParentIdentityPreflightClear } from "./parentIdentityPreflight";
+import { fillBlankLinkRelation } from "../../../utils/parentLinkRelation";
 import type {
   ParentIdentityApplyResult,
   ParentIdentityPreflightReport,
@@ -143,10 +144,15 @@ async function applyOneItem(
       isPrimary: Boolean(item.link.isPrimary),
     },
     update: {
-      relation: item.link.relation || item.incoming.relationship || null,
       ...(item.link.isPrimary != null ? { isPrimary: item.link.isPrimary } : {}),
     },
   });
+  await fillBlankLinkRelation(
+    prisma,
+    parentId,
+    item.link.learnerId,
+    item.link.relation || item.incoming.relationship || null
+  );
   result.linksUpserted += 1;
   result.parentIds.push(parentId);
 }

@@ -195,12 +195,14 @@ export async function saveParentLinks({
     }
 
     let parent = null;
+    // Relationship is per learner: only a deliberate change on this learner's link is written.
+    let relationChanged = true;
 
     try {
       if (existingParentId) {
         const owned = await db.parent.findFirst({
           where: { id: existingParentId, schoolId },
-          select: { id: true },
+          select: { id: true, relationship: true },
         });
         if (!owned) {
           throw Object.assign(new Error("Parent not found in this school"), {
@@ -236,8 +238,30 @@ export async function saveParentLinks({
           throw new ParentIdConflictError(body);
         }
 
+        const existingLink = await db.parentLearnerLink.findUnique({
+          where: { parentId_learnerId: { parentId: existingParentId, learnerId } },
+          select: { relation: true },
+        });
+        // Compare with what this learner shows (link value, else the parent fallback) so an
+        // unchanged form value never overwrites the parent record or another learner's value.
+        const shownRelation = cleanString(existingLink?.relation) || cleanString(owned.relationship);
+        relationChanged = Boolean(linkData.relation) && linkData.relation !== shownRelation;
+        // Other learners with a blank link display the parent value, so it must stay put for them.
+        const otherLearnersOnFallback = relationChanged
+          ? await db.parentLearnerLink.count({
+              where: {
+                parentId: existingParentId,
+                learnerId: { not: learnerId },
+                OR: [{ relation: null }, { relation: "" }],
+              },
+            })
+          : 0;
+
         const updateData = applyParentIdentityPreservationForUpdate(parentData, rawParent);
         delete (updateData as { familyAccountId?: unknown }).familyAccountId;
+        if (!relationChanged || otherLearnersOnFallback > 0) {
+          delete (updateData as { relationship?: unknown }).relationship;
+        }
         parent = await db.parent.update({
           where: { id: existingParentId },
           data: updateData,
@@ -317,7 +341,7 @@ export async function saveParentLinks({
           learnerId,
         },
       },
-      update: linkData,
+      update: relationChanged ? linkData : { ...linkData, relation: undefined },
       create: {
         schoolId,
         parentId: parent.id,
