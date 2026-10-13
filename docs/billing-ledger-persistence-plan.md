@@ -62,7 +62,7 @@ Use after any backend deploy or ledger-affecting change (read-only):
 | Statement accounts | **344** |
 | DUP001 balance | **R-12,200** (last payment **R3,500** on **2026-06-03**) |
 | ALI002 balance | **R4,000** (last payment **R3,000** on **2026-06-04**) |
-| `kidesys_topup` in ledger | Matches last known count (post-recovery: **92** imported rows) |
+| `kidesys_topup` in ledger | Matches last known count (current: **346** rows from batch `cmq0wpb6600e6evozo7vg5m2g`, 2026-06-05; the 2026-06-04 post-recovery figure of 92 is superseded) |
 
 ---
 

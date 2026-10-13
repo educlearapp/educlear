@@ -150,7 +150,7 @@ Frontend rollback reference: `backend/scripts/trigger-frontend-rollback-deploy.m
 
 ### After backend deploy
 
-- [ ] Verify **`kidesys_topup`** row count in runtime ledger matches pre-deploy baseline (post top-up recovery: **92** rows).
+- [ ] Verify **`kidesys_topup`** row count in runtime ledger matches pre-deploy baseline (current Da Silva baseline: **346** rows, all from top-up batch `cmq0wpb6600e6evozo7vg5m2g` uploaded 2026-06-05; the older **92** figure was the 2026-06-04 batch restored after the ledger-loss incident and has since been superseded).
 - [ ] Verify **344** statement accounts (Da Silva).
 - [ ] Spot-check balances: **DUP001** **R-12,200**, **ALI002** **R4,000** (read-only UI or API).
 - [ ] Do **not** re-run top-up restore/re-import unless a new data loss is confirmed — manual payment fixes after recovery must not be overwritten.

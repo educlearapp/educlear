@@ -38,7 +38,7 @@ Follow `docs/permanent-deployment-rules.md` for full detail. These rules are bin
 ## Billing ledger (backend deploys)
 
 - Before backend deploy: backup `billing-ledger.json`; never deploy while runtime ledger is unprotected (no persistent disk + no backup).
-- After backend deploy: verify `kidesys_topup` count (~92 post-recovery), 344 accounts, DUP001 (R-12,200) and ALI002 (R4,000) spot-checks.
+- After backend deploy: verify `kidesys_topup` count (**346**, Da Silva batch of 2026-06-05; the old ~92 figure is superseded), 344 accounts, DUP001 (R-12,200) and ALI002 (R4,000) spot-checks.
 - Do not re-run top-up restore after manual payment fixes.
 
 ## Post-deploy verification (read-only first)
