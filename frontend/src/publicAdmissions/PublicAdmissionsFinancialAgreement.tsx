@@ -5,7 +5,11 @@ import {
   financialAgreementMatchesCurrentDocuments,
   publishedFinancialDocuments,
 } from "./reviewReadiness";
-import type { ApplicantApplicationView, PublicAdmissionsConfig } from "./publicAdmissionsTypes";
+import type {
+  ApplicantAgreementSelections,
+  ApplicantApplicationView,
+  PublicAdmissionsConfig,
+} from "./publicAdmissionsTypes";
 
 type Props = {
   publicSlug: string;
@@ -13,6 +17,9 @@ type Props = {
   accessToken: string;
   config: PublicAdmissionsConfig | null;
   application: ApplicantApplicationView;
+  /** Held by the apply page so ticks and typed name survive moving between steps. */
+  selections: ApplicantAgreementSelections;
+  onSelectionsChange: (patch: Partial<ApplicantAgreementSelections>) => void;
   onSigned: (application: ApplicantApplicationView) => void;
   onSessionInvalid: () => void;
 };
@@ -29,6 +36,8 @@ export default function PublicAdmissionsFinancialAgreement({
   accessToken,
   config,
   application,
+  selections,
+  onSelectionsChange,
   onSigned,
   onSessionInvalid,
 }: Props) {
@@ -42,9 +51,14 @@ export default function PublicAdmissionsFinancialAgreement({
   const drawing = useRef(false);
   const moved = useRef(false);
   const [strokeCount, setStrokeCount] = useState(0);
-  const [policyAccepted, setPolicyAccepted] = useState(false);
-  const [declarationAccepted, setDeclarationAccepted] = useState(false);
-  const [typedName, setTypedName] = useState("");
+  const policyAccepted = selections.financialPolicyAccepted;
+  const declarationAccepted = selections.financialDeclarationAccepted;
+  const typedName = selections.financialTypedName;
+  const setPolicyAccepted = (value: boolean) =>
+    onSelectionsChange({ financialPolicyAccepted: value });
+  const setDeclarationAccepted = (value: boolean) =>
+    onSelectionsChange({ financialDeclarationAccepted: value });
+  const setTypedName = (value: string) => onSelectionsChange({ financialTypedName: value });
   const [error, setError] = useState<string | null>(null);
   const [signing, setSigning] = useState(false);
   const responsibleName = payerName(application);

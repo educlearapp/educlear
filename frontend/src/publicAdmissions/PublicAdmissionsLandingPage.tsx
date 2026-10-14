@@ -173,6 +173,11 @@ export default function PublicAdmissionsLandingPage({
       <p className="pa-body">
         Review the information below, then start your application when you are ready.
       </p>
+      <p className="pa-body" data-testid="pa-no-login-note">
+        <strong>No login is needed.</strong> You do not need an EduClear account, password or
+        subscription — simply start your application below. Your progress is saved
+        automatically as you go, and you can return to it later on this same device.
+      </p>
 
       <ul className="pa-summary-list" data-testid="pa-intake-summary">
         {config.intakeYear != null ? (

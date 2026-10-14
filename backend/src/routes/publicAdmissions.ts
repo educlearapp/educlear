@@ -38,6 +38,7 @@ import {
   PublicAdmissionsError,
 } from "../services/admissions/publicAdmissionsConfig";
 import { submitApplication } from "../services/admissions/submitApplicationService";
+import { scheduleSubmissionNotifications } from "../services/admissions/admissionsSubmissionNotificationService";
 import { signFinancialAgreement } from "../services/admissions/financialAgreementService";
 
 const router = Router({ mergeParams: true });
@@ -177,13 +178,17 @@ router.post("/applications/:publicAccessId/submit", rateLimitSubmit, async (req,
     const token = extractApplicantAccessToken(req);
     const result = await submitApplication(prisma, schoolSlug, publicAccessId, token);
     res.setHeader("Cache-Control", "no-store");
-    return res.json({
+    res.json({
       success: true,
       application: result.application,
       paymentInstructionsAvailable: result.paymentInstructionsAvailable,
       bankConfigurationIncomplete: result.bankConfigurationIncomplete,
       // Bank details intentionally omitted from submit — use GET .../payment after submit.
     });
+    if (result.newlySubmitted) {
+      scheduleSubmissionNotifications({ prisma }, result.newlySubmitted);
+    }
+    return;
   } catch (err) {
     return sendPublicError(res, err);
   }

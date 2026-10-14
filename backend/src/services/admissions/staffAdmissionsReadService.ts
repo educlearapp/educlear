@@ -188,6 +188,8 @@ export type StaffApplicationListItem = {
   missingDocumentCount: number;
   promotedLearnerId: string | null;
   promotedFamilyAccountId: string | null;
+  /** Latest applicant draft save (APPLICATION_DRAFT_UPDATED); null if never saved after creation. */
+  lastSavedAt: string | null;
 };
 
 export type ListStaffApplicationsQuery = {
@@ -432,6 +434,12 @@ export async function listStaffApplications(
           where: { deletedAt: null },
           select: { documentType: true },
         },
+        auditEvents: {
+          where: { eventType: "APPLICATION_DRAFT_UPDATED" },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { createdAt: true },
+        },
       },
     }),
   ]);
@@ -473,6 +481,7 @@ export async function listStaffApplications(
       missingDocumentCount: completeness.missingDocumentTypes.length,
       promotedLearnerId: row.promotedLearnerId,
       promotedFamilyAccountId: row.promotedFamilyAccountId,
+      lastSavedAt: iso(row.auditEvents[0]?.createdAt ?? null),
     };
   });
 

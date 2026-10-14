@@ -247,6 +247,15 @@ export type DraftApplicationFormState = {
 
 export type DraftSaveUiState = "clean" | "dirty" | "saving" | "saved" | "failed";
 
+/** Review-step selections kept while the applicant moves between wizard steps. */
+export type ApplicantAgreementSelections = {
+  privacyAccepted: boolean;
+  declarationsAccepted: boolean;
+  financialPolicyAccepted: boolean;
+  financialDeclarationAccepted: boolean;
+  financialTypedName: string;
+};
+
 /** Minimal same-device resume session — bound to publicSlug. */
 export type PublicApplicantSession = {
   publicSlug: string;

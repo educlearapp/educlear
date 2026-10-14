@@ -310,7 +310,7 @@ assert.ok(/pa-start-new-application/.test(applySrc), "27. start new after stale 
 
 // Stale/invalid resume GET must clear session and stop — never auto-POST a replacement draft
 const resumeFailBlock = applySrc.match(
-  /fetchPublicDraftApplication\([\s\S]*?catch\s*\{([\s\S]*?)\}\s*return;/
+  /fetchPublicDraftApplication\([\s\S]*?catch\s*(?:\(\w+\)\s*)?\{([\s\S]*?)\}\s*return;/
 );
 assert.ok(resumeFailBlock, "resume GET failure catch block present");
 assert.ok(

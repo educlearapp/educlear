@@ -266,6 +266,20 @@ button.pa-progress-item:disabled {
   gap: 0.5rem 0.75rem;
   align-items: baseline;
   font-size: 0.9rem;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--pa-border);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--pa-surface) 94%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.pa-field-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--pa-muted);
 }
 
 .pa-save-status {

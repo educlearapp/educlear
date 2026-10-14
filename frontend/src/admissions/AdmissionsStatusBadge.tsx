@@ -25,6 +25,7 @@ function statusClass(status: string): string {
 }
 
 function statusLabel(status: string): string {
+  if (status === "DRAFT") return "Draft — incomplete";
   return status.replace(/_/g, " ");
 }
 

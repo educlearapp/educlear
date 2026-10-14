@@ -15,7 +15,23 @@ const STATUS_OPTIONS = [
   { value: "INFO_REQUESTED", label: "Info requested" },
   { value: "ACCEPTED", label: "Accepted" },
   { value: "DECLINED,WITHDRAWN,CANCELLED", label: "Closed" },
+  { value: "DRAFT", label: "Drafts (incomplete — not submitted)" },
 ];
+
+const DRAFT_STATUS = "DRAFT";
+
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 type Props = {
   onOpenApplication: (applicationId: string) => void;
@@ -46,7 +62,25 @@ export default function AdmissionsListPage({ onOpenApplication }: Props) {
   const [error, setError] = useState("");
   const [items, setItems] = useState<StaffApplicationListItem[]>([]);
   const [total, setTotal] = useState(0);
+  const [draftCount, setDraftCount] = useState<number | null>(null);
+  const [loadedFilter, setLoadedFilter] = useState<string | null>(null);
   const pageSize = 20;
+  const viewingDrafts = statusFilter === DRAFT_STATUS;
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const result = await listApplications({ status: DRAFT_STATUS, page: 1, pageSize: 1 });
+        if (!cancelled) setDraftCount(result.total);
+      } catch {
+        if (!cancelled) setDraftCount(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [statusFilter]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -60,10 +94,12 @@ export default function AdmissionsListPage({ onOpenApplication }: Props) {
       });
       setItems(result.items);
       setTotal(result.total);
+      setLoadedFilter(statusFilter);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load applications");
       setItems([]);
       setTotal(0);
+      setLoadedFilter(statusFilter);
     } finally {
       setLoading(false);
     }
@@ -121,13 +157,111 @@ export default function AdmissionsListPage({ onOpenApplication }: Props) {
         </label>
       </div>
 
+      {viewingDrafts ? (
+        <div
+          className="admissions-staff-alert admissions-staff-alert--info"
+          data-testid="admissions-drafts-notice"
+        >
+          Drafts are applications a parent started but has not submitted. They are not admissions,
+          have no application number, and are not counted in your submitted applications. Only the
+          parent can complete and submit a draft, on the device they started it on.
+        </div>
+      ) : draftCount != null && draftCount > 0 ? (
+        <div
+          className="admissions-staff-alert admissions-staff-alert--info"
+          data-testid="admissions-drafts-count"
+        >
+          <span>
+            {draftCount} incomplete draft{draftCount === 1 ? "" : "s"} not yet submitted by
+            parents (not included below).
+          </span>
+          <button
+            type="button"
+            className="admissions-staff-btn admissions-staff-btn--outline"
+            onClick={() => setStatusFilter(DRAFT_STATUS)}
+          >
+            View drafts
+          </button>
+        </div>
+      ) : null}
+
       {error ? <div className="admissions-staff-alert admissions-staff-alert--error">{error}</div> : null}
 
       <div className="admissions-staff-table-card">
-        {loading ? (
+        {loading || loadedFilter !== statusFilter ? (
           <div className="admissions-staff-loading">Loading applications…</div>
         ) : items.length === 0 ? (
-          <div className="admissions-staff-empty">No applications match your filters.</div>
+          <div className="admissions-staff-empty">
+            {viewingDrafts ? "No incomplete drafts." : "No applications match your filters."}
+          </div>
+        ) : viewingDrafts ? (
+          <>
+            <table className="admissions-staff-table" data-testid="admissions-drafts-table">
+              <thead>
+                <tr>
+                  <th scope="col">Draft</th>
+                  <th scope="col">Learner</th>
+                  <th scope="col">Grade</th>
+                  <th scope="col">Primary guardian</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Started</th>
+                  <th scope="col">Last saved</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="admissions-staff-table-row"
+                    tabIndex={0}
+                    onClick={() => onOpenApplication(row.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onOpenApplication(row.id);
+                      }
+                    }}
+                  >
+                    <td>{row.id.slice(0, 8)}</td>
+                    <td>{learnerName(row)}</td>
+                    <td>{row.requestedGrade || "—"}</td>
+                    <td>{row.primaryGuardianName || "—"}</td>
+                    <td>
+                      <AdmissionsStatusBadge status={row.status} />
+                    </td>
+                    <td>{formatDateTime(row.createdAt)}</td>
+                    <td>{row.lastSavedAt ? formatDateTime(row.lastSavedAt) : "Not saved yet"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="admissions-staff-pagination">
+              <span>
+                {total} draft{total === 1 ? "" : "s"} (not submitted)
+              </span>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  className="admissions-staff-btn admissions-staff-btn--outline"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </button>
+                <span style={{ alignSelf: "center", fontSize: "0.86rem" }}>
+                  Page {page} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  className="admissions-staff-btn admissions-staff-btn--outline"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </>
         ) : (
           <>
             <table className="admissions-staff-table">

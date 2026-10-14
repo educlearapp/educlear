@@ -18,6 +18,22 @@ import {
 } from "./draftFormState";
 import { parseRequiredDocumentsConfig } from "./documentRequirements";
 import {
+  AUTOSAVE_DEBOUNCE_MS,
+  autosaveRetryDelayMs,
+  classifySaveFailure,
+  draftSaveStatusText,
+  isRetryableSaveFailure,
+  SingleFlightSaver,
+} from "./draftAutosave";
+import {
+  clearDraftBackup,
+  emptyAgreementSelections,
+  mergeBackupIntoServerForm,
+  pruneExpiredDraftBackups,
+  readDraftBackup,
+  writeDraftBackup,
+} from "./draftLocalBackup";
+import {
   createPublicDraftApplication,
   fetchPublicAdmissionsConfig,
   fetchPublicDraftApplication,
@@ -30,6 +46,7 @@ import PublicAdmissionsReviewStep from "./PublicAdmissionsReviewStep";
 import PublicAdmissionsStatusView from "./PublicAdmissionsStatusView";
 import { isEditableDraftStatus, isPostSubmitStatus } from "./reviewReadiness";
 import type {
+  ApplicantAgreementSelections,
   ApplicantApplicationView,
   ApplyWizardStep,
   DraftApplicationFormState,
@@ -45,6 +62,7 @@ type ApplyPhase =
   | "loading_resume"
   | "form"
   | "session_invalid"
+  | "resume_error"
   | "closed"
   | "config_error"
   | "not_found";
@@ -68,6 +86,27 @@ function parentFacingCreateError(err: unknown): { kind: "closed" | "error"; mess
   return {
     kind: "error",
     message: "We could not start your application right now. Please try again shortly.",
+  };
+}
+
+function applicationHasEnteredDetails(application: ApplicantApplicationView): boolean {
+  const learner = application.learner;
+  return Boolean(
+    (learner && (learner.firstName.trim() || learner.lastName.trim())) ||
+      (application.guardians || []).some((g) => g.firstName.trim() || g.surname.trim())
+  );
+}
+
+function agreementsFromApplication(
+  application: ApplicantApplicationView,
+  local?: ApplicantAgreementSelections | null
+): ApplicantAgreementSelections {
+  const base = local ? { ...local } : emptyAgreementSelections();
+  return {
+    ...base,
+    privacyAccepted: base.privacyAccepted || Boolean(application.privacyAcceptedAt),
+    declarationsAccepted:
+      base.declarationsAccepted || Boolean(application.declarationsAcceptedAt),
   };
 }
 
@@ -102,9 +141,195 @@ export default function PublicAdmissionsApplyPage() {
   const [stepNavBusy, setStepNavBusy] = useState(false);
   const [justSubmitted, setJustSubmitted] = useState(false);
   const [statusRefreshing, setStatusRefreshing] = useState(false);
+  const [lastConfirmedAt, setLastConfirmedAt] = useState<Date | null>(null);
+  const [retryScheduled, setRetryScheduled] = useState(false);
+  const [offline, setOffline] = useState(
+    () => typeof navigator !== "undefined" && navigator.onLine === false
+  );
+  const [restoredFromDevice, setRestoredFromDevice] = useState(false);
+  const [bootAttempt, setBootAttempt] = useState(0);
+  const [agreements, setAgreements] = useState<ApplicantAgreementSelections>(
+    emptyAgreementSelections
+  );
+  const [answerDrafts, setAnswerDrafts] = useState<Record<string, string> | null>(null);
 
   const createInFlight = useRef(false);
   const bootGeneration = useRef(0);
+  const formRef = useRef(form);
+  formRef.current = form;
+  const sessionRef = useRef<{ slug: string; publicAccessId: string; accessToken: string } | null>(
+    null
+  );
+  /** Bumped on every applicant edit; a save covers the revision it was sent with. */
+  const editRevision = useRef(0);
+  const savedRevision = useRef(0);
+  const debounceTimer = useRef<number | null>(null);
+  const retryTimer = useRef<number | null>(null);
+  const retryAttempt = useRef(0);
+  const performSaveRef = useRef<() => Promise<boolean>>(async () => false);
+  const saverRef = useRef<SingleFlightSaver | null>(null);
+  if (!saverRef.current) {
+    saverRef.current = new SingleFlightSaver(() => performSaveRef.current());
+  }
+
+  function hasUnsavedChanges(): boolean {
+    return editRevision.current !== savedRevision.current;
+  }
+
+  function clearDebounceTimer() {
+    if (debounceTimer.current != null) {
+      window.clearTimeout(debounceTimer.current);
+      debounceTimer.current = null;
+    }
+  }
+
+  function clearRetryTimer() {
+    if (retryTimer.current != null) {
+      window.clearTimeout(retryTimer.current);
+      retryTimer.current = null;
+    }
+  }
+
+  function resetSaveTracking() {
+    clearDebounceTimer();
+    clearRetryTimer();
+    retryAttempt.current = 0;
+    savedRevision.current = editRevision.current;
+    setRetryScheduled(false);
+  }
+
+  function scheduleAutosave(delayMs: number = AUTOSAVE_DEBOUNCE_MS) {
+    clearDebounceTimer();
+    debounceTimer.current = window.setTimeout(() => {
+      debounceTimer.current = null;
+      void saverRef.current!.flush();
+    }, delayMs);
+  }
+
+  function scheduleRetry() {
+    clearRetryTimer();
+    const delay = autosaveRetryDelayMs(retryAttempt.current);
+    retryAttempt.current += 1;
+    setRetryScheduled(true);
+    retryTimer.current = window.setTimeout(() => {
+      retryTimer.current = null;
+      void saverRef.current!.flush();
+    }, delay);
+  }
+
+  /** One PATCH of the latest entries. Only ever invoked through the single-flight saver. */
+  async function performSave(): Promise<boolean> {
+    const sess = sessionRef.current;
+    if (!sess) return false;
+    const sentRevision = editRevision.current;
+    if (sentRevision === savedRevision.current) return true;
+    clearRetryTimer();
+    setSaveState("saving");
+    try {
+      const updated = await updatePublicDraftApplication(
+        sess.slug,
+        sess.publicAccessId,
+        sess.accessToken,
+        buildUpdateDraftBody(formRef.current)
+      );
+      if (sessionRef.current?.publicAccessId !== sess.publicAccessId) return false;
+      savedRevision.current = sentRevision;
+      retryAttempt.current = 0;
+      setRetryScheduled(false);
+      setApplication(updated);
+      setLastConfirmedAt(new Date());
+      if (editRevision.current === sentRevision) {
+        clearDraftBackup(sess.slug, sess.publicAccessId);
+        setRestoredFromDevice(false);
+        setSaveState("saved");
+      } else {
+        setSaveState("dirty");
+      }
+      return true;
+    } catch (err) {
+      if (sessionRef.current?.publicAccessId !== sess.publicAccessId) return false;
+      const kind = classifySaveFailure(err);
+      if (kind === "session") {
+        clearApplicantSession(sess.slug);
+        clearDraftBackup(sess.slug, sess.publicAccessId);
+        sessionRef.current = null;
+        resetSaveTracking();
+        setPhase("session_invalid");
+        setSaveState("failed");
+        setSaveMessage(null);
+        return false;
+      }
+      setSaveState("failed");
+      if (isRetryableSaveFailure(kind)) {
+        scheduleRetry();
+        setSaveMessage(
+          "We could not save your progress yet. Your entries are still on this screen and kept on this device — we will keep trying automatically."
+        );
+      } else {
+        setRetryScheduled(false);
+        const detail =
+          err instanceof PublicAdmissionsApiError && err.details.length
+            ? ` (${err.details[0].message})`
+            : "";
+        setSaveMessage(
+          `We could not save your progress${detail}. Your entries are still on this screen — please check your details and try again.`
+        );
+      }
+      return false;
+    }
+  }
+  performSaveRef.current = performSave;
+
+  useEffect(() => {
+    pruneExpiredDraftBackups();
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "form" || !publicAccessId || !hasUnsavedChanges()) return;
+    writeDraftBackup({ publicSlug: slug, publicAccessId, form, agreements });
+  }, [form, agreements, phase, publicAccessId, slug]);
+
+  useEffect(() => {
+    if (phase !== "form") return;
+    if (saveState !== "dirty" && saveState !== "saving" && saveState !== "failed") return;
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [phase, saveState]);
+
+  useEffect(() => {
+    const flushNow = () => {
+      if (!sessionRef.current || !hasUnsavedChanges()) return;
+      clearDebounceTimer();
+      void saverRef.current!.flush();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flushNow();
+    };
+    const onOnline = () => {
+      setOffline(false);
+      retryAttempt.current = 0;
+      flushNow();
+    };
+    const onOffline = () => setOffline(true);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flushNow);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flushNow);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+      clearDebounceTimer();
+      clearRetryTimer();
+      flushNow();
+    };
+    // Handlers read refs only; registered once for the page lifetime.
+  }, []);
 
   useEffect(() => {
     const gen = ++bootGeneration.current;
@@ -120,6 +345,12 @@ export default function PublicAdmissionsApplyPage() {
     setAccessToken(null);
     setApplication(null);
     setJustSubmitted(false);
+    sessionRef.current = null;
+    resetSaveTracking();
+    setLastConfirmedAt(null);
+    setRestoredFromDevice(false);
+    setAgreements(emptyAgreementSelections());
+    setAnswerDrafts(null);
 
     if (!slug) {
       setPhase("not_found");
@@ -144,9 +375,36 @@ export default function PublicAdmissionsApplyPage() {
             if (cancelled || bootGeneration.current !== gen) return;
             setPublicAccessId(session.publicAccessId);
             setAccessToken(session.accessToken);
+            sessionRef.current = {
+              slug,
+              publicAccessId: session.publicAccessId,
+              accessToken: session.accessToken,
+            };
             setApplication(application);
-            setForm(hydrateDraftFormFromApplication(application, nextConfig));
-            setSaveState("clean");
+            const serverForm = hydrateDraftFormFromApplication(application, nextConfig);
+            const backup = isEditableDraftStatus(application.status)
+              ? readDraftBackup(slug, session.publicAccessId)
+              : null;
+            if (!isEditableDraftStatus(application.status)) {
+              clearDraftBackup(slug, session.publicAccessId);
+            }
+            setAgreements(agreementsFromApplication(application, backup?.agreements));
+            if (backup) {
+              const restored = mergeBackupIntoServerForm(serverForm, backup.form);
+              formRef.current = restored;
+              setForm(restored);
+              editRevision.current += 1;
+              setSaveState("dirty");
+              setRestoredFromDevice(true);
+              setLastConfirmedAt(null);
+              scheduleAutosave(0);
+            } else {
+              setForm(serverForm);
+              setSaveState("clean");
+              setLastConfirmedAt(
+                applicationHasEnteredDetails(application) ? new Date(application.updatedAt) : null
+              );
+            }
             if (isPostSubmitStatus(application.status)) {
               setJustSubmitted(false);
               setPhase("form");
@@ -154,12 +412,18 @@ export default function PublicAdmissionsApplyPage() {
             } else {
               setPhase("form");
             }
-          } catch {
+          } catch (err) {
             if (cancelled || bootGeneration.current !== gen) return;
-            clearApplicantSession(slug);
-            setPublicAccessId(null);
-            setAccessToken(null);
-            setPhase("session_invalid");
+            if (err instanceof PublicAdmissionsApiError && err.status === 404) {
+              clearApplicantSession(slug);
+              clearDraftBackup(slug, session.publicAccessId);
+              setPublicAccessId(null);
+              setAccessToken(null);
+              setPhase("session_invalid");
+              return;
+            }
+            // Offline or temporary server error: keep the session and any unsaved backup.
+            setPhase("resume_error");
           }
           return;
         }
@@ -179,7 +443,9 @@ export default function PublicAdmissionsApplyPage() {
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+    // Boot must re-run only for a new school link or an explicit retry; save helpers read refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug, bootAttempt]);
 
   async function handleBeginApplication() {
     if (!slug || createInFlight.current || phase === "creating") return;
@@ -202,6 +468,16 @@ export default function PublicAdmissionsApplyPage() {
       });
       setPublicAccessId(created.application.publicAccessId);
       setAccessToken(created.accessToken);
+      sessionRef.current = {
+        slug,
+        publicAccessId: created.application.publicAccessId,
+        accessToken: created.accessToken,
+      };
+      resetSaveTracking();
+      setLastConfirmedAt(null);
+      setRestoredFromDevice(false);
+      setAgreements(emptyAgreementSelections());
+      setAnswerDrafts(null);
       setApplication(created.application);
       setForm(hydrateDraftFormFromApplication(created.application, config));
       setSaveState("clean");
@@ -225,61 +501,51 @@ export default function PublicAdmissionsApplyPage() {
     updater: (prev: DraftApplicationFormState) => DraftApplicationFormState
   ) {
     setForm(updater);
+    editRevision.current += 1;
     setSaveState((prev) => (prev === "saving" ? prev : "dirty"));
     setSaveMessage(null);
+    setRestoredFromDevice(false);
+    scheduleAutosave();
   }
 
+  /**
+   * Manual Save / step navigation. Partial progress is always saved; the field checks only
+   * decide whether the applicant may move on. Resolves true once the server confirms.
+   */
   async function handleSave(opts?: { silent?: boolean }): Promise<boolean> {
-    if (!slug || !publicAccessId || !accessToken || saveState === "saving") return false;
+    if (!slug || !publicAccessId || !accessToken) return false;
     const grades = Array.isArray(config?.acceptedGrades) ? config!.acceptedGrades : [];
     const requireCitizenship = parseRequiredDocumentsConfig(
       config?.requiredDocuments
     ).some((requirement) => requirement.required && requirement.condition);
     const errors = validateDraftFormClient(form, grades, { requireCitizenship });
     setClientErrors(errors);
+    clearDebounceTimer();
+    setBannerError(null);
     if (hasClientErrors(errors)) {
-      setSaveState("dirty");
-      setSaveMessage("Please fix the highlighted fields before saving.");
+      void saverRef.current!.flush();
+      setSaveMessage(
+        "Your progress is saved as you type. Please complete the highlighted fields before continuing."
+      );
       setActiveStep("details");
       return false;
     }
 
-    setSaveState("saving");
-    setSaveMessage(null);
-    setBannerError(null);
-    try {
-      const updated = await updatePublicDraftApplication(
-        slug,
-        publicAccessId,
-        accessToken,
-        buildUpdateDraftBody(form)
-      );
-      setApplication(updated);
-      setForm(hydrateDraftFormFromApplication(updated, config));
-      setSaveState("saved");
-      if (!opts?.silent) {
-        setSaveMessage("Saved. You can continue later on this device.");
-      }
-      return true;
-    } catch (err) {
-      if (err instanceof PublicAdmissionsApiError && err.status === 404) {
-        clearApplicantSession(slug);
-        setPhase("session_invalid");
-        setSaveState("failed");
-        setSaveMessage(null);
-        return false;
-      }
-      setSaveState("failed");
-      setSaveMessage(
-        "We could not save your progress. Your entries are still on this screen — please try again."
-      );
-      return false;
+    retryAttempt.current = 0;
+    let ok = await saverRef.current!.flush();
+    for (let pass = 0; ok && hasUnsavedChanges() && pass < 3; pass += 1) {
+      ok = await saverRef.current!.flush();
     }
+    ok = ok && !hasUnsavedChanges();
+    if (ok && !opts?.silent) {
+      setSaveMessage("Saved. You can continue later on this device.");
+    }
+    return ok;
   }
 
   async function goToDocumentsStep() {
     if (stepNavBusy) return;
-    if (saveState === "dirty" || saveState === "failed") {
+    if (hasUnsavedChanges() || saveState === "dirty" || saveState === "failed") {
       setStepNavBusy(true);
       const ok = await handleSave({ silent: true });
       setStepNavBusy(false);
@@ -297,7 +563,7 @@ export default function PublicAdmissionsApplyPage() {
 
   async function goToReviewStep() {
     if (stepNavBusy) return;
-    if (saveState === "dirty" || saveState === "failed") {
+    if (hasUnsavedChanges() || saveState === "dirty" || saveState === "failed") {
       setStepNavBusy(true);
       const ok = await handleSave({ silent: true });
       setStepNavBusy(false);
@@ -314,7 +580,9 @@ export default function PublicAdmissionsApplyPage() {
       try {
         const fresh = await fetchPublicDraftApplication(slug, publicAccessId, accessToken);
         setApplication(fresh);
-        setForm(hydrateDraftFormFromApplication(fresh, config));
+        if (!hasUnsavedChanges()) {
+          setForm(hydrateDraftFormFromApplication(fresh, config));
+        }
         if (!isEditableDraftStatus(fresh.status)) {
           setJustSubmitted(false);
           setActiveStep("review");
@@ -353,6 +621,8 @@ export default function PublicAdmissionsApplyPage() {
 
   function handleStartNewAfterStale() {
     clearApplicantSession(slug);
+    sessionRef.current = null;
+    resetSaveTracking();
     setPublicAccessId(null);
     setAccessToken(null);
     setForm(createEmptyDraftForm(config));
@@ -386,16 +656,28 @@ export default function PublicAdmissionsApplyPage() {
     ? config!.acceptedGrades.map((g) => String(g)).filter(Boolean)
     : [];
 
-  const saveStatusText =
-    saveState === "saving"
-      ? "Saving…"
-      : saveState === "saved"
-        ? "Saved"
-        : saveState === "failed"
-          ? "Save failed"
-          : saveState === "dirty"
-            ? "Unsaved changes"
-            : "All changes saved";
+  const saveStatusText = draftSaveStatusText({
+    saveState,
+    lastConfirmedAt,
+    offline,
+    retryScheduled,
+  });
+
+  function confirmLeaveIfUnsaved(event: { preventDefault: () => void }) {
+    if (!hasUnsavedChanges() && saveState !== "saving") return;
+    const leave = window.confirm(
+      "Some of your latest changes have not been saved yet. Leave this page anyway? They stay on this device and will be saved when you return."
+    );
+    if (!leave) event.preventDefault();
+  }
+
+  function handleSubmitted(next: ApplicantApplicationView) {
+    if (publicAccessId) clearDraftBackup(slug, publicAccessId);
+    resetSaveTracking();
+    setApplication(next);
+    setJustSubmitted(true);
+    setSaveState("clean");
+  }
 
   if (phase === "booting" || phase === "loading_resume") {
     return (
@@ -459,6 +741,38 @@ export default function PublicAdmissionsApplyPage() {
               </Link>
             </p>
           ) : null}
+        </section>
+      </PublicAdmissionsLayout>
+    );
+  }
+
+  if (phase === "resume_error") {
+    return (
+      <PublicAdmissionsLayout config={config}>
+        <section className="pa-card" data-testid="pa-resume-error">
+          <h2 className="pa-section-title">We could not open your application right now</h2>
+          <p className="pa-body">
+            This is usually a temporary connection problem. Your application has not been lost —
+            please check your internet connection and try again.
+          </p>
+          <div className="pa-cta-row pa-cta-row--stack">
+            <button
+              type="button"
+              className="pa-cta"
+              onClick={() => setBootAttempt((n) => n + 1)}
+              data-testid="pa-resume-retry"
+            >
+              Try again
+            </button>
+            {slug ? (
+              <Link
+                to={`/admissions/${encodeURIComponent(slug)}`}
+                className="pa-text-link"
+              >
+                Back to admissions information
+              </Link>
+            ) : null}
+          </div>
         </section>
       </PublicAdmissionsLayout>
     );
@@ -573,7 +887,7 @@ export default function PublicAdmissionsApplyPage() {
                   type="button"
                   className={`pa-progress-item ${activeStep === "documents" ? "is-active" : ""}`}
                   onClick={() => void goToDocumentsStep()}
-                  disabled={stepNavBusy || saveState === "saving"}
+                  disabled={stepNavBusy}
                   data-testid="pa-step-documents"
                 >
                   Documents
@@ -584,7 +898,7 @@ export default function PublicAdmissionsApplyPage() {
                   type="button"
                   className={`pa-progress-item ${activeStep === "review" ? "is-active" : ""}`}
                   onClick={() => void goToReviewStep()}
-                  disabled={stepNavBusy || saveState === "saving"}
+                  disabled={stepNavBusy}
                   data-testid="pa-step-review"
                 >
                   Review
@@ -623,15 +937,17 @@ export default function PublicAdmissionsApplyPage() {
             accessToken={accessToken}
             config={config}
             application={application}
+            agreements={agreements}
+            onAgreementsChange={(patch) => setAgreements((prev) => ({ ...prev, ...patch }))}
+            answerDrafts={answerDrafts}
+            onAnswerDraftsChange={setAnswerDrafts}
             onApplicationUpdated={(next) => {
               setApplication(next);
-              setForm(hydrateDraftFormFromApplication(next, config));
+              if (!hasUnsavedChanges()) {
+                setForm(hydrateDraftFormFromApplication(next, config));
+              }
             }}
-            onSubmitted={(next) => {
-              setApplication(next);
-              setJustSubmitted(true);
-              setSaveState("clean");
-            }}
+            onSubmitted={handleSubmitted}
             onEditDetails={() => setActiveStep("details")}
             onEditDocuments={() => setActiveStep("documents")}
             onSessionInvalid={handleDocumentsSessionInvalid}
@@ -646,6 +962,12 @@ export default function PublicAdmissionsApplyPage() {
             {saveStatusText}
           </span>
           {saveMessage ? <span className="pa-save-message">{saveMessage}</span> : null}
+          {restoredFromDevice ? (
+            <span className="pa-save-message" data-testid="pa-restored-notice">
+              We restored details you entered earlier on this device that had not been saved yet.
+              They are being saved now.
+            </span>
+          ) : null}
         </div>
 
         <form
@@ -661,6 +983,9 @@ export default function PublicAdmissionsApplyPage() {
             <h2 id={`${formId}-learner`} className="pa-section-title">
               Learner
             </h2>
+            <p className="pa-body">
+              Fields marked <span className="pa-req">*</span> are required before you can submit.
+            </p>
             <p className="pa-body">
               Intake year:{" "}
               <strong data-testid="pa-intake-year">
@@ -760,11 +1085,14 @@ export default function PublicAdmissionsApplyPage() {
               </div>
 
               <div className="pa-field">
-                <label htmlFor={`${formId}-dob`}>Date of birth</label>
+                <label htmlFor={`${formId}-dob`}>
+                  Date of birth <span className="pa-req">*</span>
+                </label>
                 <input
                   id={`${formId}-dob`}
                   name="birthDate"
                   type="date"
+                  aria-describedby={`${formId}-dob-hint`}
                   value={form.learner.birthDate}
                   onChange={(e) =>
                     markDirty((prev) => ({
@@ -773,6 +1101,9 @@ export default function PublicAdmissionsApplyPage() {
                     }))
                   }
                 />
+                <p className="pa-field-hint" id={`${formId}-dob-hint`}>
+                  Required before you can submit.
+                </p>
                 <FieldError message={clientErrors.learnerCitizenship} />
               </div>
 
@@ -834,7 +1165,8 @@ export default function PublicAdmissionsApplyPage() {
             </h2>
             <p className="pa-body">
               Add at least one guardian. Mark who is the primary contact and who is responsible
-              for fees.
+              for fees. Each guardian needs a first name, surname, and a cell number or email
+              address before you can submit.
             </p>
             {clientErrors.guardians || clientErrors.primary || clientErrors.payer ? (
               <p className="pa-field-error" role="alert">
@@ -847,7 +1179,9 @@ export default function PublicAdmissionsApplyPage() {
                 <legend className="pa-guardian-legend">Guardian {index + 1}</legend>
                 <div className="pa-field-grid">
                   <div className="pa-field">
-                    <label htmlFor={`${formId}-g-${g.clientKey}-first`}>First name</label>
+                    <label htmlFor={`${formId}-g-${g.clientKey}-first`}>
+                      First name <span className="pa-req">*</span>
+                    </label>
                     <input
                       id={`${formId}-g-${g.clientKey}-first`}
                       value={g.firstName}
@@ -864,7 +1198,9 @@ export default function PublicAdmissionsApplyPage() {
                     />
                   </div>
                   <div className="pa-field">
-                    <label htmlFor={`${formId}-g-${g.clientKey}-surname`}>Surname</label>
+                    <label htmlFor={`${formId}-g-${g.clientKey}-surname`}>
+                      Surname <span className="pa-req">*</span>
+                    </label>
                     <input
                       id={`${formId}-g-${g.clientKey}-surname`}
                       value={g.surname}
@@ -1084,14 +1420,20 @@ export default function PublicAdmissionsApplyPage() {
               Save progress
             </h2>
             <p className="pa-body">
-              Save your draft details, then continue to documents and review. Payment
-              instructions, if any, become available only after submission.
+              Your details are saved automatically as you type — watch the status at the top of
+              the form. You can also save at any time, then continue to documents and review.
+              Payment instructions, if any, become available only after submission.
+            </p>
+            <p className="pa-field-hint" data-testid="pa-device-backup-note">
+              Until a save is confirmed, a temporary copy of what you typed is kept on this device
+              for up to 7 days so it is not lost if the page closes. ID numbers, documents and
+              signatures are never kept on the device.
             </p>
             <div className="pa-cta-row pa-cta-row--stack">
               <button
                 type="submit"
                 className="pa-cta"
-                disabled={saveState === "saving"}
+                disabled={stepNavBusy}
                 data-testid="pa-save-draft"
               >
                 {saveState === "saving" ? "Saving…" : "Save"}
@@ -1099,7 +1441,7 @@ export default function PublicAdmissionsApplyPage() {
               <button
                 type="button"
                 className="pa-secondary-btn"
-                disabled={saveState === "saving" || stepNavBusy}
+                disabled={stepNavBusy}
                 onClick={() => void goToDocumentsStep()}
                 data-testid="pa-continue-documents"
               >
@@ -1108,7 +1450,7 @@ export default function PublicAdmissionsApplyPage() {
               <button
                 type="button"
                 className="pa-secondary-btn"
-                disabled={saveState === "saving" || stepNavBusy}
+                disabled={stepNavBusy}
                 onClick={() => void goToReviewStep()}
                 data-testid="pa-continue-review"
               >
@@ -1117,7 +1459,7 @@ export default function PublicAdmissionsApplyPage() {
               <button
                 type="button"
                 className="pa-secondary-btn"
-                disabled={saveState === "saving"}
+                disabled={stepNavBusy}
                 onClick={() => void handleSave()}
                 data-testid="pa-save-continue-later"
               >
@@ -1126,7 +1468,11 @@ export default function PublicAdmissionsApplyPage() {
             </div>
             {slug ? (
               <p className="pa-body">
-                <Link to={`/admissions/${encodeURIComponent(slug)}`} className="pa-text-link">
+                <Link
+                  to={`/admissions/${encodeURIComponent(slug)}`}
+                  className="pa-text-link"
+                  onClick={confirmLeaveIfUnsaved}
+                >
                   Back to admissions information
                 </Link>
               </p>

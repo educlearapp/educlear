@@ -292,6 +292,16 @@
   color: #15803d;
 }
 
+.admissions-staff-alert--info {
+  background: rgba(212, 175, 55, 0.08);
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  color: #6b5310;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+}
+
 .admissions-staff-modal-overlay {
   position: fixed;
   inset: 0;

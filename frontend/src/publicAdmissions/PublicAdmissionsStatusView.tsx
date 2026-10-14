@@ -46,7 +46,7 @@ export default function PublicAdmissionsStatusView({
     ? "Application submitted"
     : parentFacingStatusTitle(application.status);
   const body = justSubmitted
-    ? `Your application has been submitted to ${schoolName}. Please keep your application number for your records.`
+    ? `Your application has been submitted to ${schoolName}. Please keep your application number for your records. A confirmation email with this number is also sent to the primary guardian’s email address, if one was provided.`
     : parentFacingStatusBody(application.status);
 
   return (

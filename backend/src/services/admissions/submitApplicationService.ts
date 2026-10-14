@@ -176,6 +176,11 @@ export type SubmitApplicationResult = {
   /** Present when fee required and bank config incomplete — payment UI must not pretend EFT can proceed. */
   paymentInstructionsAvailable: boolean;
   bankConfigurationIncomplete: boolean;
+  /**
+   * Set only when this call moved the application DRAFT → SUBMITTED. Internal — never sent to
+   * applicants; drives one-time submission notifications (repeat/concurrent submits get null).
+   */
+  newlySubmitted: { schoolId: string; applicationId: string } | null;
 };
 
 function bankConfigComplete(settings: SchoolAdmissionsSettings): boolean {
@@ -213,6 +218,7 @@ export async function submitApplication(
       paymentInstructionsAvailable:
         Boolean(app.feeRequired) && bankConfigComplete(settings) && Boolean(app.applicationNumber),
       bankConfigurationIncomplete: Boolean(app.feeRequired) && !bankConfigComplete(settings),
+      newlySubmitted: null,
     };
   }
 
@@ -258,6 +264,7 @@ export async function submitApplication(
   const feeCurrency = settings.currency || "ZAR";
   const paymentStatus = feeRequired ? "AWAITING_PAYMENT" : "NOT_REQUIRED";
 
+  let transitioned = false;
   const submitted = await prisma.$transaction(async (tx) => {
     // Row lock — serialize concurrent submits on this application
     const locked = await tx.$queryRaw<Array<{ id: string; status: string; applicationNumber: string | null }>>`
@@ -378,10 +385,12 @@ export async function submitApplication(
       },
     });
 
-    return tx.admissionApplication.findUniqueOrThrow({
+    const updatedRow = await tx.admissionApplication.findUniqueOrThrow({
       where: { id: app.id },
       include: applicationInclude,
     });
+    transitioned = true;
+    return updatedRow;
   });
 
   const view = serializeApplicantApplication(submitted);
@@ -390,5 +399,6 @@ export async function submitApplication(
     application: view,
     paymentInstructionsAvailable: feeReq && bankConfigComplete(settings),
     bankConfigurationIncomplete: feeReq && !bankConfigComplete(settings),
+    newlySubmitted: transitioned ? { schoolId, applicationId: app.id } : null,
   };
 }

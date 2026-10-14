@@ -93,6 +93,8 @@ export type StaffApplicationListItem = {
   missingDocumentCount: number;
   promotedLearnerId: string | null;
   promotedFamilyAccountId: string | null;
+  /** Latest applicant draft save; optional for older API responses. */
+  lastSavedAt?: string | null;
 };
 
 export type DocumentCompleteness = {

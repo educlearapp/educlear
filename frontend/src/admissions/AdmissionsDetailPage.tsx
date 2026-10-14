@@ -239,6 +239,16 @@ export default function AdmissionsDetailPage({
         </div>
       </header>
 
+      {detail.status === "DRAFT" ? (
+        <div
+          className="admissions-staff-alert admissions-staff-alert--info"
+          data-testid="admissions-detail-draft-notice"
+        >
+          This is an incomplete draft. The parent has not submitted it, so it is not an admission
+          and no review actions are available. Only the parent can complete and submit it.
+        </div>
+      ) : null}
+
       {actionError ? (
         <div className="admissions-staff-alert admissions-staff-alert--error">{actionError}</div>
       ) : null}

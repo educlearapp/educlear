@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   buildSupportingDocumentRequirements,
   documentsForType,
@@ -20,6 +20,7 @@ import {
   sectionForValidationField,
 } from "./reviewReadiness";
 import type {
+  ApplicantAgreementSelections,
   ApplicantApplicationView,
   ApplicantDocumentView,
   PublicAdmissionsConfig,
@@ -32,6 +33,12 @@ type Props = {
   accessToken: string;
   config: PublicAdmissionsConfig | null;
   application: ApplicantApplicationView;
+  /** Held by the apply page so selections survive moving between steps. */
+  agreements: ApplicantAgreementSelections;
+  onAgreementsChange: (patch: Partial<ApplicantAgreementSelections>) => void;
+  /** Unsent answers held by the apply page; null means use the saved answers. */
+  answerDrafts: Record<string, string> | null;
+  onAnswerDraftsChange: (next: Record<string, string>) => void;
   onApplicationUpdated: (application: ApplicantApplicationView) => void;
   onSubmitted: (application: ApplicantApplicationView) => void;
   onEditDetails: () => void;
@@ -44,6 +51,15 @@ function display(value: string | null | undefined): string {
   return v || "—";
 }
 
+function answersFromApplication(application: ApplicantApplicationView): Record<string, string> {
+  const initial: Record<string, string> = {};
+  for (const a of application.answers || []) {
+    const v = a.valueJson;
+    initial[a.questionKey] = typeof v === "string" ? v : v == null ? "" : String(v);
+  }
+  return initial;
+}
+
 /**
  * OA-06E Review + Submit. No payment / POP calls.
  */
@@ -53,6 +69,10 @@ export default function PublicAdmissionsReviewStep({
   accessToken,
   config,
   application,
+  agreements,
+  onAgreementsChange,
+  answerDrafts,
+  onAnswerDraftsChange,
   onApplicationUpdated,
   onSubmitted,
   onEditDetails,
@@ -64,20 +84,15 @@ export default function PublicAdmissionsReviewStep({
   const [documents, setDocuments] = useState<ApplicantDocumentView[]>([]);
   const [listRequiredTypes, setListRequiredTypes] = useState<string[]>([]);
   const [docsLoading, setDocsLoading] = useState(true);
-  const [privacyAccepted, setPrivacyAccepted] = useState(
-    Boolean(application.privacyAcceptedAt)
-  );
-  const [declarationsAccepted, setDeclarationsAccepted] = useState(
-    Boolean(application.declarationsAcceptedAt)
-  );
-  const [answerValues, setAnswerValues] = useState<Record<string, string>>(() => {
-    const initial: Record<string, string> = {};
-    for (const a of application.answers || []) {
-      const v = a.valueJson;
-      initial[a.questionKey] = typeof v === "string" ? v : v == null ? "" : String(v);
-    }
-    return initial;
-  });
+  const privacyAccepted = agreements.privacyAccepted;
+  const declarationsAccepted = agreements.declarationsAccepted;
+  const setPrivacyAccepted = (value: boolean) => onAgreementsChange({ privacyAccepted: value });
+  const setDeclarationsAccepted = (value: boolean) =>
+    onAgreementsChange({ declarationsAccepted: value });
+  const answerValues = answerDrafts ?? answersFromApplication(application);
+  const declarationsSectionRef = useRef<HTMLElement | null>(null);
+  const questionsSectionRef = useRef<HTMLElement | null>(null);
+  const financialSectionRef = useRef<HTMLDivElement | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitDetails, setSubmitDetails] = useState<PublicValidationDetail[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -113,9 +128,33 @@ export default function PublicAdmissionsReviewStep({
   }, [publicSlug, publicAccessId, accessToken, onSessionInvalid]);
 
   useEffect(() => {
-    setPrivacyAccepted(Boolean(application.privacyAcceptedAt));
-    setDeclarationsAccepted(Boolean(application.declarationsAcceptedAt));
+    const patch: Partial<ApplicantAgreementSelections> = {};
+    if (application.privacyAcceptedAt && !agreements.privacyAccepted) patch.privacyAccepted = true;
+    if (application.declarationsAcceptedAt && !agreements.declarationsAccepted) {
+      patch.declarationsAccepted = true;
+    }
+    if (Object.keys(patch).length) onAgreementsChange(patch);
+    // Server acceptance only ever ticks the boxes; it never clears an applicant's selection.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [application.privacyAcceptedAt, application.declarationsAcceptedAt]);
+
+  function goToIssue(field: string) {
+    const section = sectionForValidationField(field);
+    if (section === "details") {
+      onEditDetails();
+      return;
+    }
+    if (section === "documents") {
+      onEditDocuments();
+      return;
+    }
+    const target = field.startsWith("financialAgreement.")
+      ? financialSectionRef.current
+      : field.startsWith("answers.")
+        ? questionsSectionRef.current
+        : declarationsSectionRef.current;
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   const readiness = deriveSubmitReadiness({
     application,
@@ -147,6 +186,11 @@ export default function PublicAdmissionsReviewStep({
   const configuredDeclarationText = String(config?.declarationText || "").trim();
   const privacyVersion = String(config?.privacyNoticeVersion || "").trim();
   const applicantAccessToken = accessToken;
+  const shownIssues = submitDetails.length
+    ? submitDetails
+    : readiness.canAttemptSubmit
+      ? clientIssues
+      : readiness.issues;
 
   async function handleSubmit() {
     if (submitting) return;
@@ -381,7 +425,11 @@ export default function PublicAdmissionsReviewStep({
       </section>
 
       {questions.length > 0 ? (
-        <section className="pa-card" aria-labelledby={`${formId}-questions`}>
+        <section
+          className="pa-card"
+          aria-labelledby={`${formId}-questions`}
+          ref={questionsSectionRef}
+        >
           <h3 id={`${formId}-questions`} className="pa-subsection-title">
             Application questions
           </h3>
@@ -397,7 +445,7 @@ export default function PublicAdmissionsReviewStep({
                   rows={3}
                   value={answerValues[q.key] || ""}
                   onChange={(e) =>
-                    setAnswerValues((prev) => ({ ...prev, [q.key]: e.target.value }))
+                    onAnswerDraftsChange({ ...answerValues, [q.key]: e.target.value })
                   }
                 />
               </div>
@@ -406,7 +454,11 @@ export default function PublicAdmissionsReviewStep({
         </section>
       ) : null}
 
-      <section className="pa-card" aria-labelledby={`${formId}-declarations`}>
+      <section
+        className="pa-card"
+        aria-labelledby={`${formId}-declarations`}
+        ref={declarationsSectionRef}
+      >
         <h3 id={`${formId}-declarations`} className="pa-subsection-title">
           Declarations
         </h3>
@@ -458,35 +510,40 @@ export default function PublicAdmissionsReviewStep({
         </label>
       </section>
 
-      <PublicAdmissionsFinancialAgreement
-        publicSlug={publicSlug}
-        publicAccessId={publicAccessId}
-        accessToken={applicantAccessToken}
-        config={config}
-        application={application}
-        onSigned={onApplicationUpdated}
-        onSessionInvalid={onSessionInvalid}
-      />
+      <div ref={financialSectionRef}>
+        <PublicAdmissionsFinancialAgreement
+          publicSlug={publicSlug}
+          publicAccessId={publicAccessId}
+          accessToken={applicantAccessToken}
+          config={config}
+          application={application}
+          selections={agreements}
+          onSelectionsChange={onAgreementsChange}
+          onSigned={onApplicationUpdated}
+          onSessionInvalid={onSessionInvalid}
+        />
+      </div>
 
-      {(clientIssues.length > 0 || submitDetails.length > 0 || submitError) && (
+      {(shownIssues.length > 0 || submitError) && (
         <section className="pa-card" data-testid="pa-submit-issues">
           {submitError ? (
             <p className="pa-banner-error" role="alert">
               {submitError}
             </p>
           ) : null}
+          {!submitDetails.length && !readiness.canAttemptSubmit ? (
+            <p className="pa-body" data-testid="pa-submit-blockers-intro">
+              <strong>Before you can submit, please complete:</strong>
+            </p>
+          ) : null}
           <ul className="pa-issue-list">
-            {(submitDetails.length ? submitDetails : clientIssues).map((issue) => (
+            {shownIssues.map((issue) => (
               <li key={`${issue.field}-${issue.message}`}>
                 {issue.message}{" "}
                 <button
                   type="button"
                   className="pa-link-button"
-                  onClick={() => {
-                    const section = sectionForValidationField(issue.field);
-                    if (section === "details") onEditDetails();
-                    else if (section === "documents") onEditDocuments();
-                  }}
+                  onClick={() => goToIssue(issue.field)}
                 >
                   Fix
                 </button>
@@ -499,9 +556,14 @@ export default function PublicAdmissionsReviewStep({
       <section className="pa-card">
         <h3 className="pa-subsection-title">Submit</h3>
         <p className="pa-body">
-          When you submit, your application will be sent to the school. Payment instructions,
-          if any, become available after submission in a later step of this experience.
+          When you submit, your application will be sent to the school and you will receive an
+          application number. Payment instructions, if any, are shown straight after submission.
         </p>
+        {!readiness.canAttemptSubmit ? (
+          <p className="pa-body" data-testid="pa-submit-disabled-reason">
+            The Submit button becomes available once every item in the list above is complete.
+          </p>
+        ) : null}
         <div className="pa-cta-row pa-cta-row--stack">
           <button
             type="button"

@@ -1,5 +1,4 @@
 import type { CSSProperties, ReactNode } from "react";
-import { Link } from "react-router-dom";
 import { absolutizeSchoolLogoUrl } from "../utils/schoolLogo";
 import type { PublicAdmissionsConfig } from "./publicAdmissionsTypes";
 import "./publicAdmissions.css";
@@ -51,11 +50,9 @@ export default function PublicAdmissionsLayout({ config, children }: Props) {
       </main>
 
       <footer className="pa-footer">
-        <p>
-          Powered by{" "}
-          <Link to="/" className="pa-footer-link">
-            EduClear
-          </Link>
+        <p data-testid="pa-footer-powered-by">
+          Powered by <strong>EduClear</strong> · Parents do not need an EduClear account or login
+          to apply.
         </p>
       </footer>
     </div>
