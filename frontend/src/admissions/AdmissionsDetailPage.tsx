@@ -1,13 +1,22 @@
 import { useCallback, useEffect, useState } from "react";
+import AcceptPaymentPendingModal from "./AcceptPaymentPendingModal";
 import AdmissionsStatusBadge from "./AdmissionsStatusBadge";
+import ApplicationDocumentsSection from "./ApplicationDocumentsSection";
 import EnrolLearnerModal from "./EnrolLearnerModal";
 import PostEnrolmentChecklist from "./PostEnrolmentChecklist";
 import ReactivateHistoricalLearnerModal from "./ReactivateHistoricalLearnerModal";
 import {
   canConvertAdmissionApplication,
+  canDownloadFullAdmissionApplication,
   canEditAdmissionsWorkflow,
   canManageAdmissionsDecisions,
 } from "./admissionsPermissions";
+import {
+  PAYMENT_VERIFICATION_LABELS,
+  acceptanceNeedsPaymentAcknowledgement,
+  paymentVerificationState,
+  wasAcceptedWithPaymentPending,
+} from "./admissionsDocumentActions";
 import { getEnrolmentDetailLabel } from "./conversionDecision";
 import {
   acceptApplication,
@@ -18,7 +27,7 @@ import {
   resumeReview,
   startReview,
 } from "./staffAdmissionsApi";
-import type { StaffApplicationDetail } from "./staffAdmissionsTypes";
+import { StaffAdmissionsApiError, type StaffApplicationDetail } from "./staffAdmissionsTypes";
 import "./admissionsStaff.css";
 
 type Props = {
@@ -153,10 +162,12 @@ export default function AdmissionsDetailPage({
   const [actionBusy, setActionBusy] = useState(false);
   const [showEnrolModal, setShowEnrolModal] = useState(false);
   const [showReactivateModal, setShowReactivateModal] = useState(false);
+  const [showAcceptPendingModal, setShowAcceptPendingModal] = useState(false);
 
   const canEdit = canEditAdmissionsWorkflow();
   const canDecide = canManageAdmissionsDecisions();
   const canConvert = canConvertAdmissionApplication();
+  const canDownloadFull = canDownloadFullAdmissionApplication();
 
   const loadDetail = useCallback(async () => {
     setLoading(true);
@@ -189,6 +200,25 @@ export default function AdmissionsDetailPage({
     }
   };
 
+  const runAccept = async (acknowledgePaymentPending: boolean) => {
+    setActionBusy(true);
+    setActionError("");
+    try {
+      await acceptApplication(applicationId, { acknowledgePaymentPending });
+      setShowAcceptPendingModal(false);
+      await loadDetail();
+    } catch (err) {
+      if (err instanceof StaffAdmissionsApiError && err.code === "PAYMENT_PENDING_ACKNOWLEDGEMENT_REQUIRED") {
+        setShowAcceptPendingModal(true);
+      } else {
+        setShowAcceptPendingModal(false);
+        setActionError(err instanceof Error ? err.message : "Action failed");
+      }
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
   if (loading) {
     return <div className="admissions-staff-loading">Loading application…</div>;
   }
@@ -210,6 +240,14 @@ export default function AdmissionsDetailPage({
   const learnerName = detail.learner
     ? `${detail.learner.firstName} ${detail.learner.lastName}`.trim()
     : "—";
+  const verificationState = paymentVerificationState(detail);
+  const acceptedPaymentPending = wasAcceptedWithPaymentPending(detail);
+  const acceptedProofRejected = detail.status === "ACCEPTED" && verificationState === "rejected";
+  const feeLabel = detail.payment?.amount
+    ? `${detail.payment.currency} ${detail.payment.amount}`
+    : detail.feeRequired
+      ? "Required"
+      : "Not required";
 
   return (
     <div className="admissions-staff-page">
@@ -246,6 +284,25 @@ export default function AdmissionsDetailPage({
         >
           This is an incomplete draft. The parent has not submitted it, so it is not an admission
           and no review actions are available. Only the parent can complete and submit it.
+        </div>
+      ) : null}
+
+      {acceptedProofRejected ? (
+        <div
+          className="admissions-staff-alert admissions-staff-alert--error"
+          role="alert"
+          data-testid="admissions-accepted-proof-rejected"
+        >
+          Proof of payment was rejected after this application was accepted. The admission fee is
+          still outstanding — follow up with the family before enrolment.
+        </div>
+      ) : acceptedPaymentPending && verificationState === "pending" ? (
+        <div
+          className="admissions-staff-alert admissions-staff-alert--warning"
+          data-testid="admissions-accepted-payment-pending"
+        >
+          Accepted with payment verification pending. Proof of payment has been uploaded, but receipt
+          of funds has not yet been verified. Acceptance does not confirm payment.
         </div>
       ) : null}
 
@@ -352,9 +409,19 @@ export default function AdmissionsDetailPage({
               <dt>Proof uploaded</dt>
               <dd>{detail.payment?.proofUploaded ? "Yes" : "No"}</dd>
             </div>
+            <div>
+              <dt>Verification</dt>
+              <dd data-testid="admissions-payment-verification">
+                {PAYMENT_VERIFICATION_LABELS[verificationState]}
+              </dd>
+            </div>
           </dl>
         </section>
       </div>
+
+      {detail.status !== "DRAFT" ? (
+        <ApplicationDocumentsSection detail={detail} canDownloadFullApplication={canDownloadFull} />
+      ) : null}
 
       {detail.promotedLearner ? (
         <div className="admissions-staff-alert admissions-staff-alert--success" style={{ marginTop: 16 }}>
@@ -413,7 +480,14 @@ export default function AdmissionsDetailPage({
               type="button"
               className="admissions-staff-btn admissions-staff-btn--gold"
               disabled={actionBusy}
-              onClick={() => void runWorkflow(() => acceptApplication(applicationId))}
+              onClick={() => {
+                if (acceptanceNeedsPaymentAcknowledgement(detail)) {
+                  setActionError("");
+                  setShowAcceptPendingModal(true);
+                  return;
+                }
+                void runAccept(false);
+              }}
             >
               Accept
             </button>
@@ -465,6 +539,16 @@ export default function AdmissionsDetailPage({
           </button>
         ) : null}
       </div>
+
+      {showAcceptPendingModal ? (
+        <AcceptPaymentPendingModal
+          applicationNumber={detail.applicationNumber}
+          feeLabel={feeLabel}
+          busy={actionBusy}
+          onCancel={() => setShowAcceptPendingModal(false)}
+          onConfirm={() => void runAccept(true)}
+        />
+      ) : null}
 
       {showEnrolModal ? (
         <EnrolLearnerModal

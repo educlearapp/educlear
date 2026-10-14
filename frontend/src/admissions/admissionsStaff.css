@@ -617,3 +617,137 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Application documents, printing and packs */
+.admissions-staff-docs-section {
+  margin-top: 16px;
+}
+
+.admissions-staff-docs-note {
+  margin: 0 0 12px;
+  font-size: 0.84rem;
+  color: #64748b;
+}
+
+.admissions-staff-docs-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+.admissions-staff-docs-status {
+  margin-top: 10px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #8b6b16;
+}
+
+.admissions-staff-docs-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.admissions-staff-docs-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  border-radius: 8px;
+  background: rgba(212, 175, 55, 0.04);
+}
+
+.admissions-staff-docs-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.admissions-staff-docs-meta strong {
+  font-size: 0.9rem;
+  color: #0f172a;
+}
+
+.admissions-staff-docs-file {
+  font-size: 0.84rem;
+  color: #334155;
+  overflow-wrap: anywhere;
+}
+
+.admissions-staff-docs-sub {
+  font-size: 0.76rem;
+  color: #64748b;
+}
+
+.admissions-staff-docs-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.admissions-staff-modal .admissions-staff-pending-warning {
+  margin-top: 8px;
+  background: rgba(249, 115, 22, 0.14);
+  border-color: rgba(251, 146, 60, 0.6);
+  color: #fdba74;
+  line-height: 1.45;
+}
+
+.admissions-staff-pending-facts {
+  margin: 14px 0 0;
+  display: grid;
+  gap: 8px;
+}
+
+.admissions-staff-pending-facts dt {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #d4af37;
+}
+
+.admissions-staff-pending-facts dd {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.admissions-staff-pending-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.88);
+  cursor: pointer;
+}
+
+.admissions-staff-pending-confirm input {
+  margin-top: 3px;
+  accent-color: #d4af37;
+}
+
+.admissions-staff-modal--compact {
+  width: min(560px, 100%);
+}
+
+@media (max-width: 900px) {
+  .admissions-staff-docs-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admissions-staff-docs-actions .admissions-staff-btn,
+  .admissions-staff-docs-toolbar .admissions-staff-btn {
+    flex: 1 1 auto;
+    white-space: normal;
+  }
+}

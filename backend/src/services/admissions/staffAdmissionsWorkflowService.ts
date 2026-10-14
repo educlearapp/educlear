@@ -141,12 +141,22 @@ export function assertPaymentTransition(
   }
 }
 
-/** Acceptance payment gate for requirePaymentVerifiedBeforeAccept. */
+/** Owner-approved wording shown before accepting with proof uploaded but not yet verified. */
+export const PAYMENT_PENDING_ACCEPTANCE_WARNING =
+  "Payment verification pending. Proof of payment has been uploaded, but receipt of funds has not yet been verified. Accepting this application does not confirm payment.";
+export const PAYMENT_PENDING_ACCEPTANCE_WARNING_VERSION = "2026-10-14";
+
+/**
+ * Acceptance payment gate for requirePaymentVerifiedBeforeAccept.
+ * PROOF_UPLOADED may be accepted only with an explicit staff acknowledgement (paymentPending=true);
+ * the fee record is never changed by acceptance.
+ */
 export function paymentAllowsAcceptance(input: {
   requirePaymentVerifiedBeforeAccept: boolean;
   feeRequired: boolean;
   paymentStatus: AdmissionPaymentStatus | string | null;
-}): { ok: boolean; code?: string; message?: string } {
+  acknowledgePaymentPending?: boolean;
+}): { ok: boolean; code?: string; message?: string; paymentPending?: boolean } {
   const status = String(input.paymentStatus || (input.feeRequired ? "AWAITING_PAYMENT" : "NOT_REQUIRED"));
   if (!input.feeRequired || status === "NOT_REQUIRED") {
     return { ok: true };
@@ -158,11 +168,50 @@ export function paymentAllowsAcceptance(input: {
   if (status === "VERIFIED" || status === "WAIVED") {
     return { ok: true };
   }
+  if (status === "PROOF_UPLOADED") {
+    if (input.acknowledgePaymentPending === true) {
+      return { ok: true, paymentPending: true };
+    }
+    return {
+      ok: false,
+      code: "PAYMENT_PENDING_ACKNOWLEDGEMENT_REQUIRED",
+      message: PAYMENT_PENDING_ACCEPTANCE_WARNING,
+    };
+  }
   return {
     ok: false,
     code: "PAYMENT_NOT_VERIFIED",
     message: `Cannot accept while payment status is ${status}`,
   };
+}
+
+/**
+ * Acceptance-time financial agreement check against the application's own signed snapshots
+ * (not the school's current documents, which may have been republished since submission).
+ */
+export function financialAgreementAllowsAcceptance(input: {
+  financialAgreementRequired: boolean;
+  acceptances: Array<{
+    kind: string;
+    contentSha256: string | null;
+    typedSignerName: string | null;
+    signatureFileKey: string | null;
+  }>;
+}): { ok: boolean; missingKinds: string[] } {
+  if (!input.financialAgreementRequired) return { ok: true, missingKinds: [] };
+  const missingKinds: string[] = [];
+  for (const kind of ["FINANCIAL_POLICY", "FINANCIAL_DECLARATION"]) {
+    const row = input.acceptances.find((a) => a.kind === kind);
+    if (
+      !row ||
+      !clean(row.contentSha256) ||
+      !clean(row.typedSignerName) ||
+      !clean(row.signatureFileKey)
+    ) {
+      missingKinds.push(kind);
+    }
+  }
+  return { ok: missingKinds.length === 0, missingKinds };
 }
 
 function requireWorkflowEdit(actor: StaffWorkflowActor) {
@@ -723,7 +772,8 @@ export async function waiveAdmissionFee(
 async function assertAcceptanceGates(
   prisma: PrismaClient,
   schoolId: string,
-  applicationId: string
+  applicationId: string,
+  acknowledgePaymentPending: boolean
 ): Promise<void> {
   const app = await prisma.admissionApplication.findFirst({
     where: { id: applicationId, schoolId },
@@ -733,11 +783,16 @@ async function assertAcceptanceGates(
       answers: true,
       documents: { where: { deletedAt: null }, select: { documentType: true } },
       feeRecord: true,
+      financialAcceptances: {
+        select: { kind: true, contentSha256: true, typedSignerName: true, signatureFileKey: true },
+      },
     },
   });
   if (!app) {
     throw new StaffAdmissionsError("Application not found", 404, "APPLICATION_NOT_FOUND");
   }
+  // Already accepted: the locked transaction returns the idempotent result without re-gating.
+  if (app.status === "ACCEPTED") return;
 
   const settings = await prisma.schoolAdmissionsSettings.findUnique({ where: { schoolId } });
   if (!settings) {
@@ -795,10 +850,27 @@ async function assertAcceptanceGates(
     );
   }
 
+  const financialGate = financialAgreementAllowsAcceptance({
+    financialAgreementRequired: Boolean(app.financialAgreementRequired),
+    acceptances: app.financialAcceptances,
+  });
+  if (!financialGate.ok) {
+    throw new StaffAdmissionsError(
+      "Signed financial agreements are required for acceptance",
+      400,
+      "FINANCIAL_AGREEMENT_INCOMPLETE",
+      financialGate.missingKinds.map((kind) => ({
+        field: `financialAgreement.${kind}`,
+        message: `Missing signed financial agreement: ${kind}`,
+      }))
+    );
+  }
+
   const payGate = paymentAllowsAcceptance({
     requirePaymentVerifiedBeforeAccept: Boolean(settings.requirePaymentVerifiedBeforeAccept),
     feeRequired: Boolean(app.feeRecord?.required ?? app.feeRequired),
     paymentStatus: app.feeRecord?.paymentStatus ?? null,
+    acknowledgePaymentPending,
   });
   if (!payGate.ok) {
     throw new StaffAdmissionsError(
@@ -814,13 +886,15 @@ export async function acceptAdmissionApplication(
   prisma: PrismaClient,
   actor: StaffWorkflowActor,
   applicationId: string,
-  now: Date = new Date()
+  now: Date = new Date(),
+  options: { acknowledgePaymentPending?: boolean } = {}
 ): Promise<WorkflowActionResult> {
   requireFinalDecision(actor);
   const appId = clean(applicationId);
+  const acknowledgePaymentPending = options.acknowledgePaymentPending === true;
 
   // Pre-check gates outside lock for clearer errors; re-check after lock for races
-  await assertAcceptanceGates(prisma, actor.schoolId, appId);
+  await assertAcceptanceGates(prisma, actor.schoolId, appId, acknowledgePaymentPending);
 
   const result = await prisma.$transaction(async (tx) => {
     const locked = await lockApplication(tx, actor.schoolId, appId);
@@ -845,12 +919,34 @@ export async function acceptAdmissionApplication(
       requirePaymentVerifiedBeforeAccept: Boolean(settings.requirePaymentVerifiedBeforeAccept),
       feeRequired: Boolean(fee?.required),
       paymentStatus: fee?.paymentStatus ?? null,
+      acknowledgePaymentPending,
     });
     if (!payGate.ok) {
       throw new StaffAdmissionsError(
         payGate.message || "Payment verification required before acceptance",
         409,
         payGate.code || "PAYMENT_NOT_VERIFIED"
+      );
+    }
+
+    const appRow = await tx.admissionApplication.findUniqueOrThrow({
+      where: { id: locked.id },
+      select: { financialAgreementRequired: true },
+    });
+    const lockedAcceptances = await tx.admissionFinancialAcceptance.findMany({
+      where: { applicationId: locked.id, schoolId: actor.schoolId },
+      select: { kind: true, contentSha256: true, typedSignerName: true, signatureFileKey: true },
+    });
+    if (
+      !financialAgreementAllowsAcceptance({
+        financialAgreementRequired: Boolean(appRow.financialAgreementRequired),
+        acceptances: lockedAcceptances,
+      }).ok
+    ) {
+      throw new StaffAdmissionsError(
+        "Signed financial agreements are required for acceptance",
+        400,
+        "FINANCIAL_AGREEMENT_INCOMPLETE"
       );
     }
 
@@ -884,8 +980,20 @@ export async function acceptAdmissionApplication(
       fromStatus: locked.status,
       toStatus: "ACCEPTED",
       actorUserId: actor.userId,
-      reason: "Application accepted",
+      reason: payGate.paymentPending
+        ? "Application accepted — payment verification pending"
+        : "Application accepted",
       eventType: "APPLICATION_ACCEPTED",
+      metadataJson: {
+        paymentStatusAtAcceptance: fee?.paymentStatus ?? null,
+        paymentVerificationPending: Boolean(payGate.paymentPending),
+        ...(payGate.paymentPending
+          ? {
+              paymentPendingAcknowledged: true,
+              paymentPendingWarningVersion: PAYMENT_PENDING_ACCEPTANCE_WARNING_VERSION,
+            }
+          : {}),
+      },
       extraAppData: {
         acceptedAt: now,
         acceptedByUserId: actor.userId,

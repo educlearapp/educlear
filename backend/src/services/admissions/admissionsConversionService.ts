@@ -24,6 +24,7 @@ import {
 import { registerFinanceAccountForLearner } from "../financeAccountBaseline";
 import { saveParentLinks } from "../parentLinkService";
 import { canMakeAdmissionDecision } from "./admissionsDecisionAuth";
+import { admissionFeeEnrolmentWarning } from "./admissionsPaymentWarnings";
 import { StaffAdmissionsError } from "./staffAdmissionsReadService";
 
 function clean(value: unknown): string {
@@ -528,6 +529,14 @@ export async function getConversionPreflight(
       message:
         "Existing family/sibling declared but no confirmed FamilyAccount candidate — CREATE_NEW requires acknowledgement",
     });
+  }
+
+  if (!alreadyConverted) {
+    const feeWarning = admissionFeeEnrolmentWarning({
+      feeRequired: Boolean(app.feeRecord?.required ?? app.feeRequired),
+      paymentStatus: app.feeRecord?.paymentStatus ?? null,
+    });
+    if (feeWarning) warnings.push(feeWarning);
   }
 
   const canConvert =

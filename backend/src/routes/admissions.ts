@@ -56,6 +56,17 @@ import {
   toPublicFinancialDocument,
 } from "../services/admissions/financialAgreementService";
 import { PublicAdmissionsError } from "../services/admissions/publicAdmissionsConfig";
+import {
+  applicationFileBase,
+  loadApplicationPdfModel,
+  renderApplicationPdf,
+} from "../services/admissions/admissionsApplicationPdfService";
+import {
+  buildCombinedPrintablePdf,
+  createApplicationPackZipStream,
+  listPackDocuments,
+  recordAdmissionsDownloadAudit,
+} from "../services/admissions/admissionsDocumentPackService";
 
 const router = Router();
 
@@ -305,18 +316,29 @@ router.get(
   async (req: AdmissionsSettingsAuthRequest, res) => {
     try {
       const schoolId = req.admissionsSettingsAuth!.authorizedSchoolId;
+      const applicationId = String(req.params.applicationId || "");
+      const documentId = String(req.params.documentId || "");
       const file = await openStaffApplicationDocumentForDownload(
         prisma,
         schoolId,
-        String(req.params.applicationId || ""),
-        String(req.params.documentId || "")
+        applicationId,
+        documentId
       );
+      const inline = String(req.query.disposition || "") === "inline";
+      await recordAdmissionsDownloadAudit(prisma, {
+        schoolId,
+        applicationId,
+        actorUserId: req.admissionsSettingsAuth!.userId,
+        eventType: inline ? "DOCUMENT_VIEWED" : "DOCUMENT_DOWNLOADED",
+        metadata: { documentId },
+      });
       const safeName = sanitizeOriginalFileName(file.originalFileName);
       res.setHeader("Cache-Control", "no-store");
+      res.setHeader("X-Content-Type-Options", "nosniff");
       res.setHeader("Content-Type", file.contentType);
       res.setHeader(
         "Content-Disposition",
-        `attachment; filename="${path.basename(safeName).replace(/"/g, "")}"`
+        `${inline ? "inline" : "attachment"}; filename="${path.basename(safeName).replace(/"/g, "")}"`
       );
       // Do not put storageKey / absolute path in headers or body.
       return res.sendFile(file.absolutePath);
@@ -349,6 +371,177 @@ router.get(
     }
   }
 );
+
+/** Full application PDF / packs contain ID numbers and contacts — admissions edit or manage only. */
+function requireApplicationPackAccess(
+  req: AdmissionsSettingsAuthRequest,
+  res: import("express").Response
+): boolean {
+  const auth = req.admissionsSettingsAuth!;
+  const permissions = resolveStoredPermissions(auth.appRole, auth.permissions);
+  const permUser = { appRole: auth.appRole, isActive: true, permissions };
+  if (
+    !hasPermission(permUser, "admissions", "edit") &&
+    !hasPermission(permUser, "admissions", "manage")
+  ) {
+    res.status(403).json({
+      success: false,
+      error: "Admissions edit permission required to download the full application",
+      code: "ADMISSIONS_FORBIDDEN",
+    });
+    return false;
+  }
+  return true;
+}
+
+async function buildApplicationPdfForRequest(req: AdmissionsSettingsAuthRequest, now: Date) {
+  const auth = req.admissionsSettingsAuth!;
+  const model = await loadApplicationPdfModel(
+    prisma,
+    auth.authorizedSchoolId,
+    String(req.params.applicationId || ""),
+    {
+      includeMedicalDetails: admissionsCapabilityFlags(auth).includeMedicalDetails,
+      now,
+    }
+  );
+  const buffer = await renderApplicationPdf(model);
+  return { model, buffer, base: applicationFileBase(model.detail) };
+}
+
+function sendDownloadHeaders(
+  res: import("express").Response,
+  contentType: string,
+  fileName: string,
+  disposition: "inline" | "attachment" = "attachment"
+) {
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Content-Type", contentType);
+  res.setHeader("Content-Disposition", `${disposition}; filename="${fileName.replace(/"/g, "")}"`);
+}
+
+/** GET …/application.pdf — printable application (read-only; audited). */
+router.get(
+  "/applications/:applicationId/application.pdf",
+  requireAdmissionsSettingsAuth("view"),
+  async (req: AdmissionsSettingsAuthRequest, res) => {
+    try {
+      if (!requireApplicationPackAccess(req, res)) return;
+      const auth = req.admissionsSettingsAuth!;
+      const { model, buffer, base } = await buildApplicationPdfForRequest(req, new Date());
+      await recordAdmissionsDownloadAudit(prisma, {
+        schoolId: auth.authorizedSchoolId,
+        applicationId: model.detail.id,
+        actorUserId: auth.userId,
+        eventType: "APPLICATION_PDF_GENERATED",
+        metadata: { medicalIncluded: model.medicalIncluded, documentCount: model.documents.length },
+      });
+      sendDownloadHeaders(
+        res,
+        "application/pdf",
+        `${base}_application.pdf`,
+        String(req.query.disposition || "") === "inline" ? "inline" : "attachment"
+      );
+      return res.send(buffer);
+    } catch (err) {
+      return sendStaffAdmissionsError(res, err, "Failed to generate application PDF");
+    }
+  }
+);
+
+/** GET …/application-combined.pdf — application + printable attachments in one PDF. */
+router.get(
+  "/applications/:applicationId/application-combined.pdf",
+  requireAdmissionsSettingsAuth("view"),
+  async (req: AdmissionsSettingsAuthRequest, res) => {
+    try {
+      if (!requireApplicationPackAccess(req, res)) return;
+      const auth = req.admissionsSettingsAuth!;
+      const { model, buffer, base } = await buildApplicationPdfForRequest(req, new Date());
+      const pack = await listPackDocuments(prisma, auth.authorizedSchoolId, model.detail.id);
+      const combined = await buildCombinedPrintablePdf({
+        applicationRef: model.detail.applicationNumber || base,
+        schoolName: model.school.name,
+        applicationPdf: buffer,
+        documents: pack.documents,
+      });
+      await recordAdmissionsDownloadAudit(prisma, {
+        schoolId: auth.authorizedSchoolId,
+        applicationId: model.detail.id,
+        actorUserId: auth.userId,
+        eventType: "APPLICATION_COMBINED_PDF_GENERATED",
+        metadata: {
+          medicalIncluded: model.medicalIncluded,
+          attachmentsMerged: combined.outcomes.filter((o) => o.merged).length,
+          attachmentsNotMerged: combined.outcomes.filter((o) => !o.merged).length,
+        },
+      });
+      sendDownloadHeaders(
+        res,
+        "application/pdf",
+        `${base}_application_complete.pdf`,
+        String(req.query.disposition || "") === "inline" ? "inline" : "attachment"
+      );
+      return res.send(combined.buffer);
+    } catch (err) {
+      return sendStaffAdmissionsError(res, err, "Failed to generate combined application PDF");
+    }
+  }
+);
+
+/**
+ * GET …/documents.zip — all supporting documents + manifest.
+ * GET …/application-pack.zip — application PDF + all supporting documents + manifest.
+ */
+for (const variant of ["documents", "application-pack"] as const) {
+  router.get(
+    `/applications/:applicationId/${variant}.zip`,
+    requireAdmissionsSettingsAuth("view"),
+    async (req: AdmissionsSettingsAuthRequest, res) => {
+      try {
+        if (!requireApplicationPackAccess(req, res)) return;
+        const auth = req.admissionsSettingsAuth!;
+        const now = new Date();
+        const pack = await listPackDocuments(
+          prisma,
+          auth.authorizedSchoolId,
+          String(req.params.applicationId || "")
+        );
+        const base = applicationFileBase({ applicationNumber: pack.applicationNumber, id: pack.applicationId });
+        const pdf = variant === "application-pack" ? (await buildApplicationPdfForRequest(req, now)).buffer : null;
+        await recordAdmissionsDownloadAudit(prisma, {
+          schoolId: auth.authorizedSchoolId,
+          applicationId: pack.applicationId,
+          actorUserId: auth.userId,
+          eventType: variant === "application-pack" ? "APPLICATION_PACK_DOWNLOADED" : "APPLICATION_DOCUMENTS_ZIP_DOWNLOADED",
+          metadata: {
+            documentCount: pack.documents.length,
+            missingFileCount: pack.documents.filter((d) => !d.absolutePath).length,
+          },
+        });
+        const stream = createApplicationPackZipStream({
+          applicationRef: base,
+          generatedAt: now,
+          applicationPdf: pdf,
+          documents: pack.documents,
+        });
+        sendDownloadHeaders(
+          res,
+          "application/zip",
+          variant === "application-pack" ? `${base}_application_pack.zip` : `${base}_documents.zip`
+        );
+        stream.on("error", (err) => {
+          console.error("[admissions-pack] zip stream failed:", (err as Error)?.message || "unknown");
+          res.destroy();
+        });
+        stream.pipe(res);
+      } catch (err) {
+        return sendStaffAdmissionsError(res, err, "Failed to build application document pack");
+      }
+    }
+  );
+}
 
 /** OA-03G workflow — admissions.edit */
 router.post(
@@ -505,10 +698,13 @@ router.post(
   requireAdmissionsSettingsAuth("manage"),
   async (req: AdmissionsSettingsAuthRequest, res) => {
     try {
+      const body = bodyObject(req);
       const result = await acceptAdmissionApplication(
         prisma,
         workflowActorFromReq(req),
-        String(req.params.applicationId || "")
+        String(req.params.applicationId || ""),
+        new Date(),
+        { acknowledgePaymentPending: body.acknowledgePaymentPending === true }
       );
       res.setHeader("Cache-Control", "no-store");
       return res.json({

@@ -18,6 +18,11 @@ export function canManageAdmissionsDecisions(user = getSchoolSessionUser()): boo
   return hasPermission(user, "admissions", "manage") && isOwnerOrAdmin(user);
 }
 
+/** Full application PDF / ZIP packs (ID numbers, contacts) — admissions edit or manage. */
+export function canDownloadFullAdmissionApplication(user = getSchoolSessionUser()): boolean {
+  return hasPermission(user, "admissions", "edit") || hasPermission(user, "admissions", "manage");
+}
+
 /** Conversion requires manage + learners.create + Owner/Admin (Finance fails). */
 export function canConvertAdmissionApplication(user = getSchoolSessionUser()): boolean {
   if (!hasPermission(user, "admissions", "manage")) return false;

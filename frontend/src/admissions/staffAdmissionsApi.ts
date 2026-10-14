@@ -1,5 +1,6 @@
 import { API_URL } from "../api";
 import { staffAuthHeaders } from "../auth/staffAuthHeaders";
+import { downloadErrorMessage, fileNameFromContentDisposition } from "./admissionsDocumentActions";
 import {
   StaffAdmissionsApiError,
   type ConversionDecisionDto,
@@ -150,8 +151,15 @@ export function resumeReview(applicationId: string) {
   return workflowPost(applicationId, "resume-review");
 }
 
-export function acceptApplication(applicationId: string) {
-  return workflowPost(applicationId, "accept");
+export function acceptApplication(
+  applicationId: string,
+  options: { acknowledgePaymentPending?: boolean } = {}
+) {
+  return workflowPost(
+    applicationId,
+    "accept",
+    options.acknowledgePaymentPending === true ? { acknowledgePaymentPending: true } : undefined
+  );
 }
 
 export function rejectApplication(applicationId: string, payload: { reason?: string } = {}) {
@@ -167,6 +175,67 @@ export async function fetchStaffFinancialSignatureBlob(applicationId: string): P
     throw new StaffAdmissionsApiError("Could not load signature", "SIGNATURE_NOT_FOUND");
   }
   return res.blob();
+}
+
+export type StaffAdmissionsFile = { blob: Blob; fileName: string };
+
+/** Authenticated in-memory fetch of a private admissions file (no shareable URLs). */
+async function fetchStaffAdmissionsFile(path: string, fallbackName: string): Promise<StaffAdmissionsFile> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, { headers: staffAuthHeaders(), cache: "no-store" });
+  } catch {
+    throw new StaffAdmissionsApiError(downloadErrorMessage(0, null), "NETWORK_ERROR");
+  }
+  if (!res.ok) {
+    const data = await parseJson(res);
+    throw new StaffAdmissionsApiError(
+      downloadErrorMessage(res.status, typeof data.error === "string" ? data.error : null),
+      data.code
+    );
+  }
+  return {
+    blob: await res.blob(),
+    fileName: fileNameFromContentDisposition(res.headers.get("Content-Disposition"), fallbackName),
+  };
+}
+
+function applicationPath(applicationId: string): string {
+  return `/api/admissions/applications/${encodeURIComponent(applicationId)}`;
+}
+
+export function fetchApplicationDocumentFile(
+  applicationId: string,
+  documentId: string,
+  purpose: "view" | "download"
+): Promise<StaffAdmissionsFile> {
+  const query = purpose === "view" ? "?disposition=inline" : "";
+  return fetchStaffAdmissionsFile(
+    `${applicationPath(applicationId)}/documents/${encodeURIComponent(documentId)}/download${query}`,
+    "document"
+  );
+}
+
+export function fetchApplicationPdfFile(applicationId: string): Promise<StaffAdmissionsFile> {
+  return fetchStaffAdmissionsFile(`${applicationPath(applicationId)}/application.pdf`, "application.pdf");
+}
+
+export function fetchApplicationCombinedPdfFile(applicationId: string): Promise<StaffAdmissionsFile> {
+  return fetchStaffAdmissionsFile(
+    `${applicationPath(applicationId)}/application-combined.pdf`,
+    "application_complete.pdf"
+  );
+}
+
+export function fetchApplicationDocumentsZipFile(applicationId: string): Promise<StaffAdmissionsFile> {
+  return fetchStaffAdmissionsFile(`${applicationPath(applicationId)}/documents.zip`, "documents.zip");
+}
+
+export function fetchApplicationPackZipFile(applicationId: string): Promise<StaffAdmissionsFile> {
+  return fetchStaffAdmissionsFile(
+    `${applicationPath(applicationId)}/application-pack.zip`,
+    "application_pack.zip"
+  );
 }
 
 

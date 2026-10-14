@@ -27,6 +27,7 @@ import {
   type ConversionActor,
   type GuardianDecisionMode,
 } from "./admissionsConversionService";
+import { admissionFeeEnrolmentWarning } from "./admissionsPaymentWarnings";
 import { StaffAdmissionsError } from "./staffAdmissionsReadService";
 
 function clean(value: unknown): string {
@@ -924,6 +925,12 @@ export async function getReactivationPreflight(
     : [];
 
   const defaultMode: ReactivationFamilyMode | null = currentFamily ? "KEEP_EXISTING" : null;
+
+  const feeWarning = admissionFeeEnrolmentWarning({
+    feeRequired: Boolean(app.feeRecord?.required ?? app.feeRequired),
+    paymentStatus: app.feeRecord?.paymentStatus ?? null,
+  });
+  if (feeWarning) warnings.push(feeWarning);
 
   const canReactivate =
     app.status === "ACCEPTED" &&
