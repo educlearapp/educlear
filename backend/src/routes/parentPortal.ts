@@ -19,7 +19,11 @@ import {
   collectFamilyAccountEntries,
   readSchoolLedger,
 } from "../utils/billingLedgerStore";
-import { shouldShowLedgerEntryOnStatement } from "../utils/billingDisplayRules";
+import {
+  EDUCLEAR_CREDIT_NOTE_TYPE,
+  isEduClearCreditNoteEntry,
+  shouldShowLedgerEntryOnStatement,
+} from "../utils/billingDisplayRules";
 import { sendStatementEmail } from "../services/statementEmailService";
 import { buildSetupRequiredPayload } from "../services/schoolEmailService";
 import { buildAndGenerateStatementPdf } from "../services/statementPdfData";
@@ -486,7 +490,9 @@ router.get("/billing", parentAuthMiddleware, async (req, res) => {
           : entry.type === "penalty"
             ? "Penalty"
             : entry.type === "credit"
-              ? "Credit"
+              ? isEduClearCreditNoteEntry(entry)
+                ? EDUCLEAR_CREDIT_NOTE_TYPE
+                : "Credit"
               : "Payment";
       return {
         auditNo: index + 1,

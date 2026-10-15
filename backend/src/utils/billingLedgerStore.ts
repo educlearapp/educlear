@@ -60,6 +60,16 @@ export type BillingLedgerEntry = {
    * active allocations live in payment-allocations.json and are cleared on undo.
    */
   reversedAllocations?: ReversedPaymentAllocationSnapshot[];
+  /** Credit note: invoice whose charge line this credit reverses (the invoice row is never modified). */
+  creditNoteInvoiceId?: string;
+  /** Credit note: chargeLines[].lineKey on the linked invoice. */
+  creditNoteLineKey?: string;
+  creditNoteReason?: string;
+  /** Part of the credit already covered by payments allocated to the invoice when issued (stays as family credit). */
+  creditNoteCoveredByAllocations?: number;
+  issuedByUserId?: string;
+  issuedByEmail?: string;
+  issuedByRole?: string;
   /** Canonical FamilyAccount.id for new manual captures. Historical rows may omit this. */
   familyAccountId?: string;
   /** Durable Capture Payment idempotency key (new manual captures only). */
@@ -762,6 +772,8 @@ function invoiceEntryMatchesPeriod(
 ): boolean {
   if (entry.type !== "invoice") return false;
   if (entry.undoneAt) return false;
+  // Undo correction journals (e.g. reversing a payment) are typed "invoice" but never bill a period.
+  if (entry.correctsEntryId) return false;
 
   const period = String(invoicePeriod || "").trim();
   if (!period) return false;
@@ -785,7 +797,7 @@ export function buildLearnerInvoicePeriodIndex(
 ): Set<string> {
   const index = new Set<string>();
   for (const entry of entries) {
-    if (entry.type !== "invoice" || entry.undoneAt) continue;
+    if (entry.type !== "invoice" || entry.undoneAt || entry.correctsEntryId) continue;
     const billedLearnerId = resolveInvoiceBilledLearnerId(entry);
     if (!billedLearnerId) continue;
 

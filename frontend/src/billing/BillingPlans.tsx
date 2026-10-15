@@ -8,7 +8,11 @@ import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 import { notifyLearnersRefresh } from "./billingLedger";
 import BillingPlansBulkAddFeesModal from "./BillingPlansBulkAddFeesModal";
 import type { BulkAddFee, BulkAddLearner } from "./billingPlansBulkAddFees";
-import { resolveSelectedPlanLearnerAfterPlanSave } from "./billingPlansBulkAddFees";
+import {
+  findNonRecurringPlanFee,
+  nonRecurringPlanFeeMessage,
+  resolveSelectedPlanLearnerAfterPlanSave,
+} from "./billingPlansBulkAddFees";
 import { clearEduClearMigrationCache } from "../utils/educlearStorageDebug";
 
 const isDev = import.meta.env.DEV;
@@ -2492,7 +2496,11 @@ Add fees to billing plan
 
     }
 
-
+    const nonRecurringFee = findNonRecurringPlanFee(selectedFees);
+    if (nonRecurringFee) {
+      alert(nonRecurringPlanFeeMessage(nonRecurringFee));
+      return;
+    }
 
     const nextPlan = [
 

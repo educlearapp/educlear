@@ -29,6 +29,11 @@ import {
   upsertLearnerBillingPlanToDb,
 } from "../services/learnerBillingPlanDbStore";
 import {
+  NON_RECURRING_PLAN_FEE_ERROR_CODE,
+  findBlockedNonRecurringPlanLine,
+  nonRecurringPlanFeeMessage,
+} from "../services/billingPlanRecurringGuard";
+import {
   buildBillingPlanLookupIndexes,
   removeLearnerBillingPlan,
   resolveLearnerBillingPlanItems,
@@ -1246,10 +1251,18 @@ router.patch("/:id/billing-plan", async (req, res) => {
       return res.status(400).json({ success: false, error: "billingPlan array required" });
     }
 
-    const linesBefore = (
-      await readLearnerBillingPlanFromDb(learner.schoolId, learner.id)
-    ).length;
+    const existingPlan = await readLearnerBillingPlanFromDb(learner.schoolId, learner.id);
+    const linesBefore = existingPlan.length;
     const items = parseBillingPlanItemsFromBody(req.body.billingPlan);
+
+    const blockedLine = await findBlockedNonRecurringPlanLine(learner.schoolId, existingPlan, items);
+    if (blockedLine) {
+      return res.status(422).json({
+        success: false,
+        error: nonRecurringPlanFeeMessage(blockedLine),
+        code: NON_RECURRING_PLAN_FEE_ERROR_CODE,
+      });
+    }
 
     if (items.length === 0) {
       await removeLearnerBillingPlanFromDb(learner.schoolId, learner.id);
@@ -1535,6 +1548,20 @@ router.put("/:id", async (req, res) => {
           "allergies and medicalAlert must be updated via PUT /api/learners/:id/sensitive-fields",
         code: "USE_SENSITIVE_FIELDS_ENDPOINT",
       });
+    }
+    if (Array.isArray(req.body?.billingPlan)) {
+      const blockedLine = await findBlockedNonRecurringPlanLine(
+        existingLearner.schoolId,
+        await readLearnerBillingPlanFromDb(existingLearner.schoolId, existingLearner.id),
+        parseBillingPlanItemsFromBody(req.body.billingPlan)
+      );
+      if (blockedLine) {
+        return res.status(422).json({
+          success: false,
+          error: nonRecurringPlanFeeMessage(blockedLine),
+          code: NON_RECURRING_PLAN_FEE_ERROR_CODE,
+        });
+      }
     }
     let parsedAdmissionDate: Date | null | undefined = undefined;
     if (admissionDate !== undefined || enrolmentDate !== undefined || enrollmentDate !== undefined) {

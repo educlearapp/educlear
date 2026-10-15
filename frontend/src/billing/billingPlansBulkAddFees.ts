@@ -67,6 +67,15 @@ export function isNonRecurringPlanFeeType(type: unknown): boolean {
 export const ONCE_OFF_FEE_GUIDANCE =
   'Billing plans are charged every month. Add once-off, termly or annual fees in Invoice Runs → Fees → "Add Once-off Fee To Selected Learners" so they are invoiced once.';
 
+export function nonRecurringPlanFeeMessage(fee: { description?: unknown; type?: unknown }): string {
+  return `"${String(fee.description ?? "")}" is a ${String(fee.type ?? "")} fee and cannot be added to billing plans. ${ONCE_OFF_FEE_GUIDANCE}`;
+}
+
+/** First fee that must not go on a monthly billing plan (bulk add and single-learner add share this rule). */
+export function findNonRecurringPlanFee<T extends { type?: unknown }>(fees: T[]): T | undefined {
+  return fees.find((fee) => isNonRecurringPlanFeeType(fee.type));
+}
+
 export function validateBulkAddSelection(
   selectedLearnerIds: string[],
   selectedFees: BulkAddFee[]
@@ -77,12 +86,9 @@ export function validateBulkAddSelection(
   if (!selectedFees.length) {
     return { ok: false, error: "Select at least one fee." };
   }
-  const nonRecurring = selectedFees.find((fee) => isNonRecurringPlanFeeType(fee.type));
+  const nonRecurring = findNonRecurringPlanFee(selectedFees);
   if (nonRecurring) {
-    return {
-      ok: false,
-      error: `"${nonRecurring.description}" is a ${nonRecurring.type} fee and cannot be added to billing plans. ${ONCE_OFF_FEE_GUIDANCE}`,
-    };
+    return { ok: false, error: nonRecurringPlanFeeMessage(nonRecurring) };
   }
   return { ok: true };
 }

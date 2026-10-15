@@ -242,9 +242,17 @@ export function sanitizeLiveBillingText(text: string | undefined | null): string
   return value;
 }
 
+export const EDUCLEAR_CREDIT_NOTE_SOURCE = "educlear_credit_note";
+export const EDUCLEAR_CREDIT_NOTE_TYPE = "Credit Note";
+
+export function isEduClearCreditNoteEntry(entry: Pick<BillingLedgerEntry, "type" | "source">): boolean {
+  return entry.type === "credit" && String(entry.source || "").trim() === EDUCLEAR_CREDIT_NOTE_SOURCE;
+}
+
 export function formatLedgerTypeLabel(entry: BillingLedgerEntry): string {
   if (isEduClearUndoCorrectionEntry(entry)) return EDUCLEAR_CORRECTION_JOURNAL_TYPE;
   if (isKidesysOpeningBalanceEntry(entry)) return OPENING_BALANCE_MIGRATION_TYPE;
+  if (isEduClearCreditNoteEntry(entry)) return EDUCLEAR_CREDIT_NOTE_TYPE;
   switch (entry.type) {
     case "invoice":
       return "Invoice";

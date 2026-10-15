@@ -8,6 +8,7 @@ import {
   type BillingLedgerEntry,
 } from "../utils/billingLedgerStore";
 import { isProductionRuntime } from "./runtime";
+import { isEduClearCreditNoteEntry } from "../utils/billingDisplayRules";
 
 export const INVOICE_RUN_UNDO_PRODUCTION_ENV = "CONFIRM_INVOICE_RUN_UNDO_PRODUCTION";
 
@@ -164,6 +165,22 @@ export function undoInvoiceRun(input: {
       totalAmount: 0,
       error: `Run ${runId} has payment allocation(s) against ${allocationHits.length} invoice row(s)`,
       errorCode: "ALLOCATION_CONFLICT",
+    };
+  }
+
+  const creditNoteHits = readSchoolLedger(schoolId).filter((entry) =>
+    targetIds.has(String(entry.creditNoteInvoiceId || "").trim()) && isEduClearCreditNoteEntry(entry)
+  );
+  if (creditNoteHits.length) {
+    return {
+      success: false,
+      runId,
+      schoolId,
+      removedCount: 0,
+      removedEntryIds: [],
+      totalAmount: 0,
+      error: `Run ${runId} has ${creditNoteHits.length} credit note(s) against its invoices`,
+      errorCode: "CREDIT_NOTE_CONFLICT",
     };
   }
 

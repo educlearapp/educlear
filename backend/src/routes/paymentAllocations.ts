@@ -314,15 +314,20 @@ router.post("/:paymentId", requireCapturePaymentAuth, async (req: CapturePayment
 });
 
 // DELETE /api/payment-allocations/:paymentId?schoolId=
-router.delete("/:paymentId", async (req, res) => {
+router.delete("/:paymentId", requireCapturePaymentAuth, async (req: CapturePaymentAuthRequest, res) => {
   try {
+    const auth = req.capturePaymentAuth;
+    if (!auth) {
+      return res.status(401).json({ success: false, error: "Authentication required" });
+    }
     const paymentId = String(req.params.paymentId || "").trim();
-    const schoolId =
-      typeof req.query?.schoolId === "string" ? String(req.query.schoolId) : "";
+    const schoolId = auth.authorizedSchoolId;
     if (!schoolId || !paymentId) {
       return res.status(400).json({ success: false, error: "Missing schoolId or paymentId" });
     }
+    const cleared = listPaymentAllocations(schoolId, paymentId).length;
     clearStoredAllocations(schoolId, paymentId);
+    console.info("[payment-allocations] cleared", { schoolId, paymentId, cleared, userId: auth.userId });
     return res.json({ success: true });
   } catch (error) {
     console.error("[payment-allocations] DELETE /:paymentId failed:", error);

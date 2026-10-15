@@ -23,6 +23,7 @@ import {
 import {
   filterHistoryForAccount,
   readSchoolKidesysHistory,
+  type KidesysHistoryEntry,
 } from "../utils/kidesysTransactionHistoryStore";
 import {
   filterKidesysHistoryByStatementPeriod,
@@ -71,6 +72,36 @@ function recordedDateFor(entry: BillingLedgerEntry): { recordedDate?: string; re
     recordedDate: recorded,
     recordedLabel: isImportedKidesysHistoryLedgerEntry(entry) ? "Imported" : "Captured",
   };
+}
+
+function kidesysTransactionMatchKey(type: unknown, reference: unknown, amount: unknown, date: unknown): string {
+  const ref = String(reference || "").trim().replace(/\s+/g, " ").toUpperCase();
+  if (!ref) return "";
+  return [String(type || "").trim().toLowerCase(), ref, normaliseAmount(amount).toFixed(2), String(date || "").slice(0, 10)].join("|");
+}
+
+/**
+ * Drops Kid-e-Sys history rows already shown through their imported ledger copy (same type,
+ * reference, amount and date). Each displayed ledger copy hides at most one history row.
+ */
+function withoutHistoryShownByLedgerCopy(
+  history: KidesysHistoryEntry[],
+  shownLedgerEntries: BillingLedgerEntry[]
+): KidesysHistoryEntry[] {
+  const remaining = new Map<string, number>();
+  for (const entry of shownLedgerEntries) {
+    if (!isImportedKidesysHistoryLedgerEntry(entry)) continue;
+    const key = kidesysTransactionMatchKey(entry.type, entry.reference, entry.amount, entry.date);
+    if (key) remaining.set(key, (remaining.get(key) || 0) + 1);
+  }
+  if (!remaining.size) return history;
+  return history.filter((entry) => {
+    const key = kidesysTransactionMatchKey(entry.type, entry.reference || entry.kidesysReference, entry.amount, entry.date);
+    const count = key ? remaining.get(key) || 0 : 0;
+    if (!count) return true;
+    remaining.set(key, count - 1);
+    return false;
+  });
 }
 
 type BuildStatementTransactionsInput = {
@@ -144,6 +175,7 @@ export function buildStatementTransactions(
   };
 
   const postingRows: DisplayRow[] = [];
+  const shownLedgerEntries: BillingLedgerEntry[] = [];
   const sortedPosting = [...ledgerEntries].sort(
     (a, b) => new Date(a.date || a.createdAt).getTime() - new Date(b.date || b.createdAt).getTime()
   );
@@ -153,6 +185,7 @@ export function buildStatementTransactions(
     if (!shouldShowOpeningBalanceMigration(period, entry) && isKidesysOpeningBalanceEntry(entry)) {
       return;
     }
+    shownLedgerEntries.push(entry);
     const amount = normaliseAmount(entry.amount);
     const isDebit = entry.type === "invoice" || entry.type === "penalty";
     running += isDebit ? amount : -amount;
@@ -177,7 +210,10 @@ export function buildStatementTransactions(
   });
 
   const kidesysAll = filterHistoryForAccount(readSchoolKidesysHistory(schoolId), accountRef);
-  const filteredKidesys = filterKidesysHistoryByStatementPeriod(kidesysAll, period);
+  const filteredKidesys = withoutHistoryShownByLedgerCopy(
+    filterKidesysHistoryByStatementPeriod(kidesysAll, period),
+    shownLedgerEntries
+  );
 
   const historyRows: DisplayRow[] = filteredKidesys.map((entry) => {
     const amount = normaliseAmount(entry.amount);
@@ -231,6 +267,7 @@ export function buildStatementManageTransactions(
   type DisplayRow = StatementManageTransactionRow & { sortTime: number };
 
   const postingRows: DisplayRow[] = [];
+  const shownLedgerEntries: BillingLedgerEntry[] = [];
   const sortedPosting = [...periodFilteredEntries].sort(
     (a, b) => new Date(a.date || a.createdAt).getTime() - new Date(b.date || b.createdAt).getTime()
   );
@@ -240,6 +277,7 @@ export function buildStatementManageTransactions(
     if (!shouldShowOpeningBalanceMigration(period, entry) && isKidesysOpeningBalanceEntry(entry)) {
       return;
     }
+    shownLedgerEntries.push(entry);
     const amount = normaliseAmount(entry.amount);
     const isDebit = entry.type === "invoice" || entry.type === "penalty";
     running += isDebit ? amount : -amount;
@@ -282,7 +320,10 @@ export function buildStatementManageTransactions(
   });
 
   const kidesysAll = filterHistoryForAccount(readSchoolKidesysHistory(schoolId), accountRef);
-  const filteredKidesys = filterKidesysHistoryByStatementPeriod(kidesysAll, period);
+  const filteredKidesys = withoutHistoryShownByLedgerCopy(
+    filterKidesysHistoryByStatementPeriod(kidesysAll, period),
+    shownLedgerEntries
+  );
 
   const historyRows: DisplayRow[] = filteredKidesys.map((entry) => {
     const amount = normaliseAmount(entry.amount);

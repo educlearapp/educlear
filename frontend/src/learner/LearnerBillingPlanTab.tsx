@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { API_URL } from "../api";
 import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 import { notifyLearnersRefresh } from "../billing/billingLedger";
+import { findNonRecurringPlanFee, nonRecurringPlanFeeMessage } from "../billing/billingPlansBulkAddFees";
 
 const GOLD = "#d4af37";
 
@@ -291,6 +292,11 @@ export default function LearnerBillingPlanTab({ learner, onLearnerUpdated, setLe
     const selectedFees = filteredFees.filter((fee) => selectedFeeIds.has(fee.id));
     if (selectedFees.length === 0) {
       setSaveError("Select at least one fee to add.");
+      return;
+    }
+    const nonRecurringFee = findNonRecurringPlanFee(selectedFees);
+    if (nonRecurringFee) {
+      setSaveError(nonRecurringPlanFeeMessage(nonRecurringFee));
       return;
     }
     const existingIds = new Set(plan.map((fee) => fee.id));

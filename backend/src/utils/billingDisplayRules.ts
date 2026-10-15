@@ -32,6 +32,31 @@ export function isEduClearUndoCorrectionEntry(
   return String(entry.source || "").trim() === EDUCLEAR_UNDO_CORRECTION_SOURCE;
 }
 
+export const EDUCLEAR_CREDIT_NOTE_SOURCE = "educlear_credit_note";
+export const EDUCLEAR_CREDIT_NOTE_TYPE = "Credit Note";
+
+/** Posting credit that reverses one charge line of an EduClear invoice (invoice itself stays unchanged). */
+export function isEduClearCreditNoteEntry(
+  entry: Pick<BillingLedgerEntry, "type" | "source">
+): boolean {
+  return entry.type === "credit" && String(entry.source || "").trim() === EDUCLEAR_CREDIT_NOTE_SOURCE;
+}
+
+/** Active (not undone) credit notes linked to an invoice. */
+export function creditNotesForInvoice(
+  entries: BillingLedgerEntry[],
+  invoiceId: string
+): BillingLedgerEntry[] {
+  const id = String(invoiceId || "").trim();
+  if (!id) return [];
+  return entries.filter(
+    (entry) =>
+      isEduClearCreditNoteEntry(entry) &&
+      !isUndoneLedgerEntry(entry) &&
+      String(entry.creditNoteInvoiceId || "").trim() === id
+  );
+}
+
 export function isUndoneLedgerEntry(
   entry: Pick<BillingLedgerEntry, "undoneAt" | "undoneByCorrectionId">
 ): boolean {
@@ -262,6 +287,7 @@ export function sanitizeLiveBillingText(text: string | undefined | null): string
 export function formatLedgerTypeLabel(entry: BillingLedgerEntry): string {
   if (isEduClearUndoCorrectionEntry(entry)) return EDUCLEAR_CORRECTION_JOURNAL_TYPE;
   if (isKidesysOpeningBalanceEntry(entry)) return OPENING_BALANCE_MIGRATION_TYPE;
+  if (isEduClearCreditNoteEntry(entry)) return EDUCLEAR_CREDIT_NOTE_TYPE;
   switch (entry.type) {
     case "invoice":
       return "Invoice";
@@ -336,6 +362,7 @@ export function formatStatementManageTypeLabel(entry: BillingLedgerEntry): strin
 export function describeLedgerEntrySource(entry: BillingLedgerEntry): string {
   const source = String(entry.source || "").trim().toLowerCase();
   if (isEduClearUndoCorrectionEntry(entry)) return "EduClear correction journal";
+  if (isEduClearCreditNoteEntry(entry)) return "EduClear credit note";
   if (isKidesysOpeningBalanceEntry(entry)) return "Migration opening balance";
   if (isImportedKidesysHistoryLedgerEntry(entry)) return "Kid-e-Sys import (historical record)";
   if (source === "kidesys_topup") return "Kid-e-Sys top-up";
@@ -349,6 +376,7 @@ export function describeLedgerEntrySource(entry: BillingLedgerEntry): string {
 export function statementUndoBlockedReason(entry: BillingUndoableDisplayEntry, typeLabel?: string): string {
   if (isEduClearUndoCorrectionEntry(entry)) return "Correction journals cannot be undone.";
   if (isUndoneLedgerEntry(entry)) return "This transaction has already been undone.";
+  if (isEduClearCreditNoteEntry(entry)) return "Credit notes cannot be undone.";
   if (isKidesysOpeningBalanceEntry(entry)) return "Migration opening balances cannot be undone.";
   if (isImportedKidesysHistoryLedgerEntry(entry) || isKidesysHistoryTypeLabel(typeLabel)) {
     return "Imported Kid-e-Sys history is a record only. It does not affect the balance and cannot be undone.";

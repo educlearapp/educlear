@@ -1,6 +1,7 @@
 import { buildAccountsFromAgeAnalysisSnapshots } from "./statementAccounts";
 import {
   EDUCLEAR_UNDO_CORRECTION_SOURCE,
+  creditNotesForInvoice,
   isEduClearUndoableLedgerEntry,
   isStatementKidesysUndoBlocked,
 } from "../utils/billingDisplayRules";
@@ -249,6 +250,16 @@ export async function undoBillingTransaction(
     throw new Error("This transaction cannot be undone.");
   }
 
+  const creditNoteBlocked = () =>
+    new BillingUndoError(
+      409,
+      "INVOICE_HAS_CREDIT_NOTES",
+      "This invoice has a credit note against it and cannot be undone."
+    );
+  if (entry.type === "invoice" && creditNotesForInvoice(ledger, entry.id).length) {
+    throw creditNoteBlocked();
+  }
+
   const reversedAllocations = entry.type === "payment" ? snapshotAllocations(schoolId, entry.id) : [];
   const actor = input.actor;
   const auditFields = {
@@ -269,6 +280,9 @@ export async function undoBillingTransaction(
     }
     if (latest.type === "payment" && Math.abs(roundMoney(latest.amount) - roundMoney(entry.amount)) > 0.001) {
       return { upserts: [], result: { kind: "changed" } };
+    }
+    if (latest.type === "invoice" && creditNotesForInvoice(current, latest.id).length) {
+      throw creditNoteBlocked();
     }
 
     const now = new Date().toISOString();

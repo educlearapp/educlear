@@ -93,6 +93,28 @@ export function countPaymentAllocationsReadOnly(schoolId: string, paymentId: str
   return Array.isArray(rows) ? rows.length : 0;
 }
 
+/** Read-only total allocated to one invoice across all payments. Never creates the store file. */
+export function sumAllocationsToInvoiceReadOnly(schoolId: string, invoiceId: string): number {
+  const sid = String(schoolId || "").trim();
+  const iid = String(invoiceId || "").trim();
+  if (!sid || !iid) return 0;
+  if (!fs.existsSync(getAllocationFile())) return 0;
+  const all = readAll();
+  const storeKey = resolveSchoolJsonStoreKey(sid, all, (value) =>
+    value && typeof value === "object" ? Object.keys(value).length > 0 : false
+  );
+  const school = all[storeKey];
+  if (!school || typeof school !== "object") return 0;
+  let total = 0;
+  for (const rows of Object.values(school)) {
+    if (!Array.isArray(rows)) continue;
+    for (const row of rows) {
+      if (String(row?.invoiceId || "").trim() === iid) total += Number(row.allocatedAmount) || 0;
+    }
+  }
+  return Math.round(total * 100) / 100;
+}
+
 export function writePaymentAllocations(
   schoolId: string,
   paymentId: string,

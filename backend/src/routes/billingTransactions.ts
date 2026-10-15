@@ -6,6 +6,11 @@ import {
   undoBillingTransaction,
   type UndoBillingTransactionActor,
 } from "../services/billingTransactionUndo";
+import {
+  CreditNoteError,
+  issueInvoiceLineCreditNote,
+  reverseInvoiceLineCreditNote,
+} from "../services/invoiceLineCreditNote";
 import { verifyStaffJwt } from "../utils/staffJwt";
 import { getUserAccessMeta } from "../utils/userAccessStore";
 import { appRoleFromPrismaRole } from "../utils/userPermissions";
@@ -72,6 +77,82 @@ router.post("/:id/undo", async (req, res) => {
     const blocked = message.includes("cannot be undone");
     console.error("[billing-transactions] POST /:id/undo failed:", error);
     return res.status(blocked ? 403 : 500).json({ success: false, error: message });
+  }
+});
+
+// POST /api/billing-transactions/:id/credit-note — credit one charge line of an invoice
+router.post("/:id/credit-note", async (req, res) => {
+  try {
+    const invoiceId = String(req.params.id || "").trim();
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const schoolId = String(body.schoolId || req.query.schoolId || "").trim();
+    if (!schoolId) {
+      return res.status(400).json({ success: false, error: "Missing schoolId" });
+    }
+
+    const actor = await resolveUndoActor(req, schoolId);
+    const result = issueInvoiceLineCreditNote({
+      schoolId,
+      invoiceId,
+      lineKey: String(body.lineKey || "").trim(),
+      actor,
+      reason: typeof body.reason === "string" ? body.reason : undefined,
+      confirm: body.confirm === true,
+      expectedAmount: (body.expectedAmount ?? null) as number | string | null,
+      expectedDescription: typeof body.expectedDescription === "string" ? body.expectedDescription : null,
+    });
+
+    return res.json({
+      success: true,
+      invoice: result.invoice,
+      creditNote: result.creditNote,
+      alreadyIssued: result.alreadyIssued,
+      ledgerEntries: result.ledgerEntries,
+    });
+  } catch (error) {
+    if (error instanceof CreditNoteError) {
+      return res.status(error.status).json({ success: false, error: error.message, code: error.code });
+    }
+    console.error("[billing-transactions] POST /:id/credit-note failed:", error);
+    const message = error instanceof Error ? error.message : "Server error";
+    return res.status(500).json({ success: false, error: message });
+  }
+});
+
+// POST /api/billing-transactions/:id/credit-note/reverse — audited reversal of an EduClear credit note
+router.post("/:id/credit-note/reverse", async (req, res) => {
+  try {
+    const creditNoteId = String(req.params.id || "").trim();
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const schoolId = String(body.schoolId || req.query.schoolId || "").trim();
+    if (!schoolId) {
+      return res.status(400).json({ success: false, error: "Missing schoolId" });
+    }
+
+    const actor = await resolveUndoActor(req, schoolId);
+    const result = reverseInvoiceLineCreditNote({
+      schoolId,
+      creditNoteId,
+      actor,
+      reason: typeof body.reason === "string" ? body.reason : undefined,
+      confirm: body.confirm === true,
+      expectedAmount: (body.expectedAmount ?? null) as number | string | null,
+    });
+
+    return res.json({
+      success: true,
+      creditNote: result.creditNote,
+      correction: result.correction,
+      alreadyReversed: result.alreadyReversed,
+      ledgerEntries: result.ledgerEntries,
+    });
+  } catch (error) {
+    if (error instanceof CreditNoteError) {
+      return res.status(error.status).json({ success: false, error: error.message, code: error.code });
+    }
+    console.error("[billing-transactions] POST /:id/credit-note/reverse failed:", error);
+    const message = error instanceof Error ? error.message : "Server error";
+    return res.status(500).json({ success: false, error: message });
   }
 });
 
