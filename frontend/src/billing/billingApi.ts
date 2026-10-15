@@ -182,6 +182,13 @@ export type StatementAccountTransactionRow = {
   isKidesysHistory: boolean;
   isOpeningBalance: boolean;
   canUndo: boolean;
+  undoBlockedReason?: string;
+  entryType?: string;
+  isImportedHistory?: boolean;
+  isUndone?: boolean;
+  sourceLabel?: string;
+  recordedDate?: string;
+  recordedLabel?: "Captured" | "Imported";
   chargeLines?: Array<{ lineKey: string; description: string; amount: number }>;
 };
 
@@ -542,7 +549,8 @@ export const undoBillingTransaction = async (
   schoolId: string,
   transactionId: string,
   accountNo: string,
-  auditNo?: string | number
+  auditNo?: string | number,
+  options?: { reason?: string; confirm?: boolean; expectedAmount?: number }
 ) => {
   const sid = String(schoolId || "").trim();
   const id = String(transactionId || "").trim();
@@ -554,7 +562,14 @@ export const undoBillingTransaction = async (
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ schoolId: sid, accountNo: ref, auditNo }),
+      body: JSON.stringify({
+        schoolId: sid,
+        accountNo: ref,
+        auditNo,
+        ...(options?.reason !== undefined ? { reason: options.reason } : {}),
+        ...(options?.confirm !== undefined ? { confirm: options.confirm } : {}),
+        ...(options?.expectedAmount !== undefined ? { expectedAmount: options.expectedAmount } : {}),
+      }),
     }
   );
   const body = await response.json().catch(() => ({}));

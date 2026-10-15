@@ -5,6 +5,8 @@ import {
   clearFilteredLearnerIds,
   filterLearnersForBulkAdd,
   formatBulkAddSummaryMessage,
+  isNonRecurringPlanFeeType,
+  ONCE_OFF_FEE_GUIDANCE,
   selectAllFilteredLearnerIds,
   shouldRefreshBillingPlansAfterBulkResult,
   uniqueClassrooms,
@@ -151,6 +153,8 @@ export default function BillingPlansBulkAddFeesModal({
   };
 
   const toggleFee = (id: string) => {
+    const fee = fees.find((f) => f.id === id);
+    if (fee && isNonRecurringPlanFeeType(fee.type)) return;
     setSelectedFeeIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -415,9 +419,11 @@ export default function BillingPlansBulkAddFeesModal({
                     ) : (
                       filteredFees.map((fee) => {
                         const checked = selectedFeeIds.has(fee.id);
+                        const nonRecurring = isNonRecurringPlanFeeType(fee.type);
                         return (
                           <label
                             key={fee.id}
+                            title={nonRecurring ? ONCE_OFF_FEE_GUIDANCE : undefined}
                             style={{
                               display: "grid",
                               gridTemplateColumns: "24px 1fr auto",
@@ -425,17 +431,22 @@ export default function BillingPlansBulkAddFeesModal({
                               alignItems: "center",
                               padding: "8px 12px",
                               borderBottom: "1px solid #f1f5f9",
-                              cursor: "pointer",
+                              cursor: nonRecurring ? "not-allowed" : "pointer",
+                              opacity: nonRecurring ? 0.6 : 1,
                             }}
                           >
                             <input
                               type="checkbox"
                               checked={checked}
+                              disabled={nonRecurring}
                               onChange={() => toggleFee(fee.id)}
                             />
                             <span>
                               <div style={{ fontWeight: 700 }}>{fee.description}</div>
-                              <div style={{ fontSize: 12, color: "#64748b" }}>{fee.type}</div>
+                              <div style={{ fontSize: 12, color: "#64748b" }}>
+                                {fee.type}
+                                {nonRecurring ? " · not recurring — use Invoice Run once-off fee" : ""}
+                              </div>
                             </span>
                             <span style={{ fontWeight: 800 }}>{money(fee.amount)}</span>
                           </label>

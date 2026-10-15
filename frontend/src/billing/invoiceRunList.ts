@@ -231,6 +231,87 @@ export function buildInvoiceRunExtraFeesByLearnerId(
   return Object.keys(out).length ? out : undefined;
 }
 
+function sameExtraFee(a: InvoiceRunExtraFee, b: InvoiceRunExtraFee): boolean {
+  return (
+    String(a.feeDescription || "").trim().toLowerCase() ===
+      String(b.feeDescription || "").trim().toLowerCase() &&
+    Math.abs(Number(a.amount || 0) - Number(b.amount || 0)) < 0.005
+  );
+}
+
+export type OnceOffFeeValidation = { ok: true; fee: InvoiceRunExtraFee } | { ok: false; error: string };
+
+export function validateOnceOffFee(description: unknown, amount: unknown): OnceOffFeeValidation {
+  const feeDescription = String(description ?? "").trim();
+  const value = Math.round(Number(amount) * 100) / 100;
+  if (!feeDescription) return { ok: false, error: "Enter a fee description." };
+  if (!Number.isFinite(value) || value <= 0) return { ok: false, error: "Enter an amount greater than zero." };
+  return { ok: true, fee: { feeDescription, amount: value } };
+}
+
+/**
+ * Once-off fee for selected learners on this run only (per-learner run extras).
+ * Never touches billing plans; a learner that already has the same fee on this run is skipped.
+ */
+export function addOnceOffFeeToLearners(
+  extraFeesByLearnerId: Record<string, InvoiceRunExtraFee[]> | undefined,
+  learnerIds: string[],
+  fee: InvoiceRunExtraFee
+): {
+  extraFeesByLearnerId: Record<string, InvoiceRunExtraFee[]>;
+  added: string[];
+  skippedDuplicate: string[];
+} {
+  const next: Record<string, InvoiceRunExtraFee[]> = {};
+  for (const [id, fees] of Object.entries(extraFeesByLearnerId || {})) {
+    next[id] = Array.isArray(fees) ? fees.map((f) => ({ ...f })) : [];
+  }
+  const added: string[] = [];
+  const skippedDuplicate: string[] = [];
+  for (const raw of Array.from(new Set(learnerIds || []))) {
+    const id = String(raw || "").trim();
+    if (!id) continue;
+    const current = next[id] || [];
+    if (current.some((f) => sameExtraFee(f, fee))) {
+      skippedDuplicate.push(id);
+      continue;
+    }
+    next[id] = [...current, { feeDescription: fee.feeDescription, amount: fee.amount }];
+    added.push(id);
+  }
+  return { extraFeesByLearnerId: next, added, skippedDuplicate };
+}
+
+export function removeOnceOffFeeFromAllLearners(
+  extraFeesByLearnerId: Record<string, InvoiceRunExtraFee[]> | undefined,
+  fee: InvoiceRunExtraFee
+): { extraFeesByLearnerId: Record<string, InvoiceRunExtraFee[]>; removedFrom: number } {
+  const next: Record<string, InvoiceRunExtraFee[]> = {};
+  let removedFrom = 0;
+  for (const [id, fees] of Object.entries(extraFeesByLearnerId || {})) {
+    const list = Array.isArray(fees) ? fees : [];
+    const kept = list.filter((f) => !sameExtraFee(f, fee));
+    if (kept.length !== list.length) removedFrom += 1;
+    if (kept.length) next[id] = kept.map((f) => ({ ...f }));
+  }
+  return { extraFeesByLearnerId: next, removedFrom };
+}
+
+/** Distinct per-learner once-off fees with learner counts, for display. */
+export function summariseOnceOffFees(
+  extraFeesByLearnerId: Record<string, InvoiceRunExtraFee[]> | undefined
+): Array<{ fee: InvoiceRunExtraFee; learnerCount: number }> {
+  const out: Array<{ fee: InvoiceRunExtraFee; learnerCount: number }> = [];
+  for (const fees of Object.values(extraFeesByLearnerId || {})) {
+    for (const fee of Array.isArray(fees) ? fees : []) {
+      const existing = out.find((row) => sameExtraFee(row.fee, fee));
+      if (existing) existing.learnerCount += 1;
+      else out.push({ fee: { feeDescription: fee.feeDescription, amount: Number(fee.amount) }, learnerCount: 1 });
+    }
+  }
+  return out;
+}
+
 function extrasFromFatRows(
   rows: unknown[]
 ): Record<string, InvoiceRunExtraFee[]> {
@@ -456,6 +537,24 @@ export function persistInvoiceRunDraft(
 }
 
 /**
+ * Run id for a new draft. A period that already has an executed run gets a
+ * supplementary id so the server does not refuse it as DUPLICATE_RUN_ID.
+ */
+export function nextAvailableInvoiceRunDraftId(baseId: string, usedRunIds?: Iterable<string>): string {
+  const used = new Set(
+    Array.from(usedRunIds || [])
+      .map((id) => String(id || "").trim())
+      .filter(Boolean)
+  );
+  if (!used.has(baseId)) return baseId;
+  for (let n = 2; n < 1000; n += 1) {
+    const candidate = `${baseId}:supplementary-${n}`;
+    if (!used.has(candidate)) return candidate;
+  }
+  return `${baseId}:supplementary-${Date.now()}`;
+}
+
+/**
  * + Add: reuse one in-memory unexecuted draft per school+period.
  * Does not write localStorage — caller must not persist until settings exist.
  */
@@ -463,6 +562,8 @@ export function beginInvoiceRunWizard(args: {
   drafts: InvoiceRunListRow[];
   schoolId: string;
   month: string;
+  /** Run ids already on the server ledger or executed locally. */
+  usedRunIds?: Iterable<string>;
 }): {
   drafts: InvoiceRunListRow[];
   selectedRun: InvoiceRunListRow;
@@ -472,11 +573,17 @@ export function beginInvoiceRunWizard(args: {
   const schoolId = String(args.schoolId || "").trim();
   const month = String(args.month || "").trim();
   const period = normalisePeriodKey(month);
+  const usedRunIds = Array.from(args.usedRunIds || []);
   const existing = findUnexecutedDraftForSchoolPeriod(args.drafts, schoolId, month);
   if (existing) {
+    const existingId = String(existing.id || "");
     return {
       drafts: args.drafts,
-      selectedRun: { ...existing, schoolId },
+      selectedRun: {
+        ...existing,
+        schoolId,
+        id: existingId ? nextAvailableInvoiceRunDraftId(existingId, usedRunIds) : existingId,
+      },
       persisted: false,
       reused: true,
     };
@@ -484,7 +591,7 @@ export function beginInvoiceRunWizard(args: {
   return {
     drafts: args.drafts,
     selectedRun: {
-      id: `draft:${schoolId}:${period || "pending"}`,
+      id: nextAvailableInvoiceRunDraftId(`draft:${schoolId}:${period || "pending"}`, usedRunIds),
       schoolId,
       month,
       period: month,

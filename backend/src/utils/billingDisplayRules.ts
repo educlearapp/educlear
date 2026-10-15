@@ -316,3 +316,49 @@ export function formatKidesysHistoryDescriptionDisplay(entry: KidesysHistoryEntr
   const value = String(raw).trim();
   return value || KIDESYS_HISTORY_DESCRIPTION_FALLBACK;
 }
+
+/** Ledger copy of an imported Kid-e-Sys transaction that never changes the live balance. */
+export function isImportedKidesysHistoryLedgerEntry(entry: BillingDisplayEntry): boolean {
+  if (isKidesysOpeningBalanceEntry(entry)) return false;
+  return isNonPostingImportedLedgerEntry(entry);
+}
+
+/** Statement Manage type label: marks imported history and undone rows explicitly. */
+export function formatStatementManageTypeLabel(entry: BillingLedgerEntry): string {
+  const base = formatLedgerTypeLabel(entry);
+  if (isImportedKidesysHistoryLedgerEntry(entry)) {
+    return `${base} · Kid-e-Sys History · non-posting`;
+  }
+  if (isUndoneLedgerEntry(entry)) return `${base} (undone)`;
+  return base;
+}
+
+export function describeLedgerEntrySource(entry: BillingLedgerEntry): string {
+  const source = String(entry.source || "").trim().toLowerCase();
+  if (isEduClearUndoCorrectionEntry(entry)) return "EduClear correction journal";
+  if (isKidesysOpeningBalanceEntry(entry)) return "Migration opening balance";
+  if (isImportedKidesysHistoryLedgerEntry(entry)) return "Kid-e-Sys import (historical record)";
+  if (source === "kidesys_topup") return "Kid-e-Sys top-up";
+  if (source === "bank_import" || entry.bankTransactionId || entry.bankImportId) return "Bank import";
+  if (isManualLedgerPayment(entry)) return "EduClear manual capture";
+  if (entry.runId || String(entry.id || "").startsWith("invoice-RUN-")) return "EduClear invoice run";
+  return "EduClear";
+}
+
+/** Why Statement Manage cannot undo this posting row; empty string when undo is allowed. */
+export function statementUndoBlockedReason(entry: BillingUndoableDisplayEntry, typeLabel?: string): string {
+  if (isEduClearUndoCorrectionEntry(entry)) return "Correction journals cannot be undone.";
+  if (isUndoneLedgerEntry(entry)) return "This transaction has already been undone.";
+  if (isKidesysOpeningBalanceEntry(entry)) return "Migration opening balances cannot be undone.";
+  if (isImportedKidesysHistoryLedgerEntry(entry) || isKidesysHistoryTypeLabel(typeLabel)) {
+    return "Imported Kid-e-Sys history is a record only. It does not affect the balance and cannot be undone.";
+  }
+  if (canUndoStatementPostingEntry(entry, typeLabel)) return "";
+  const source = String(entry.source || "").trim().toLowerCase();
+  if (source === "kidesys_topup") return "Kid-e-Sys top-up payments cannot be undone here.";
+  if (entry.bankTransactionId || entry.bankImportId || source === "bank_import") {
+    return "Bank-matched payments must be corrected in Banking.";
+  }
+  if (isKidesysBlockedBillingSource(entry.source)) return "Imported Kid-e-Sys transactions cannot be undone.";
+  return "This transaction cannot be undone.";
+}

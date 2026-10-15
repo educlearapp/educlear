@@ -1,5 +1,11 @@
 import {
   canUndoStatementPostingEntry,
+  describeLedgerEntrySource,
+  formatStatementManageTypeLabel,
+  isEduClearUndoCorrectionEntry,
+  isImportedKidesysHistoryLedgerEntry,
+  isUndoneLedgerEntry,
+  statementUndoBlockedReason,
   formatKidesysHistoryDescriptionDisplay,
   formatKidesysHistoryReferenceDisplay,
   formatKidesysHistoryTypeLabel,
@@ -41,9 +47,31 @@ export type StatementManageTransactionRow = {
   isKidesysHistory: boolean;
   isOpeningBalance: boolean;
   canUndo: boolean;
+  /** Why undo is unavailable (empty when canUndo). */
+  undoBlockedReason?: string;
+  /** Ledger entry type (invoice/payment/credit/penalty) for posting rows. */
+  entryType?: string;
+  /** Imported Kid-e-Sys ledger copy that never affects the balance. */
+  isImportedHistory?: boolean;
+  isUndone?: boolean;
+  /** Where the row came from (manual capture, invoice run, Kid-e-Sys import, ...). */
+  sourceLabel?: string;
+  /** Calendar date the row was captured/imported in EduClear when it differs from the transaction date. */
+  recordedDate?: string;
+  recordedLabel?: "Captured" | "Imported";
   /** Immutable invoice fee breakdown when present on the ledger entry. */
   chargeLines?: BillingInvoiceChargeLine[];
 };
+
+function recordedDateFor(entry: BillingLedgerEntry): { recordedDate?: string; recordedLabel?: "Captured" | "Imported" } {
+  const recorded = String(entry.createdAt || "").slice(0, 10);
+  const txnDate = String(entry.date || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(recorded) || recorded === txnDate) return {};
+  return {
+    recordedDate: recorded,
+    recordedLabel: isImportedKidesysHistoryLedgerEntry(entry) ? "Imported" : "Captured",
+  };
+}
 
 type BuildStatementTransactionsInput = {
   schoolId: string;
@@ -217,6 +245,12 @@ export function buildStatementManageTransactions(
     running += isDebit ? amount : -amount;
     const isOpeningBalance = isKidesysOpeningBalanceEntry(entry);
     const typeLabel = formatLedgerTypeLabel(entry);
+    const undoBlockedReason = statementUndoBlockedReason(entry, typeLabel);
+    const canUndo =
+      canUndoStatementPostingEntry(entry, typeLabel) &&
+      !isUndoneLedgerEntry(entry) &&
+      !isEduClearUndoCorrectionEntry(entry) &&
+      !undoBlockedReason;
     const learnerLabel = resolveEntryLearnerLabel(entry, nameByLearnerId, accountRef);
     const sortTime = new Date(entry.date || entry.createdAt).getTime();
     const chargeLines = snapshotChargeLines(entry);
@@ -225,7 +259,7 @@ export function buildStatementManageTransactions(
       ledgerEntryId: entry.id,
       auditNo: index + 1,
       date: entry.date || "-",
-      type: typeLabel,
+      type: formatStatementManageTypeLabel(entry),
       method: entry.type === "payment" ? String(entry.method || "").trim() || "—" : "—",
       learner: learnerLabel,
       reference: formatLedgerReferenceDisplay(entry),
@@ -235,7 +269,13 @@ export function buildStatementManageTransactions(
       balance: running,
       isKidesysHistory: false,
       isOpeningBalance,
-      canUndo: canUndoStatementPostingEntry(entry, typeLabel),
+      canUndo,
+      undoBlockedReason: canUndo ? "" : undoBlockedReason || "This transaction cannot be undone.",
+      entryType: entry.type,
+      isImportedHistory: isImportedKidesysHistoryLedgerEntry(entry),
+      isUndone: isUndoneLedgerEntry(entry),
+      sourceLabel: describeLedgerEntrySource(entry),
+      ...recordedDateFor(entry),
       ...(chargeLines ? { chargeLines } : {}),
       sortTime: Number.isNaN(sortTime) ? 0 : sortTime,
     });
@@ -263,6 +303,11 @@ export function buildStatementManageTransactions(
       isKidesysHistory: true,
       isOpeningBalance: false,
       canUndo: false,
+      undoBlockedReason:
+        "Imported Kid-e-Sys history is a record only. It does not affect the balance and cannot be undone.",
+      entryType: entry.type,
+      isImportedHistory: true,
+      sourceLabel: "Kid-e-Sys import (historical record)",
       sortTime: Number.isNaN(sortTime) ? 0 : sortTime,
     };
   });

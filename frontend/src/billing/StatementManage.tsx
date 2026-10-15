@@ -300,6 +300,8 @@ export default function StatementManage({
   const [selectedTransactionKey, setSelectedTransactionKey] = useState<string | null>(null);
   const [undoBusy, setUndoBusy] = useState(false);
   const [undoNotice, setUndoNotice] = useState("");
+  const [undoReason, setUndoReason] = useState("");
+  const [undoConfirmed, setUndoConfirmed] = useState(false);
   const [showCorrectionsAudit, setShowCorrectionsAudit] = useState(false);
   const [accountTransactions, setAccountTransactions] = useState<StatementAccountTransactionRow[]>([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
@@ -703,6 +705,13 @@ export default function StatementManage({
     isKidesysHistory: boolean;
     isOpeningBalance: boolean;
     canUndo: boolean;
+    undoBlockedReason?: string;
+    entryType?: string;
+    isImportedHistory?: boolean;
+    isUndone?: boolean;
+    sourceLabel?: string;
+    recordedDate?: string;
+    recordedLabel?: "Captured" | "Imported";
     sortTime: number;
     chargeLines?: Array<{ lineKey: string; description: string; amount: number }>;
   };
@@ -1449,15 +1458,21 @@ export default function StatementManage({
 
     if (
       selectedTransaction.isKidesysHistory ||
+      selectedTransaction.isImportedHistory ||
       isKidesysHistoryTypeLabel(selectedTransaction.type)
     ) {
-      return "Imported Kid-e-Sys history cannot be undone.";
+      return (
+        selectedTransaction.undoBlockedReason || "Imported Kid-e-Sys history cannot be undone."
+      );
     }
     if (!selectedTransaction.ledgerEntryId || !selectedTransaction.canUndo) {
-      return "This transaction cannot be undone.";
+      return selectedTransaction.undoBlockedReason || "This transaction cannot be undone.";
     }
     return null;
   };
+
+  const selectedIsPaymentUndo = selectedTransaction?.entryType === "payment";
+  const undoReasonValid = undoReason.trim().length >= 5;
 
   const openUndoConfirmModal = () => {
     const error = validateUndoSelectedTransaction();
@@ -1466,6 +1481,8 @@ export default function StatementManage({
       return;
     }
     setUndoNotice("");
+    setUndoReason("");
+    setUndoConfirmed(false);
     setModalKind("undoConfirm");
   };
 
@@ -1477,6 +1494,10 @@ export default function StatementManage({
       setModalKind(null);
       return;
     }
+    if (selectedIsPaymentUndo && (!undoReasonValid || !undoConfirmed)) {
+      setUndoNotice("Enter a reason (at least 5 characters) and tick the confirmation to undo this payment.");
+      return;
+    }
 
     setUndoBusy(true);
     setUndoNotice("");
@@ -1485,7 +1506,16 @@ export default function StatementManage({
         schoolId,
         selectedTransaction.ledgerEntryId,
         accountRef || accountNo,
-        selectedTransaction.auditNo
+        selectedTransaction.auditNo,
+        selectedIsPaymentUndo
+          ? {
+              reason: undoReason.trim(),
+              confirm: true,
+              expectedAmount: selectedTransaction.amountOut || selectedTransaction.amountIn,
+            }
+          : undoReason.trim()
+            ? { reason: undoReason.trim() }
+            : undefined
       );
       const ref = accountRef || accountNo;
       const updatedRow = Array.isArray(result?.accounts)
@@ -1530,7 +1560,7 @@ export default function StatementManage({
         cursor: "pointer",
         background: isSelected
           ? "rgba(212,175,55,0.28)"
-          : row.isKidesysHistory
+          : row.isKidesysHistory || row.isImportedHistory
             ? "rgba(212,175,55,0.08)"
             : row.isOpeningBalance
               ? "rgba(248,250,252,0.95)"
@@ -1539,15 +1569,25 @@ export default function StatementManage({
       }}
     >
       <td style={compactCell}>{row.auditNo}</td>
-      <td style={compactCell}>{row.date}</td>
       <td style={compactCell}>
-        {row.isKidesysHistory ? (
+        {row.date}
+        {row.recordedDate ? (
+          <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700 }}>
+            {row.recordedLabel || "Captured"} {row.recordedDate}
+          </div>
+        ) : null}
+      </td>
+      <td style={compactCell}>
+        {row.isKidesysHistory || row.isImportedHistory ? (
           <span style={{ fontWeight: 800, color: "#92400e" }}>{row.type}</span>
         ) : row.isOpeningBalance ? (
           <span style={{ fontWeight: 800, color: INK }}>{row.type}</span>
         ) : (
           row.type
         )}
+        {row.sourceLabel ? (
+          <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700 }}>{row.sourceLabel}</div>
+        ) : null}
       </td>
       <td style={compactCell}>{row.method || "—"}</td>
       {isFamilyBillingAccount ? (
@@ -1838,10 +1878,15 @@ export default function StatementManage({
               type="button"
               style={{
                 ...goldButtonStyle,
-                opacity: selectedTransaction && !undoBusy ? 1 : 0.5,
-                cursor: selectedTransaction && !undoBusy ? "pointer" : "not-allowed",
+                opacity: selectedTransaction?.canUndo && !undoBusy ? 1 : 0.5,
+                cursor: selectedTransaction?.canUndo && !undoBusy ? "pointer" : "not-allowed",
               }}
-              disabled={!selectedTransaction || undoBusy}
+              disabled={!selectedTransaction || !selectedTransaction.canUndo || undoBusy}
+              title={
+                selectedTransaction && !selectedTransaction.canUndo
+                  ? selectedTransaction.undoBlockedReason || "This transaction cannot be undone."
+                  : undefined
+              }
               onClick={(e) => {
                 e.stopPropagation();
                 openUndoConfirmModal();
@@ -1853,7 +1898,11 @@ export default function StatementManage({
         </div>
         {selectedTransaction?.isKidesysHistory ? (
           <div style={{ padding: "8px 12px", color: "#b45309", fontWeight: 700, fontSize: 13 }}>
-            Imported Kid-e-Sys history cannot be undone.
+            {selectedTransaction.undoBlockedReason || "Imported Kid-e-Sys history cannot be undone."}
+          </div>
+        ) : selectedTransaction && !selectedTransaction.canUndo ? (
+          <div style={{ padding: "8px 12px", color: "#b45309", fontWeight: 700, fontSize: 13 }}>
+            Undo unavailable: {selectedTransaction.undoBlockedReason || "This transaction cannot be undone."}
           </div>
         ) : undoNotice ? (
           <div style={{ padding: "8px 12px", color: "#b45309", fontWeight: 700, fontSize: 13 }}>{undoNotice}</div>
@@ -2345,9 +2394,12 @@ export default function StatementManage({
               </button>
               <button
                 type="button"
-                style={modalGoldBtn}
+                style={{
+                  ...modalGoldBtn,
+                  opacity: undoBusy || (selectedIsPaymentUndo && (!undoReasonValid || !undoConfirmed)) ? 0.6 : 1,
+                }}
                 onClick={() => void confirmUndoSelectedTransaction()}
-                disabled={undoBusy}
+                disabled={undoBusy || (selectedIsPaymentUndo && (!undoReasonValid || !undoConfirmed))}
               >
                 {undoBusy ? "Undoing…" : "Yes"}
               </button>
@@ -2357,6 +2409,79 @@ export default function StatementManage({
           <p style={{ margin: 0, lineHeight: 1.7, color: "#334155", fontWeight: 600 }}>
             Do you want to undo the selected transaction?
           </p>
+          {selectedTransaction ? (
+            <div
+              style={{
+                marginTop: 12,
+                padding: "10px 12px",
+                border: `1px solid ${GOLD}`,
+                borderRadius: 8,
+                background: "#fffbeb",
+                display: "grid",
+                gap: 4,
+                fontSize: 13,
+                fontWeight: 700,
+                color: INK,
+              }}
+            >
+              <div>Account: {accountRef || accountNo || "—"}</div>
+              <div>Type: {selectedTransaction.type}</div>
+              <div>
+                Amount: {formatMoney(selectedTransaction.amountOut || selectedTransaction.amountIn || 0)}
+              </div>
+              <div>Transaction date: {selectedTransaction.date}</div>
+              {selectedTransaction.recordedDate ? (
+                <div>
+                  {selectedTransaction.recordedLabel || "Captured"} on: {selectedTransaction.recordedDate}
+                </div>
+              ) : null}
+              <div>Reference: {selectedTransaction.reference || "—"}</div>
+              {selectedTransaction.sourceLabel ? <div>Source: {selectedTransaction.sourceLabel}</div> : null}
+            </div>
+          ) : null}
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontWeight: 900, color: INK, marginBottom: 6 }}>
+              Reason{selectedIsPaymentUndo ? " (required)" : " (optional)"}
+            </div>
+            <textarea
+              value={undoReason}
+              onChange={(e) => setUndoReason(e.target.value.slice(0, 500))}
+              rows={3}
+              disabled={undoBusy}
+              placeholder="e.g. Payment captured twice / wrong amount"
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                borderRadius: 8,
+                border: "1px solid #cbd5e1",
+                fontWeight: 600,
+                resize: "vertical",
+              }}
+            />
+          </div>
+          {selectedIsPaymentUndo ? (
+            <label
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 8,
+                marginTop: 10,
+                fontSize: 13,
+                fontWeight: 700,
+                color: INK,
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={undoConfirmed}
+                onChange={(e) => setUndoConfirmed(e.target.checked)}
+                disabled={undoBusy}
+              />
+              I confirm this payment was captured incorrectly. The account balance will increase by this amount
+              and the payment&apos;s allocations will be released.
+            </label>
+          ) : null}
           <p style={{ margin: "12px 0 0", lineHeight: 1.7, color: "#64748b", fontWeight: 600 }}>
             This will NOT delete the transaction.
           </p>

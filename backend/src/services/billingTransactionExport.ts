@@ -3,6 +3,7 @@ import {
   formatLedgerDescriptionDisplay,
   formatLedgerReferenceDisplay,
   formatLedgerTypeLabel,
+  isUndoneLedgerEntry,
   shouldShowLedgerEntryOnStatement,
 } from "../utils/billingDisplayRules";
 import {
@@ -155,7 +156,9 @@ export async function buildTransactionExport(
       return {
         id: entry.id,
         date: ledgerEntryCalendarDate(entry),
-        type: formatLedgerTypeLabel(entry),
+        type: isUndoneLedgerEntry(entry)
+          ? `${formatLedgerTypeLabel(entry)} (undone)`
+          : formatLedgerTypeLabel(entry),
         accountNo,
         accountHolder: meta?.accountHolder || "—",
         learners: meta?.learners || "—",

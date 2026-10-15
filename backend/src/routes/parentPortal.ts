@@ -19,6 +19,7 @@ import {
   collectFamilyAccountEntries,
   readSchoolLedger,
 } from "../utils/billingLedgerStore";
+import { shouldShowLedgerEntryOnStatement } from "../utils/billingDisplayRules";
 import { sendStatementEmail } from "../services/statementEmailService";
 import { buildSetupRequiredPayload } from "../services/schoolEmailService";
 import { buildAndGenerateStatementPdf } from "../services/statementPdfData";
@@ -462,7 +463,7 @@ router.get("/billing", parentAuthMiddleware, async (req, res) => {
     const entries = collectFamilyAccountEntries(ledger, {
       accountRef: scope.accountRef,
       learnerIds: scope.learnerIds,
-    });
+    }).filter((entry) => shouldShowLedgerEntryOnStatement(entry, false));
     const balance = await resolveAuthoritativeAccountBalance(auth.schoolId, scope.accountRef, {
       ledger,
     });

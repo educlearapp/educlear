@@ -36,8 +36,10 @@ import {
   shouldPrefetchInvoiceRunPreview,
   stampLegacyInvoiceRunDrafts,
   toThinInvoiceRunDraft,
+  type InvoiceRunExtraFee,
   type InvoiceRunListRow,
 } from "./invoiceRunList";
+import InvoiceRunOnceOffFeeModal from "./InvoiceRunOnceOffFeeModal";
 import { resolveStatementBillingContact } from "./statementBillingContact";
 
 
@@ -148,6 +150,9 @@ export default function InvoiceRuns(props: any) {
   const [invoiceRunPreviewError, setInvoiceRunPreviewError] = useState("");
   const [invoiceRunExecuteResult, setInvoiceRunExecuteResult] = useState<any | null>(null);
   const [invoiceRunExecuteLoading, setInvoiceRunExecuteLoading] = useState(false);
+  const [onceOffFeesByLearnerId, setOnceOffFeesByLearnerId] = useState<
+    Record<string, InvoiceRunExtraFee[]> | null
+  >(null);
   const [serverInvoiceRuns, setServerInvoiceRuns] = useState<InvoiceRunListRow[]>([]);
   const [serverInvoicePeriodCounts, setServerInvoicePeriodCounts] = useState<
     Record<string, number>
@@ -1536,10 +1541,17 @@ export default function InvoiceRuns(props: any) {
       stampLegacyInvoiceRunDrafts(existingRuns, schoolId),
       schoolId
     );
+    const usedRunIds = [
+      ...serverInvoiceRuns.map((run) => String(run?.runId || run?.id || "")),
+      ...schoolDrafts
+        .filter((draft) => draft?.executed === true)
+        .map((draft) => String(draft?.runId || draft?.id || "")),
+    ].filter(Boolean);
     const started = beginInvoiceRunWizard({
       drafts: schoolDrafts,
       schoolId,
       month,
+      usedRunIds,
     });
     const defaults = buildInvoiceRunDefaults(
       billingSettingsRef.current,
@@ -5117,6 +5129,45 @@ export default function InvoiceRuns(props: any) {
 
 
           </button>
+
+          <button
+            style={{ ...goldBtn, width: "100%", padding: 14, marginTop: 10 }}
+            onClick={() => {
+              const current = toThinInvoiceRunDraft(
+                readJson(["educlearSelectedInvoiceRun"], selectedRun)
+              );
+              setOnceOffFeesByLearnerId(
+                (current.extraFeesByLearnerId as Record<string, InvoiceRunExtraFee[]>) || {}
+              );
+            }}
+          >
+            Add Once-off Fee To Selected Learners
+          </button>
+
+          <InvoiceRunOnceOffFeeModal
+            open={onceOffFeesByLearnerId !== null}
+            learners={childrenSourceRows.map((row: Record<string, unknown>) => ({
+              id: String(row.id || row.learnerId || ""),
+              name: String(row.firstName || ""),
+              surname: String(row.surname || ""),
+              classroom: String(row.classroom || ""),
+              accountNo: String(row.accountNo || ""),
+            }))}
+            extraFeesByLearnerId={onceOffFeesByLearnerId || {}}
+            onApply={(nextById) => {
+              const current = readJson(["educlearSelectedInvoiceRun"], selectedRun);
+              const next = toThinInvoiceRunDraft({
+                ...current,
+                rows: [],
+                extraFeesByLearnerId: nextById,
+              });
+              saveRunDraft(next);
+              setOnceOffFeesByLearnerId(nextById);
+              wizardPreviewKeyRef.current = "";
+              void loadInvoiceRunPreview(next);
+            }}
+            onClose={() => setOnceOffFeesByLearnerId(null)}
+          />
 
 
 

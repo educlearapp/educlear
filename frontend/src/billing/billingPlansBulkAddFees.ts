@@ -53,6 +53,20 @@ export function appendFeesToPlan(
   ];
 }
 
+/** Billing-plan lines are charged on every monthly invoice run. */
+const NON_RECURRING_PLAN_FEE_TYPES = new Set(["ONCE_OFF", "ONCEOFF", "ANNUALLY", "YEARLY", "TERMLY"]);
+
+export function isNonRecurringPlanFeeType(type: unknown): boolean {
+  const key = String(type ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, "_");
+  return NON_RECURRING_PLAN_FEE_TYPES.has(key);
+}
+
+export const ONCE_OFF_FEE_GUIDANCE =
+  'Billing plans are charged every month. Add once-off, termly or annual fees in Invoice Runs → Fees → "Add Once-off Fee To Selected Learners" so they are invoiced once.';
+
 export function validateBulkAddSelection(
   selectedLearnerIds: string[],
   selectedFees: BulkAddFee[]
@@ -62,6 +76,13 @@ export function validateBulkAddSelection(
   }
   if (!selectedFees.length) {
     return { ok: false, error: "Select at least one fee." };
+  }
+  const nonRecurring = selectedFees.find((fee) => isNonRecurringPlanFeeType(fee.type));
+  if (nonRecurring) {
+    return {
+      ok: false,
+      error: `"${nonRecurring.description}" is a ${nonRecurring.type} fee and cannot be added to billing plans. ${ONCE_OFF_FEE_GUIDANCE}`,
+    };
   }
   return { ok: true };
 }

@@ -11,6 +11,9 @@ const officialRefsBySchool = new Map<string, Set<string>>();
 /** Only this snapshot source activates the Kid-e-Sys official posting gate. */
 export const KIDEESYS_AGE_ANALYSIS_SOURCE = "kideesys-age-analysis";
 
+/** Accounts opened through EduClear admissions/finance registration after the Kid-e-Sys import. */
+export const EDUCLEAR_REGISTRATION_SOURCE = "educlear-registration";
+
 /** @internal Test hook — clears memoized official account ref sets. */
 export function invalidateOfficialBillingAccountRefsCache(schoolId?: string): void {
   if (schoolId) officialRefsBySchool.delete(String(schoolId || "").trim());
@@ -56,6 +59,9 @@ export function normaliseInvoiceRunPostingAccountRef(
  * - `universal-migration-baseline` / `educlear-registration` (and any other source)
  *   → do NOT activate the gate merely because Kid-e-Sys-shaped keys exist
  *   (Fly Eagle Express family accountRefs can resolve).
+ * - Once the gate is active, Kid-e-Sys-format `educlear-registration` keys are members
+ *   too (families enrolled in EduClear after the import). Retired/merged accounts are
+ *   still refused downstream by assertFamilyAccountAcceptsNewBillingWrites.
  */
 export function readOfficialBillingAccountRefs(schoolId: string): Set<string> {
   const sid = String(schoolId || "").trim();
@@ -64,10 +70,19 @@ export function readOfficialBillingAccountRefs(schoolId: string): Set<string> {
 
   const snapshots = readSchoolFamilyAccountAgeAnalysisSnapshots(schoolId);
   const refs = new Set<string>();
+  const registrationRefs: string[] = [];
   for (const [key, snap] of Object.entries(snapshots || {})) {
-    if (String(snap?.source || "").trim() !== KIDEESYS_AGE_ANALYSIS_SOURCE) continue;
-    const ref = normaliseOfficialBillingAccountRef(key);
-    if (ref) refs.add(ref);
+    const source = String(snap?.source || "").trim();
+    if (source === KIDEESYS_AGE_ANALYSIS_SOURCE) {
+      const ref = normaliseOfficialBillingAccountRef(key);
+      if (ref) refs.add(ref);
+    } else if (source === EDUCLEAR_REGISTRATION_SOURCE) {
+      const ref = normaliseOfficialBillingAccountRef(key);
+      if (ref) registrationRefs.push(ref);
+    }
+  }
+  if (refs.size > 0) {
+    for (const ref of registrationRefs) refs.add(ref);
   }
   officialRefsBySchool.set(sid, refs);
   return refs;

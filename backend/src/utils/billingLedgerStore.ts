@@ -49,6 +49,17 @@ export type BillingLedgerEntry = {
   undoneByCorrectionId?: string;
   /** Original ledger entry id this correction journal reverses. */
   correctsEntryId?: string;
+  /** Staff user who performed the undo (set on the original and its correction journal). */
+  undoneByUserId?: string;
+  undoneByEmail?: string;
+  undoneByRole?: string;
+  /** Reason entered by staff when undoing (required for payments). */
+  undoReason?: string;
+  /**
+   * Allocation rows that were active on the payment when it was undone. History only:
+   * active allocations live in payment-allocations.json and are cleared on undo.
+   */
+  reversedAllocations?: ReversedPaymentAllocationSnapshot[];
   /** Canonical FamilyAccount.id for new manual captures. Historical rows may omit this. */
   familyAccountId?: string;
   /** Durable Capture Payment idempotency key (new manual captures only). */
@@ -58,6 +69,15 @@ export type BillingLedgerEntry = {
   capturedByName?: string;
   /** Operator/bank/cash reference as entered — not the auto PAY- receipt number. */
   bankReference?: string;
+};
+
+export type ReversedPaymentAllocationSnapshot = {
+  id: string;
+  invoiceId: string | null;
+  feeCategory: string | null;
+  allocatedAmount: number;
+  allocatedBy?: string;
+  createdAt: string;
 };
 
 export { isKidesysOpeningBalanceEntry } from "./billingDisplayRules";
@@ -605,6 +625,33 @@ export function upsertSchoolEntries(schoolId: string, entries: BillingLedgerEntr
     for (const entry of entries) byId.set(entry.id, entry);
     all[storeKey] = Array.from(byId.values());
     writeAll(all);
+  });
+}
+
+/**
+ * Re-reads the school's ledger inside the ledger lock, lets `decide` inspect the current rows,
+ * and upserts whatever it returns in the same locked section (check-and-write is atomic
+ * across requests and processes).
+ */
+export function mutateSchoolLedgerEntries<T>(
+  schoolId: string,
+  decide: (entries: BillingLedgerEntry[]) => { upserts: BillingLedgerEntry[]; result: T }
+): T {
+  const key = String(schoolId || "").trim();
+  if (!key) throw new Error("Missing schoolId");
+  return withBillingLedgerLock(() => {
+    const storeKey = resolveBillingLedgerStoreKey(key) || key;
+    invalidateBillingLedgerFileCache();
+    const all = readAll();
+    const current = Array.isArray(all[storeKey]) ? [...all[storeKey]] : [];
+    const { upserts, result } = decide(current);
+    if (upserts.length) {
+      const byId = new Map(current.map((e) => [e.id, e]));
+      for (const entry of upserts) byId.set(entry.id, entry);
+      all[storeKey] = Array.from(byId.values());
+      writeAll(all);
+    }
+    return result;
   });
 }
 
