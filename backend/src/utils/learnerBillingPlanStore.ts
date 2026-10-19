@@ -12,6 +12,8 @@ export type StoredBillingPlanItem = {
   id?: string;
   feeDescription: string;
   amount: number;
+  /** FeeStructure.id when this line is a known catalogue fee. */
+  feeStructureId?: string;
 };
 
 type PlanFile = Record<string, Record<string, StoredBillingPlanItem[]>>;

@@ -55,10 +55,12 @@ export function buildInvoiceChargeLines(
     const amount = roundInvoiceMoney(normaliseAmount(item?.amount));
     if (!description || amount <= 0) continue;
     const persistentId = String(item?.id || "").trim();
+    const feeStructureId = String(item?.feeStructureId || "").trim();
     lines.push({
       lineKey: persistentId || deterministicPlanLineKey(index, description, amount),
       description,
       amount,
+      ...(feeStructureId ? { feeStructureId } : {}),
     });
   }
 
@@ -69,10 +71,12 @@ export function buildInvoiceChargeLines(
     const amount = roundInvoiceMoney(normaliseAmount(item?.amount));
     if (!description || amount <= 0) continue;
     const persistentId = String(item?.id || "").trim();
+    const feeStructureId = String(item?.feeStructureId || "").trim();
     lines.push({
       lineKey: persistentId || deterministicExtraLineKey(index, description, amount),
       description,
       amount,
+      ...(feeStructureId ? { feeStructureId } : {}),
     });
   }
 
@@ -115,7 +119,8 @@ export function normalizeInvoiceChargeLines(
     const amount = roundInvoiceMoney(normaliseAmount(record.amount));
     const lineKey = String(record.lineKey || "").trim();
     if (!description || amount <= 0 || !lineKey) continue;
-    lines.push({ lineKey, description, amount });
+    const feeStructureId = String(record.feeStructureId || "").trim();
+    lines.push({ lineKey, description, amount, ...(feeStructureId ? { feeStructureId } : {}) });
   }
   return lines.length ? lines : undefined;
 }

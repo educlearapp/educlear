@@ -10,6 +10,8 @@ export type BillingInvoiceChargeLine = {
   lineKey: string;
   description: string;
   amount: number;
+  /** FeeStructure.id when the line was matched to the catalogue at invoice time. */
+  feeStructureId?: string;
 };
 
 export type BillingLedgerEntry = {
