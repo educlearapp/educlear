@@ -48,7 +48,16 @@ Statements must **not** show **0 accounts** unless the API **confirms 0 real acc
 - Failed fetch, timeout, or empty response after cache clear = **error state**, not “0 accounts”.
 - Do not apply Da Silva summary baseline overlay when `accountsCount === 0` from a failed or empty sync.
 
-**Da Silva production expectation after a healthy deploy:** **344** statement accounts.
+**Da Silva production expectation after a healthy deploy (resolved 19 October 2026):** **350** active statement accounts.
+
+The older **344** figure is the original Kid-e-Sys age-analysis import, not the current statement population. A read-only reconciliation on 19 October 2026 closed this finding:
+
+- **344** original Kid-e-Sys snapshot records (source `kideesys-age-analysis`, import marker `2099-12-31`).
+- **350** historical snapshot keys (those 344 records plus 6 EduClear registration snapshots from July–August 2026).
+- **350** current active statement accounts. An active family account qualifies when it has a snapshot or ledger activity. Retired accounts are omitted.
+- **352** family accounts in total, including two retired accounts: MOR013 merged into LEK003, and MOT683 merged into MOT684.
+
+A raw snapshot-key count of 350 is expected. Do not treat 344 as a failed or incomplete statement sync.
 
 ---
 
@@ -146,12 +155,12 @@ Frontend rollback reference: `backend/scripts/trigger-frontend-rollback-deploy.m
 
 - [ ] Export or copy **`billing-ledger.json`** from the running `educlear-backend` instance (or last approved backup) and store with deploy log (timestamp + commit SHA).
 - [ ] Confirm Render **persistent disk** is mounted for ledger `data/` **or** accept explicit risk and document why deploy cannot wait.
-- [ ] Read-only baseline: statement account count (~**344** for Da Silva), note current `kidesys_topup` count if check script is available.
+- [ ] Read-only baseline: **350** active Da Silva statement accounts (the **344** Kid-e-Sys snapshot import is historical only), note current `kidesys_topup` count if check script is available.
 
 ### After backend deploy
 
 - [ ] Verify **`kidesys_topup`** row count in runtime ledger matches pre-deploy baseline (current Da Silva baseline: **346** rows, all from top-up batch `cmq0wpb6600e6evozo7vg5m2g` uploaded 2026-06-05; the older **92** figure was the 2026-06-04 batch restored after the ledger-loss incident and has since been superseded).
-- [ ] Verify **344** statement accounts (Da Silva).
+- [ ] Verify **350** active statement accounts (Da Silva). Do not expect the historical **344** Kid-e-Sys snapshot count on the live statement list.
 - [ ] Spot-check balances: **DUP001** **R-12,200**, **ALI002** **R4,000** (read-only UI or API).
 - [ ] Do **not** re-run top-up restore/re-import unless a new data loss is confirmed — manual payment fixes after recovery must not be overwritten.
 

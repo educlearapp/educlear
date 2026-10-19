@@ -42,7 +42,7 @@ Production ledger file content now matches `backend/storage/billing-ledger-produ
 
 1. **Never deploy backend** without exporting production `billing-ledger.json` first.
 2. Store export as `backend/storage/billing-ledger-production-backup-YYYY-MM-DD.json`.
-3. Post-deploy: verify ledger entry count, `kidesys_topup` count (**346** current Da Silva baseline; ~92 was the superseded 2026-06-04 batch), 344 statement accounts (Da Silva), DUP001 / ALI002 spot-checks.
+3. Post-deploy: verify ledger entry count, `kidesys_topup` count (**346** current Da Silva baseline; ~92 was the superseded 2026-06-04 batch), **350** active Da Silva statement accounts (the **344** Kid-e-Sys snapshot import and the **350** snapshot keys are historical file counts, not a second population; **352** family accounts include two retired), DUP001 / ALI002 spot-checks.
 4. If live manual payments were taken before deploy, re-apply from export — git bundle alone is not sufficient.
 
 ---

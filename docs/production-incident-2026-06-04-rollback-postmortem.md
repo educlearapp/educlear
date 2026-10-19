@@ -257,6 +257,8 @@ GET https://educlear-backend.onrender.com/api/schools/cmpideqeq0000108xb6ouv9zi
 
 **Statements sanity check:** Da Silva production should show **344** statement accounts after rollback (Kid-e-Sys migration baseline).
 
+**Superseded for current operations, 19 October 2026:** that 344 count remains the original Kid-e-Sys snapshot import. The live statement population is **350** active family accounts. The snapshot file has **350** keys, and the school has **352** family accounts including two retired accounts. Do not use 344 as the current post-deploy check.
+
 ---
 
 ## Sign-off

@@ -23,6 +23,13 @@ import { isSchoolSmsReady, sendSchoolSms } from "./schoolSmsService";
 import { WinSmsApiError } from "./winSmsClient";
 import { isOutboundSmsDisabled } from "../utils/outboundSafety";
 import { publicSmsProviderError, SMS_CREDITS_PER_SEGMENT } from "./smsSegmentCalculator";
+import {
+  bulkSmsRecipientKey,
+  claimStatementBulkSmsSend,
+  classifyStoredBulkSmsOutcome,
+  completeStatementBulkSmsSend,
+  statementSmsBillingPeriod,
+} from "./statementBulkSmsDuplicateGuard";
 
 /** Matches bulk statement email concurrency (frontend BULK_STATEMENT_SEND_CONCURRENCY). */
 export const BULK_STATEMENT_SMS_CONCURRENCY = 5;
@@ -903,6 +910,12 @@ type SendBulkStatementSmsInput = {
   mobileNumbers?: unknown;
   cellNo?: unknown;
   phone?: unknown;
+  /** Separate audited action. A normal send never sets this. */
+  confirmResend?: boolean;
+  resendReason?: string;
+  actorUserId?: string;
+  /** Test clock. Production callers omit this. */
+  now?: Date;
 };
 
 export async function sendBulkStatementSms(input: SendBulkStatementSmsInput) {
@@ -1117,9 +1130,40 @@ async function sendBulkStatementSmsUnlogged(
     };
   }
 
+  const billingPeriod = statementSmsBillingPeriod(input.now);
+  let operationId = "";
+  try {
+    const claim = claimStatementBulkSmsSend({
+      schoolId,
+      billingPeriod,
+      recipientStrategy: strategy,
+      recipientKeys: jobs.map((job) => bulkSmsRecipientKey(job.familyAccountId, job.dest.parentIds)),
+      now: input.now,
+      confirmResend: input.confirmResend === true,
+      resendReason: input.resendReason,
+      actorUserId: input.actorUserId,
+    });
+    if (!claim.claimed) return claim.response;
+    operationId = claim.operationId;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Bulk SMS send log is busy. Nothing was sent.";
+    return {
+      ok: false as const,
+      status: 503,
+      error: message,
+      summary: message,
+      code: "SMS_SEND_LOG_BUSY",
+      simulated: false,
+      duplicateBlocked: false,
+      resent: false,
+    };
+  }
+
   diagnostics.stage = "provider";
   const providerStartedAt = Date.now();
-  const destinationResults = await mapPool(jobs, BULK_STATEMENT_SMS_CONCURRENCY, async (job) => {
+  let destinationResults: BulkStatementSmsDestinationResult[];
+  try {
+    destinationResults = await mapPool(jobs, BULK_STATEMENT_SMS_CONCURRENCY, async (job) => {
     try {
       const providerResponse = await sendSchoolSms(schoolId, {
         message: job.message,
@@ -1151,24 +1195,38 @@ async function sendBulkStatementSmsUnlogged(
       } satisfies BulkStatementSmsDestinationResult;
     } catch (error) {
       incrementCount(diagnostics.errorCodes, safeBulkSmsErrorCode(error));
-      const errMsg = publicSmsProviderError(
-        error instanceof WinSmsApiError
-          ? error.message
-          : error instanceof Error
-            ? error.message
-            : "SMS send failed"
-      );
+      const providerRefused =
+        error instanceof WinSmsApiError &&
+        error.statusCode >= 400 &&
+        error.statusCode < 500 &&
+        error.statusCode !== 408 &&
+        error.statusCode !== 429;
+      const errMsg = providerRefused
+        ? publicSmsProviderError(error.message)
+        : BULK_SMS_UNCONFIRMED_MESSAGE;
       return {
         familyAccountId: job.familyAccountId,
         accountNo: job.accountNo,
         parentIds: job.dest.parentIds,
         displayNames: job.dest.displayNames,
         mobileMasked: job.dest.mobileMasked,
-        status: "failed" as const,
+        status: providerRefused ? ("failed" as const) : ("unconfirmed" as const),
         error: errMsg,
       } satisfies BulkStatementSmsDestinationResult;
     }
   });
+  } catch (error) {
+    completeStatementBulkSmsSend(operationId, {
+      outcome: "uncertain",
+      attemptedDestinations: jobs.length,
+      successfulDestinations: 0,
+      failedDestinations: 0,
+      unconfirmedDestinations: jobs.length,
+      httpStatus: 503,
+      summary: "The send stopped before every WinSMS result was recorded. These messages were not retried.",
+    });
+    throw error;
+  }
 
   diagnostics.providerMs = Date.now() - providerStartedAt;
 
@@ -1229,10 +1287,29 @@ async function sendBulkStatementSmsUnlogged(
     });
   }
 
+  const storedOutcome = classifyStoredBulkSmsOutcome({
+    successfulDestinations,
+    failedDestinations,
+    unconfirmedDestinations,
+  });
+  completeStatementBulkSmsSend(operationId, {
+    outcome: storedOutcome,
+    attemptedDestinations: destinationResults.length,
+    successfulDestinations,
+    failedDestinations,
+    unconfirmedDestinations,
+    httpStatus: outcome.status,
+    summary: outcome.summary,
+  });
+
   return {
     ok: outcome.ok,
     status: outcome.status,
     simulated: false,
+    duplicateBlocked: false,
+    resent: input.confirmResend === true,
+    operationId,
+    billingPeriod,
     summary: outcome.summary,
     ...(outcome.ok ? {} : { error: outcome.summary }),
     recipientStrategy: strategy,

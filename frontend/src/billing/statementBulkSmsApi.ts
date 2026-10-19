@@ -80,6 +80,11 @@ export type BulkStatementSmsSendResponse = {
   error?: string;
   code?: string;
   message?: string;
+  duplicateBlocked?: boolean;
+  resent?: boolean;
+  inProgress?: boolean;
+  operationId?: string;
+  billingPeriod?: string;
   requestedAccountCount?: number;
   eligibleAccountCount?: number;
   skippedAccountCount?: number;
@@ -193,6 +198,8 @@ export async function sendBulkStatementSmsRequest(input: {
   recipientStrategy: BulkStatementSmsRecipientStrategy;
   accountOverrides?: BulkStatementSmsAccountOverride[];
   messageTemplate?: string;
+  confirmResend?: boolean;
+  resendReason?: string;
 }): Promise<BulkStatementSmsSendResponse> {
   const res = await fetch(`${API_URL}/api/statements/bulk-send-sms`, {
     method: "POST",
@@ -206,9 +213,18 @@ export async function sendBulkStatementSmsRequest(input: {
       recipientStrategy: input.recipientStrategy,
       accountOverrides: input.accountOverrides || [],
       messageTemplate: input.messageTemplate,
+      confirmResend: input.confirmResend === true,
+      resendReason: input.resendReason,
     }),
   });
   const json = (await res.json().catch(() => ({}))) as BulkStatementSmsSendResponse;
+  if (
+    json.code === "DUPLICATE_BULK_SMS" ||
+    json.code === "RESEND_REASON_REQUIRED" ||
+    json.code === "HISTORICAL_STATEMENT_SMS_HOLD"
+  ) {
+    return json;
+  }
   if (!res.ok && !json.success) {
     throw new Error(
       json.error || json.summary || json.message || "WinSMS rejected the message before sending it."

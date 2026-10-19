@@ -83,6 +83,8 @@ export default function SMS({
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [duplicateBlocked, setDuplicateBlocked] = useState(false);
+  const [resendReason, setResendReason] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
 
   const [editId, setEditId] = useState<string | null>(null);
@@ -229,11 +231,16 @@ export default function SMS({
     return res.sms;
   };
 
-  const handleSend = async () => {
+  const handleSend = async (confirmResend?: boolean) => {
+    const resend = confirmResend === true;
     setError("");
     setSendNotice("");
     if (hasUnresolvedManualSmsPlaceholders(message)) {
       setError("Please complete or remove placeholder fields before sending.");
+      return;
+    }
+    if (resend && resendReason.trim().length < 15) {
+      setError("An intentional resend needs a reason of at least 15 characters. Nothing was sent.");
       return;
     }
     setLoading(true);
@@ -241,15 +248,26 @@ export default function SMS({
       const saved = await saveDraft();
       if (!saved?.id) throw new Error("Could not save SMS before sending");
       if (!contacts.length) throw new Error("Add at least one contact before sending");
-      const res = await sendSms(schoolId, saved.id);
+      const res = await sendSms(schoolId, saved.id, {
+        confirmResend: resend,
+        resendReason: resend ? resendReason.trim() : undefined,
+      });
+      setDuplicateBlocked(false);
       setSmsCredits(res.smsCredits ?? smsCredits);
       if (res.creditBalance != null) {
         setLiveWinSmsBalance(res.creditBalance);
       } else {
         await refreshLiveWinSmsBalance();
       }
-      const deliveryLabel =
-        res.simulated === false ? "Delivered via WinSMS (live send)." : "SMS send completed.";
+      const accepted = res.acceptedCount || 0;
+      const delivered = res.deliveredCount || 0;
+      const rejected = (res.rejectedCount || 0) + (res.failedCount || 0);
+      const pending = res.pendingCount || 0;
+      const unknown = res.unknownCount || 0;
+      const deliveryLabel = [
+        `Accepted ${accepted}. Delivered ${delivered}. Rejected or failed ${rejected}. Pending ${pending}. Not confirmed ${unknown}.`,
+        "Accepted means WinSMS took the message. It is not a handset delivery receipt.",
+      ].join(" ");
       setSendNotice(res.warning ? `${deliveryLabel} ${res.warning}` : deliveryLabel);
       await loadList();
       setView("list");
@@ -261,15 +279,16 @@ export default function SMS({
       if (e?.creditBalance != null) {
         setLiveWinSmsBalance(e.creditBalance);
       }
+      setDuplicateBlocked(e?.code === "DUPLICATE_COMMUNICATION_SMS");
       setError(e?.message || "Failed to send SMS");
     } finally {
       setLoading(false);
     }
   };
 
-  const statusColor = (status: SmsRecord["status"]) => {
-    if (status === "Sent") return "#15803d";
-    if (status === "Failed") return "#b91c1c";
+  const statusColor = (status: string) => {
+    if (status === "Sent" || status === "Accepted" || status === "Delivered") return "#15803d";
+    if (status === "Failed" || status === "Rejected") return "#b91c1c";
     return "#92400e";
   };
 
@@ -380,7 +399,7 @@ export default function SMS({
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button type="button" style={ghostBtn} onClick={() => { setView("list"); loadList(); }}>← Back</button>
-            <button type="button" style={goldBtn} onClick={handleSend} disabled={loading}>Send</button>
+            <button type="button" style={goldBtn} onClick={() => void handleSend()} disabled={loading}>Send</button>
             <div style={{ position: "relative" }}>
               <button type="button" style={ghostBtn} onClick={() => setMoreOpen((v) => !v)}>More Actions ▾</button>
               {moreOpen ? (
@@ -393,6 +412,28 @@ export default function SMS({
         </div>
 
         {error ? <div style={{ marginBottom: 14, padding: 12, borderRadius: 10, background: "#fef2f2", color: "#b91c1c", fontWeight: 700 }}>{error}</div> : null}
+        {duplicateBlocked ? (
+          <div style={{ marginBottom: 14, padding: 12, borderRadius: 10, background: "#fffbeb", color: "#92400e" }}>
+            <div style={{ fontWeight: 800, marginBottom: 6 }}>Intentional resend</div>
+            <div style={{ fontSize: 13, marginBottom: 8 }}>
+              This sends the same message again and is stored with your reason. It does not run automatically.
+            </div>
+            <textarea
+              value={resendReason}
+              onChange={(event) => setResendReason(event.target.value)}
+              rows={3}
+              style={{ width: "100%", boxSizing: "border-box", font: "inherit" }}
+            />
+            <button
+              type="button"
+              style={{ ...goldBtn, marginTop: 8 }}
+              disabled={loading}
+              onClick={() => void handleSend(true)}
+            >
+              {loading ? "Sending…" : "Record intentional resend"}
+            </button>
+          </div>
+        ) : null}
 
         {editId && hasUnresolvedManualSmsPlaceholders(message) ? (
           <div
@@ -492,9 +533,14 @@ export default function SMS({
                     <td style={td}>{c.relationship}</td>
                     <td style={td}>{c.cellNo}</td>
                     <td style={td}>
-                      <span style={{ color: statusColor(c.status as SmsRecord["status"]), fontWeight: 800 }}>
+                      <span style={{ color: statusColor(c.status), fontWeight: 800 }}>
                         {c.status}
                       </span>
+                      {c.statusDetail ? (
+                        <div style={{ color: "#64748b", fontWeight: 600, fontSize: 12, marginTop: 4 }}>
+                          {c.statusDetail}
+                        </div>
+                      ) : null}
                     </td>
                   </tr>
                 ))

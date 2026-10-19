@@ -146,6 +146,7 @@ export default function BulkStatementSmsModal({
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<BulkStatementSmsSendResponse | null>(null);
   const [sendError, setSendError] = useState("");
+  const [resendReason, setResendReason] = useState("");
   const bodyRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -192,8 +193,13 @@ export default function BulkStatementSmsModal({
   const canAdvanceFromMessage =
     Boolean(messageTemplate.trim()) && messageTemplate.trim().length <= STATEMENT_SMS_MAX_CHARS;
 
-  async function handleSend() {
+  async function handleSend(confirmResend?: boolean) {
+    const resend = confirmResend === true;
     if (sending || !preview?.canSend) return;
+    if (resend && resendReason.trim().length < 15) {
+      setSendError("An intentional resend needs a reason of at least 15 characters. Nothing was sent.");
+      return;
+    }
     setSending(true);
     setSendError("");
     try {
@@ -202,6 +208,8 @@ export default function BulkStatementSmsModal({
         familyAccountIds,
         recipientStrategy: strategy,
         messageTemplate,
+        confirmResend: resend,
+        resendReason: resend ? resendReason.trim() : undefined,
       });
       setSendResult(result);
       setStep(5);
@@ -437,6 +445,11 @@ export default function BulkStatementSmsModal({
                       </div>
                     )}
                   </div>
+                  <div style={{ marginTop: 12, color: "#64748b", fontSize: 13, lineHeight: 1.5 }}>
+                    Sending this same group again in the current billing period is blocked. A
+                    refresh or a second click does not contact WinSMS again. An intentional resend
+                    is a separate step and asks for a written reason.
+                  </div>
                   {Array.isArray(preview.sampleMessages) && preview.sampleMessages.length ? (
                     <div style={{ marginTop: 12 }}>
                       <div style={{ fontWeight: 800, marginBottom: 6 }}>Sample messages</div>
@@ -502,6 +515,34 @@ export default function BulkStatementSmsModal({
                     Copy failure summary
                   </button>
                 ) : null}
+                {sendResult.code === "DUPLICATE_BULK_SMS" && !sendResult.inProgress ? (
+                  <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid #e2e8f0" }}>
+                    <div style={{ fontWeight: 800, marginBottom: 6 }}>Intentional resend</div>
+                    <div style={{ fontSize: 13, color: "#64748b", marginBottom: 8 }}>
+                      This sends the same accounts again and is stored with your reason. It does
+                      not run automatically.
+                    </div>
+                    <textarea
+                      data-testid="bulk-sms-resend-reason"
+                      value={resendReason}
+                      onChange={(event) => setResendReason(event.target.value)}
+                      rows={3}
+                      style={{ width: "100%", boxSizing: "border-box", font: "inherit" }}
+                    />
+                    {sendError ? (
+                      <div style={{ marginTop: 8, color: "#991b1b", fontWeight: 700 }}>{sendError}</div>
+                    ) : null}
+                    <button
+                      type="button"
+                      data-testid="bulk-sms-intentional-resend"
+                      style={{ ...goldBtn, marginTop: 8 }}
+                      disabled={sending}
+                      onClick={() => void handleSend(true)}
+                    >
+                      {sending ? "Sending…" : "Record intentional resend"}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -558,7 +599,7 @@ export default function BulkStatementSmsModal({
                   sending || previewLoading || !preview?.canSend || Boolean(previewError)
                 )}
                 disabled={sending || previewLoading || !preview?.canSend || Boolean(previewError)}
-                onClick={handleSend}
+                onClick={() => void handleSend()}
               >
                 {sending ? "Sending…" : "Send SMS"}
               </button>

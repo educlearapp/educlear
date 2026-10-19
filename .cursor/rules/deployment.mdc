@@ -23,7 +23,7 @@ Follow `docs/permanent-deployment-rules.md` for full detail. These rules are bin
 - **No cache clearing before successful fetch** — keep last-good data.
 - **Never show 0 accounts** from a failed sync; show an error unless API confirms 0 real accounts.
 - Do not apply Da Silva baseline overlay when `accountsCount === 0` from failed/empty API.
-- Da Silva healthy production: **344** statement accounts; verify totals and profile after deploy.
+- Da Silva healthy production: **350** active statement accounts. **344** is the original Kid-e-Sys snapshot import only. **350** snapshot keys and **352** family accounts (two retired) are separate counts. Verify totals and profile after deploy.
 
 ## Production data hygiene
 

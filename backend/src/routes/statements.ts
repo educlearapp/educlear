@@ -382,6 +382,9 @@ router.post(
         mobileNumbers: body.mobileNumbers,
         cellNo: body.cellNo,
         phone: body.phone,
+        confirmResend: body.confirmResend === true,
+        resendReason: typeof body.resendReason === "string" ? body.resendReason : undefined,
+        actorUserId: auth.userId,
       });
 
       return res.status(result.status).json({

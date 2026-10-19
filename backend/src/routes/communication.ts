@@ -27,7 +27,15 @@ import {
   testSchoolSmsConnection,
 } from "../services/schoolSmsService";
 import { WinSmsApiError } from "../services/winSmsClient";
-import { analyseSmsMessage } from "../services/smsSegmentCalculator";
+import { analyseSmsMessage, publicSmsProviderError } from "../services/smsSegmentCalculator";
+import { classifyCommunicationSmsSend } from "../services/communicationSmsAcceptance";
+import {
+  claimCommunicationSmsSend,
+  communicationSmsRecipientKey,
+  communicationSmsStoredOutcome,
+  completeCommunicationSmsSend,
+} from "../services/communicationSmsDuplicateGuard";
+import type { SchoolModuleGateRequest } from "../middleware/requireSchoolModule";
 
 const router = Router();
 const DATA_FILE = path.join(process.cwd(), "data", "communication-store.json");
@@ -77,6 +85,8 @@ type SmsContact = {
   relationship: string;
   cellNo: string;
   status: string;
+  /** Staff-facing WinSMS result. Never a phone number. */
+  statusDetail?: string;
 };
 
 type SmsRecord = {
@@ -86,7 +96,7 @@ type SmsRecord = {
   description: string;
   message: string;
   contacts: SmsContact[];
-  status: "Draft" | "Sent" | "Failed";
+  status: "Draft" | "Sent" | "Failed" | "Unknown";
   createdAt: string;
   updatedAt: string;
   sentAt?: string;
@@ -640,8 +650,16 @@ router.delete("/sms/:id", (req, res) => {
 });
 
 router.post("/sms/:id/send", async (req, res) => {
-  const schoolId = String(req.body?.schoolId || "").trim();
+  const requestedSchoolId = String(req.body?.schoolId || "").trim();
+  const moduleAuth = (req as SchoolModuleGateRequest).schoolModuleAuth;
+  const authorizedSchoolId = String(moduleAuth?.authorizedSchoolId || "").trim();
+  if (authorizedSchoolId && requestedSchoolId && authorizedSchoolId !== requestedSchoolId) {
+    return res.status(403).json({ success: false, error: "School access denied", simulated: false });
+  }
+  const schoolId = authorizedSchoolId || requestedSchoolId;
   const id = String(req.params.id || "").trim();
+  const confirmResend = req.body?.confirmResend === true;
+  const resendReason = typeof req.body?.resendReason === "string" ? req.body.resendReason : undefined;
 
   try {
     if (!schoolId) {
@@ -702,12 +720,39 @@ router.post("/sms/:id/send", async (req, res) => {
       invalidRecipientCount: invalidContactIds.size,
     });
 
-    let winSmsAccepted = false;
+    let operationId = "";
+    if (prepared.length > 0) {
+      try {
+        const claim = claimCommunicationSmsSend({
+          schoolId,
+          messageId: id,
+          message,
+          recipientKeys: prepared.map((entry) => communicationSmsRecipientKey(entry.contact.id, entry.mobileNumber)),
+          confirmResend,
+          resendReason,
+          actorUserId: moduleAuth?.userId,
+        });
+        if (!claim.claimed) {
+          return res.status(claim.response.status).json({
+            ...claim.response,
+            success: false,
+            simulated: false,
+          });
+        }
+        operationId = claim.operationId;
+      } catch (error) {
+        const busy = error instanceof Error ? error.message : "Communication SMS send log is busy. Nothing was sent.";
+        return res.status(503).json({ success: false, error: busy, summary: busy, simulated: false });
+      }
+    }
+
+    let providerResponse: unknown = null;
+    let providerError: { statusCode?: number } | null = null;
     let winSmsError = prepared.length ? "" : "No valid mobile numbers on the selected contacts.";
 
     if (prepared.length > 0) {
       try {
-        await sendSchoolSms(schoolId, {
+        providerResponse = await sendSchoolSms(schoolId, {
           message,
           recipients: prepared.map((entry) => ({
             mobileNumber: entry.mobileNumber,
@@ -716,25 +761,28 @@ router.post("/sms/:id/send", async (req, res) => {
           maxSegments: segments,
           clientMessageIdPrefix: id,
         });
-        winSmsAccepted = true;
         console.info("[communication] sms send winSms result", {
           schoolId,
           messageId: id,
           recipientCount: prepared.length,
-          result: "accepted",
+          result: "response",
         });
       } catch (error) {
-        winSmsError =
+        providerError = {
+          statusCode: error instanceof WinSmsApiError ? error.statusCode : 0,
+        };
+        winSmsError = publicSmsProviderError(
           error instanceof WinSmsApiError
             ? error.message
             : error instanceof Error
               ? error.message
-              : "WinSMS send failed";
+              : "WinSMS send failed"
+        );
         console.error("[communication] sms send winSms result", {
           schoolId,
           messageId: id,
           recipientCount: prepared.length,
-          result: "failed",
+          result: providerError.statusCode && providerError.statusCode < 500 ? "rejected" : "unknown",
           error: winSmsError,
         });
       }
@@ -748,22 +796,44 @@ router.post("/sms/:id/send", async (req, res) => {
       });
     }
 
+    const acceptance = classifyCommunicationSmsSend({
+      prepared: prepared.map((entry) => ({
+        contactId: entry.contact.id,
+        clientMessageId: `${id}-${entry.contact.id}`,
+      })),
+      invalidContactIds: [...invalidContactIds],
+      providerResponse,
+      providerError,
+    });
+    const acceptanceByContact = new Map(acceptance.contacts.map((contact) => [contact.contactId, contact]));
     record.contacts = record.contacts.map((contact) => {
-      if (invalidContactIds.has(contact.id)) {
-        return { ...contact, status: "Failed" };
-      }
-      if (winSmsAccepted) {
-        return { ...contact, status: "Sent" };
-      }
-      return { ...contact, status: "Failed" };
+      const classified = acceptanceByContact.get(contact.id);
+      if (!classified) return contact;
+      return {
+        ...contact,
+        status: classified.status,
+        statusDetail: classified.detail || undefined,
+      };
     });
 
-    const sentCount = record.contacts.filter((contact) => contact.status === "Sent").length;
-    const failedCount = record.contacts.filter((contact) => contact.status === "Failed").length;
+    const acceptedCount = acceptance.accepted + acceptance.delivered;
+    const failedCount = acceptance.rejected + acceptance.failed;
+    if (operationId) {
+      completeCommunicationSmsSend(operationId, {
+        outcome: communicationSmsStoredOutcome(acceptance),
+        attemptedDestinations: prepared.length,
+        successfulDestinations: acceptance.accepted + acceptance.delivered,
+        failedDestinations: acceptance.rejected + acceptance.failed,
+        unconfirmedDestinations: acceptance.unknown + acceptance.pending,
+      });
+    }
 
-    if (sentCount > 0) {
+    if (acceptance.campaignStatus === "Sent") {
       record.status = "Sent";
       record.sentAt = now;
+    } else if (acceptance.campaignStatus === "Unknown") {
+      record.status = "Unknown";
+      record.sentAt = undefined;
     } else {
       record.status = "Failed";
       record.sentAt = undefined;
@@ -773,7 +843,7 @@ router.post("/sms/:id/send", async (req, res) => {
     writeStore(store);
 
     let creditBalance: number | undefined;
-    if (winSmsAccepted) {
+    if (acceptedCount > 0) {
       const balanceResult = await checkSchoolSmsCreditBalance(schoolId);
       if (balanceResult.ok) {
         creditBalance = balanceResult.creditBalance;
@@ -784,16 +854,28 @@ router.post("/sms/:id/send", async (req, res) => {
       sms: record,
       smsCredits: school.smsCredits,
       simulated: false as const,
+      acceptedCount: acceptance.accepted,
+      rejectedCount: acceptance.rejected,
+      unknownCount: acceptance.unknown,
+      pendingCount: acceptance.pending,
+      deliveredCount: acceptance.delivered,
+      failedCount: acceptance.failed,
       ...(creditBalance !== undefined ? { creditBalance } : {}),
-      ...(failedCount > 0 && sentCount > 0
-        ? { warning: `${failedCount} recipient(s) could not be sent.` }
+      ...(acceptance.accepted + acceptance.delivered > 0 && failedCount > 0
+        ? {
+            warning: `${failedCount} recipient(s) were rejected or could not be sent. Accepted is not a handset delivery receipt.`,
+          }
         : {}),
     };
 
-    if (sentCount === 0) {
+    if (acceptedCount === 0) {
+      const error =
+        acceptance.unknown + acceptance.pending > 0
+          ? "WinSMS did not confirm acceptance for every recipient. Check sent history before trying again. Nothing was marked delivered."
+          : winSmsError || "WinSMS did not accept any recipient.";
       return res.status(400).json({
         success: false,
-        error: winSmsError || "SMS send failed for all recipients.",
+        error,
         ...responseBody,
       });
     }

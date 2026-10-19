@@ -65,6 +65,7 @@ export type SmsContact = {
   relationship: string;
   cellNo: string;
   status: string;
+  statusDetail?: string;
 };
 
 export type SmsRecord = {
@@ -74,7 +75,7 @@ export type SmsRecord = {
   description: string;
   message: string;
   contacts: SmsContact[];
-  status: "Draft" | "Sent" | "Failed";
+  status: "Draft" | "Sent" | "Failed" | "Unknown";
   createdAt: string;
   updatedAt: string;
   sentAt?: string;
@@ -223,23 +224,43 @@ export type SendSmsResponse = {
   creditBalance?: number;
   warning?: string;
   error?: string;
+  acceptedCount?: number;
+  rejectedCount?: number;
+  unknownCount?: number;
+  pendingCount?: number;
+  deliveredCount?: number;
+  failedCount?: number;
 };
 
-export async function sendSms(schoolId: string, id: string): Promise<SendSmsResponse> {
+export async function sendSms(
+  schoolId: string,
+  id: string,
+  options?: { confirmResend?: boolean; resendReason?: string }
+): Promise<SendSmsResponse> {
   const res = await fetch(`${BASE}/sms/${encodeURIComponent(id)}/send`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
-    body: JSON.stringify({ schoolId }),
+    body: JSON.stringify({
+      schoolId,
+      confirmResend: options?.confirmResend === true,
+      resendReason: options?.confirmResend === true ? options.resendReason : undefined,
+    }),
   });
-  const data = (await res.json().catch(() => ({}))) as SendSmsResponse & { error?: string };
+  const data = (await res.json().catch(() => ({}))) as SendSmsResponse & {
+    error?: string;
+    code?: string;
+    summary?: string;
+  };
   if (!res.ok || !data.success) {
-    const err = new Error(String(data.error || `Request failed (${res.status})`)) as Error & {
+    const err = new Error(String(data.error || data.summary || `Request failed (${res.status})`)) as Error & {
       sms?: SmsRecord;
       creditBalance?: number;
       simulated?: false;
+      code?: string;
     };
     if (data.sms) err.sms = data.sms;
     if (data.creditBalance != null) err.creditBalance = data.creditBalance;
+    err.code = data.code;
     err.simulated = false;
     throw err;
   }
