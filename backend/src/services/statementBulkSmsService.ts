@@ -1177,6 +1177,13 @@ async function sendBulkStatementSmsUnlogged(
     eligibleAccounts.length,
     skippedAccounts.length
   );
+  let billedSegments = 0;
+  let maxMessageSegments = 0;
+  destinationResults.forEach((row, index) => {
+    const segments = Number(jobs[index]?.segments) || 0;
+    if (segments > maxMessageSegments) maxMessageSegments = segments;
+    if (row.status === "sent" || row.status === "unconfirmed") billedSegments += segments;
+  });
   const { successfulDestinations, failedDestinations, unconfirmedDestinations } = outcome;
 
   const accountResults: Array<{
@@ -1236,6 +1243,9 @@ async function sendBulkStatementSmsUnlogged(
     successfulDestinations,
     failedDestinations,
     unconfirmedDestinations,
+    billedSegments,
+    creditsUsed: billedSegments * SMS_CREDITS_PER_SEGMENT,
+    maxMessageSegments,
     concurrency: BULK_STATEMENT_SMS_CONCURRENCY,
     skippedAccounts,
     results: destinationResults,

@@ -87,6 +87,9 @@ export type BulkStatementSmsSendResponse = {
   successfulDestinations?: number;
   failedDestinations?: number;
   unconfirmedDestinations?: number;
+  billedSegments?: number;
+  creditsUsed?: number;
+  maxMessageSegments?: number;
   results?: Array<{
     familyAccountId: string;
     accountNo: string;
@@ -244,6 +247,57 @@ export function outstandingSelectionKey(row: {
   const fa = String(row.familyAccountId || "").trim();
   if (fa) return `fa:${fa}`;
   return `ref:${String(row.accountRef || "").trim()}`;
+}
+
+export type BulkSmsResultView = {
+  summary: string;
+  attempted: number;
+  accepted: number;
+  rejected: number;
+  unknown: number;
+  skipped: number;
+  segments: number;
+  credits: number;
+  longestMessageSegments: number;
+};
+
+function finiteCount(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Always returns visible text and numeric counts. Never throws on a bad payload. */
+export function normalizeBulkSmsSendResult(
+  raw: unknown,
+  preview?: Pick<
+    BulkStatementSmsPreview,
+    "estimatedSegments" | "estimatedCredits" | "maxMessageSegments" | "destinationCount"
+  > | null
+): BulkSmsResultView {
+  const body = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const summary =
+    typeof body.summary === "string" && body.summary.trim()
+      ? body.summary.trim()
+      : typeof body.error === "string" && body.error.trim()
+        ? body.error.trim()
+        : body.success
+          ? "Bulk SMS completed."
+          : "Bulk SMS finished without a summary from the server.";
+  const segments = finiteCount(body.billedSegments) || finiteCount(preview?.estimatedSegments);
+  const credits =
+    finiteCount(body.creditsUsed) || finiteCount(preview?.estimatedCredits) || segments;
+  return {
+    summary,
+    attempted: finiteCount(body.attemptedDestinations),
+    accepted: finiteCount(body.successfulDestinations),
+    rejected: finiteCount(body.failedDestinations),
+    unknown: finiteCount(body.unconfirmedDestinations),
+    skipped: finiteCount(body.skippedAccountCount),
+    segments,
+    credits,
+    longestMessageSegments:
+      finiteCount(body.maxMessageSegments) || finiteCount(preview?.maxMessageSegments),
+  };
 }
 
 export function formatBulkSmsFailureSummary(result: BulkStatementSmsSendResponse): string {

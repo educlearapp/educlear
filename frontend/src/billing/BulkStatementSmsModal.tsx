@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { formatMoney } from "./billingLedger";
 import {
   BULK_STATEMENT_SMS_DEFAULT_TEMPLATE,
@@ -7,6 +7,7 @@ import {
   fetchBulkStatementSmsPreview,
   formatBulkSmsFailureSummary,
   formatBulkSmsPreviewRecipientLine,
+  normalizeBulkSmsSendResult,
   sendBulkStatementSmsRequest,
   STATEMENT_SMS_MAX_CHARS,
   type BulkStatementSmsPreview,
@@ -45,7 +46,9 @@ const panel: React.CSSProperties = {
   borderRadius: 14,
   width: "min(720px, 100%)",
   maxHeight: "92vh",
-  overflow: "auto",
+  overflow: "hidden",
+  display: "flex",
+  flexDirection: "column",
   boxShadow: "0 24px 60px rgba(0,0,0,0.25)",
 };
 
@@ -143,6 +146,11 @@ export default function BulkStatementSmsModal({
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<BulkStatementSmsSendResponse | null>(null);
   const [sendError, setSendError] = useState("");
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (bodyRef.current) bodyRef.current.scrollTop = 0;
+  }, [step]);
 
   const templateSegments = useMemo(
     () => estimateBulkTemplateSegments(messageTemplate),
@@ -178,6 +186,7 @@ export default function BulkStatementSmsModal({
     };
   }, [step, schoolId, familyAccountIds, strategy, messageTemplate]);
 
+  const resultView = sendResult ? normalizeBulkSmsSendResult(sendResult, preview) : null;
   const skippedAccounts = (preview?.accounts || []).filter((a) => a.status === "skipped");
   const previewRecipients = collectBulkSmsPreviewRecipients(preview);
   const canAdvanceFromMessage =
@@ -198,7 +207,10 @@ export default function BulkStatementSmsModal({
       setStep(5);
       onSent?.();
     } catch (err) {
-      setSendError(err instanceof Error ? err.message : "Bulk SMS send failed.");
+      const message = err instanceof Error ? err.message : "Bulk SMS send failed.";
+      setSendError(message);
+      setSendResult({ success: false, error: message, summary: message });
+      setStep(5);
     } finally {
       setSending(false);
     }
@@ -221,6 +233,7 @@ export default function BulkStatementSmsModal({
             justifyContent: "space-between",
             alignItems: "center",
             gap: 12,
+            flexShrink: 0,
           }}
         >
           <div>
@@ -239,7 +252,7 @@ export default function BulkStatementSmsModal({
           </button>
         </div>
 
-        <div style={{ padding: 20 }}>
+        <div ref={bodyRef} data-testid="bulk-sms-body" style={{ padding: 20, overflow: "auto", flex: 1, minHeight: 180 }}>
           <SmsModalBodyBoundary key={step}>
           <DeferredBody
             render={() => (
@@ -424,10 +437,10 @@ export default function BulkStatementSmsModal({
                       </div>
                     )}
                   </div>
-                  {preview.sampleMessages.length ? (
+                  {Array.isArray(preview.sampleMessages) && preview.sampleMessages.length ? (
                     <div style={{ marginTop: 12 }}>
                       <div style={{ fontWeight: 800, marginBottom: 6 }}>Sample messages</div>
-                      {preview.sampleMessages.map((msg, idx) => (
+                      {preview.sampleMessages.filter((msg) => typeof msg === "string").map((msg, idx) => (
                         <div
                           key={`${idx}-${msg.slice(0, 24)}`}
                           style={{
@@ -465,21 +478,24 @@ export default function BulkStatementSmsModal({
           ) : null}
 
           {step === 5 && sendResult ? (
-            <div>
+            <div data-testid="bulk-sms-result">
               <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 8 }}>Send result</div>
-              <div style={{ fontSize: 14, lineHeight: 1.65, color: "#334155" }}>
-                <div style={{ fontWeight: 800, marginBottom: 8 }}>
-                  {typeof sendResult.summary === "string" && sendResult.summary
-                    ? sendResult.summary
-                    : sendResult.success
-                      ? "Completed"
-                      : "Failed"}
+              <div style={{ fontSize: 14, lineHeight: 1.65, color: "#111827", minHeight: 140 }}>
+                <div style={{ fontWeight: 800, marginBottom: 8 }}>{resultView?.summary}</div>
+                <div>Recipients attempted: {resultView?.attempted ?? 0}</div>
+                <div>Accepted by WinSMS: {resultView?.accepted ?? 0}</div>
+                <div>Rejected or failed: {resultView?.rejected ?? 0}</div>
+                <div>Pending or not confirmed: {resultView?.unknown ?? 0}</div>
+                <div style={{ marginTop: 8, color: "#64748b", fontSize: 13 }}>
+                  Accepted means WinSMS took the message. It is not a handset delivery receipt.
                 </div>
-                <div>Attempted destinations: {resultCount(sendResult.attemptedDestinations)}</div>
-                <div>Successful destinations: {resultCount(sendResult.successfulDestinations)}</div>
-                <div>Failed destinations: {resultCount(sendResult.failedDestinations)}</div>
-                <div>Not confirmed by WinSMS: {resultCount(sendResult.unconfirmedDestinations)}</div>
-                <div>Skipped accounts: {resultCount(sendResult.skippedAccountCount)}</div>
+                <div>Skipped accounts: {resultView?.skipped ?? 0}</div>
+                <div>SMS segments: {resultView?.segments ?? 0}</div>
+                <div>SMS credits: {resultView?.credits ?? 0} (1 credit per segment)</div>
+                <div>
+                  Longest message: {resultView?.longestMessageSegments ?? 0} segment
+                  {(resultView?.longestMessageSegments ?? 0) === 1 ? "" : "s"}
+                </div>
                 {resultCount(sendResult.failedDestinations) > 0 ||
                 resultCount(sendResult.skippedAccountCount) > 0 ? (
                   <button type="button" style={{ ...ghostBtn, marginTop: 12 }} onClick={copyFailureSummary}>
@@ -504,6 +520,8 @@ export default function BulkStatementSmsModal({
             justifyContent: "space-between",
             gap: 10,
             flexWrap: "wrap",
+            flexShrink: 0,
+            background: "#fff",
           }}
         >
           <div>

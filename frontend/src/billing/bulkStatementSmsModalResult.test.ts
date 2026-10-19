@@ -130,10 +130,11 @@ async function testPartialResultRendersSummaryAndClose() {
   assert.deepEqual(r.errors, [], "no render errors");
   const text = r.container.textContent || "";
   assert.ok(text.includes("Send result"), "result step shown");
-  assert.ok(text.includes("Attempted destinations: 362"), "attempted shown");
-  assert.ok(text.includes("Successful destinations: 354"), "accepted shown");
-  assert.ok(text.includes("Failed destinations: 8"), "rejected shown");
-  assert.ok(text.includes("Not confirmed by WinSMS: 3"), "unconfirmed shown");
+  assert.ok(text.includes("Recipients attempted: 362"), "attempted shown");
+  assert.ok(text.includes("Accepted by WinSMS: 354"), "accepted shown");
+  assert.ok(text.includes("Rejected or failed: 8"), "rejected shown");
+  assert.ok(text.includes("Pending or not confirmed: 3"), "unconfirmed shown");
+  assert.ok(text.includes("not a handset delivery receipt"), "acceptance is not delivery");
   assert.equal(r.sent(), 1, "onSent once");
   await act(async () => buttonByText(r.container, "Done").click());
   await act(async () => buttonByText(r.container, "Close").click());
@@ -159,24 +160,68 @@ async function testMalformedBodyRendersSafeCounts() {
   );
   assert.deepEqual(r.errors, [], "malformed body does not crash the modal");
   const text = r.container.textContent || "";
-  assert.ok(text.includes("Send result") && text.includes("Completed"), "falls back to a text summary");
-  assert.ok(text.includes("Successful destinations: 0"), "non-numeric count shown as 0");
-  assert.ok(text.includes("Failed destinations: 8"), "numeric string count shown");
+  assert.ok(text.includes("Send result") && text.includes("Bulk SMS completed."), "falls back to a text summary");
+  assert.ok(text.includes("Accepted by WinSMS: 0"), "non-numeric count shown as 0");
+  assert.ok(text.includes("Rejected or failed: 8"), "numeric string count shown");
   await act(async () => r.root.unmount());
   console.log("✓ malformed 207 body: safe summary and counts, no crash");
 }
 
-async function testRenderFailureShowsFallbackWithClose() {
+async function testAcceptedBatchShowsSegmentsAndCredits() {
+  const r = await runToResult(
+    {
+      success: true,
+      ok: true,
+      status: 200,
+      summary: "Bulk SMS sent successfully to 60 destinations across 26 accounts.",
+      attemptedDestinations: 60,
+      successfulDestinations: 60,
+      failedDestinations: 0,
+      unconfirmedDestinations: 0,
+      skippedAccountCount: 0,
+      billedSegments: 240,
+      creditsUsed: 240,
+      maxMessageSegments: 4,
+      results: [],
+    },
+    200
+  );
+  const text = r.container.textContent || "";
+  assert.ok(text.includes("Send result"), "result step shown");
+  assert.ok(text.includes("Accepted by WinSMS: 60"), "accepted count shown");
+  assert.ok(text.includes("Rejected or failed: 0"), "rejected count shown");
+  assert.ok(text.includes("not a handset delivery receipt"), "acceptance is not delivery");
+  assert.ok(text.includes("SMS segments: 240"), "segments shown");
+  assert.ok(text.includes("SMS credits: 240"), "credits shown");
+  assert.ok(text.includes("Longest message: 4 segments"), "segment length shown");
+  assert.ok((r.container.querySelector("[data-testid=bulk-sms-result]")?.textContent || "").trim().length > 40);
+  await act(async () => r.root.unmount());
+  console.log("✓ accepted batch shows recipients, segments and credits");
+}
+
+async function testEmptyResultIsNeverBlank() {
+  const r = await runToResult({}, 200);
+  const text = r.container.textContent || "";
+  assert.ok(text.includes("Send result"));
+  assert.ok(text.includes("Bulk SMS finished without a summary from the server."));
+  assert.ok(text.includes("Accepted by WinSMS: 0"));
+  assert.ok(text.includes("Done"));
+  await act(async () => r.root.unmount());
+  console.log("✓ empty server body still shows a result");
+}
+
+async function testBadSampleMessagesDoNotBlankTheDialog() {
   const r = await runToResult(PENDING, 207, { ...preview, sampleMessages: [{ not: "text" }] }, false);
-  assert.deepEqual(r.errors, [], "render failure contained inside the modal");
-  assert.equal(r.caught.length, 1, "error caught by the modal boundary");
-  const alert = r.container.querySelector('[role="alert"]');
-  assert.ok(alert?.textContent?.includes("could not be displayed"), "visible fallback instead of a blank panel");
-  assert.ok(r.container.textContent?.includes("Bulk Statement SMS"), "header still shown");
+  assert.deepEqual(r.errors, [], "bad sample messages do not crash the modal");
+  assert.equal(r.caught.length, 0, "non-text samples are skipped");
+  const text = r.container.textContent || "";
+  assert.ok(text.includes("Final preview"), "preview stays visible");
+  assert.ok(text.includes("Bulk Statement SMS"), "header still shown");
+  assert.ok(text.trim().length > 40, "dialog is not blank");
   await act(async () => buttonByText(r.container, "Close").click());
   assert.equal(r.closed(), 1, "Close still works");
   await act(async () => r.root.unmount());
-  console.log("✓ render failure: visible fallback message, header and Close still work");
+  console.log("✓ bad sample messages leave the dialog visible");
 }
 
 async function testSendingStateStaysVisible() {
@@ -191,6 +236,8 @@ async function testSendingStateStaysVisible() {
 await testPartialResultRendersSummaryAndClose();
 await testUnexpectedBodyStillShowsResult();
 await testMalformedBodyRendersSafeCounts();
-await testRenderFailureShowsFallbackWithClose();
+await testAcceptedBatchShowsSegmentsAndCredits();
+await testEmptyResultIsNeverBlank();
+await testBadSampleMessagesDoNotBlankTheDialog();
 await testSendingStateStaysVisible();
 console.log("\nAll bulk SMS modal result tests passed.");
