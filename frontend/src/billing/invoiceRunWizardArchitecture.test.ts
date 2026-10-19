@@ -16,6 +16,7 @@ import {
   paginateInvoiceRunRows,
   persistInvoiceRunDraft,
   shouldHydrateHistoricBillingLedger,
+  invoiceRunPreviewBlockedMessage,
   shouldPrefetchInvoiceRunPreview,
   shouldSyncInvoiceRunLedger,
   toThinInvoiceRunDraft,
@@ -231,12 +232,37 @@ function testHistoricInvoiceCountDoesNotCreateFakeRuns() {
   assert(started.reused === true, "reuses the thin school+period draft");
 }
 
+function testPreviewFailureKeepsReasonAndSaysNothingWasCreated() {
+  assert(
+    invoiceRunPreviewBlockedMessage("") ===
+      "Invoice run preview failed. No invoices were created.",
+    "empty failure keeps the no-invoices message"
+  );
+  assert(
+    invoiceRunPreviewBlockedMessage(
+      new Error("Invoice Runs permission required for invoice run preview")
+    ) === "Invoice Runs permission required for invoice run preview. No invoices were created.",
+    "API reason is kept and states no invoices were created"
+  );
+  const invoiceRuns = fs.readFileSync(path.join(__dirname, "InvoiceRuns.tsx"), "utf8");
+  assert(
+    invoiceRuns.includes("invoiceRunPreviewErrorRef.current"),
+    "wizard alerts the error captured on this attempt"
+  );
+  assert(
+    invoiceRuns.includes("invoiceRunPreviewPromiseRef"),
+    "a second Next waits for the in-flight preview instead of treating it as a failure"
+  );
+  console.log("✓ preview failure message keeps the API reason and states no invoices were created");
+}
+
 function main() {
   testNetworkContractFromSource();
   testFlyEagleScalePreviewMappingAndPagination();
   testThinDraftStripsFatCandidateRows();
   testExtraFeesApplyOnlyToInvoicedIds();
   testHistoricInvoiceCountDoesNotCreateFakeRuns();
+  testPreviewFailureKeepsReasonAndSaysNothingWasCreated();
   console.log("invoiceRunWizardArchitecture.test.ts — PASS");
 }
 

@@ -166,6 +166,16 @@ export function enrichInvoiceRunWizardRowContactAndLabels(args: {
 
 const INVOICE_RUN_PAGE_SIZE = 10;
 
+/** Wizard alert copy. Preview failures must say no invoices were created, and must keep the API reason. */
+export function invoiceRunPreviewBlockedMessage(detail?: unknown): string {
+  const message = detail instanceof Error ? detail.message : String(detail ?? "");
+  const trimmed = message.trim();
+  if (!trimmed) return "Invoice run preview failed. No invoices were created.";
+  if (/no invoices were created/i.test(trimmed)) return trimmed;
+  const sentence = /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+  return `${sentence} No invoices were created.`;
+}
+
 export function invoiceRunPreviewCacheKey(run: Record<string, unknown> | null | undefined): string {
   const row = run && typeof run === "object" ? run : {};
   return JSON.stringify({

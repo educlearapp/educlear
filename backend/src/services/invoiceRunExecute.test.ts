@@ -3,6 +3,7 @@
  * Run: npx ts-node --transpile-only src/services/invoiceRunExecute.test.ts
  */
 import fs from "fs";
+import os from "os";
 import path from "path";
 
 import {
@@ -12,9 +13,12 @@ import {
   validateIntegrityGate,
 } from "./invoiceRunExecuteService";
 import {
+  appendSchoolEntriesSafe,
+  buildInvoiceRunEntryId,
   learnerHasInvoiceForPeriod,
   normalizeInvoicePeriod,
   readSchoolLedger,
+  setBillingLedgerStoreDataDirForTests,
   writeSchoolLedger,
   type BillingLedgerEntry,
 } from "../utils/billingLedgerStore";
@@ -265,6 +269,12 @@ async function testIntegrityFailureWritesNothing() {
 function testNormalizeInvoicePeriod() {
   assert(normalizeInvoicePeriod("June 2026", "2026-06-15") === "2026-06", "normalize June 2026");
   assert(normalizeInvoicePeriod("2026-06") === "2026-06", "normalize ISO");
+  assert(
+    normalizeInvoicePeriod("November 2026", "2026-10-19") === "2026-11",
+    "normalize November 2026"
+  );
+  assert(normalizeInvoicePeriod("December 2026") === "2026-12", "normalize December 2026");
+  assert(normalizeInvoicePeriod("January 2027") === "2027-01", "year boundary January 2027");
   assert(
     learnerHasInvoiceForPeriod(
       [
@@ -575,6 +585,101 @@ function testDuplicatePeriodOnExpressHistory() {
   console.log("✓ duplicate protection keeps Express period history");
 }
 
+function testPreviewRouteStaysReadOnly() {
+  const route = fs.readFileSync(path.join(process.cwd(), "src/routes/invoiceRuns.ts"), "utf8");
+  assert(route.includes('router.post("/preview", requireInvoiceRunPreviewAuth'), "preview uses preview auth");
+  assert(
+    route.includes("handleExecute(req, res, true)"),
+    "preview forces dryRun and cannot follow a client dryRun flag"
+  );
+  console.log("✓ preview route is forced read-only");
+}
+
+function testIsolatedRetryDoesNotDuplicateOrTouchPayments() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "educlear-invoice-run-"));
+  setBillingLedgerStoreDataDirForTests(dir);
+  try {
+    for (const schoolId of ["isolated-fly-eagle", "isolated-da-silva"]) {
+      const entry: BillingLedgerEntry = {
+        id: buildInvoiceRunEntryId("run-nov-2026", "learner-1", "FAM001", "learner-1"),
+        schoolId,
+        learnerId: "learner-1",
+        accountNo: "FAM001",
+        type: "invoice",
+        amount: 1800,
+        date: "2026-11-01",
+        dueDate: "2026-11-03",
+        reference: "INV-NOV",
+        description: "Tuition",
+        runId: "run-nov-2026",
+        invoicePeriod: "2026-11",
+        lineKey: "learner-1",
+        billedLearnerId: "learner-1",
+        createdAt: "2026-11-01T00:00:00.000Z",
+      };
+      const first = appendSchoolEntriesSafe(schoolId, [entry]);
+      const retry = appendSchoolEntriesSafe(schoolId, [entry]);
+      const rows = readSchoolLedger(schoolId);
+      assert(first.createdCount === 1 && first.duplicateCount === 0, `${schoolId} first post creates one invoice`);
+      assert(retry.createdCount === 0 && retry.duplicateCount === 1, `${schoolId} retry is a duplicate`);
+      assert(rows.filter((row) => row.type === "invoice").length === 1, `${schoolId} still has one invoice`);
+      assert(rows.every((row) => row.type !== "payment"), `${schoolId} created no payments`);
+    }
+    console.log("✓ isolated Fly Eagle and Da Silva retries do not duplicate invoices or create payments");
+  } finally {
+    setBillingLedgerStoreDataDirForTests(null);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+function testNovemberPreviewPlanDoesNotMutateLedger() {
+  const before = fs.existsSync(LEDGER_FILE) ? fs.readFileSync(LEDGER_FILE) : Buffer.alloc(0);
+  const period = normalizeInvoicePeriod("November 2026", "2026-10-19");
+  const linked = learner("fe-nov", "November", "Learner", "fa-nov", "FAMILY NAME");
+  const preview = buildInvoiceRunPlanForTest({
+    allActiveLearners: [linked],
+    processedLearners: [linked],
+    plansByLearnerId: { "fe-nov": plan(1800) },
+    explicitlyEmpty: new Set(),
+    accountNoByLearnerId: { "fe-nov": "FAMILY NAME" },
+    existingLedger: [],
+    invoicePeriod: period,
+  });
+  assert(preview.learnerRows[0]?.status === "invoiced", "November preview invoices the learner");
+  assert(preview.integrity.passed, "November preview integrity passes");
+  assert(preview.learnerRows[0]?.amount === 1800, "November preview amount");
+
+  const already: BillingLedgerEntry[] = [
+    {
+      id: "fe-inv-nov",
+      schoolId: TEST_SCHOOL,
+      learnerId: "fe-nov",
+      accountNo: "FAMILY NAME",
+      type: "invoice",
+      amount: 1800,
+      date: "2026-11-01",
+      invoicePeriod: "2026-11",
+      reference: "NOV",
+      description: "November",
+      createdAt: "2026-11-01T00:00:00.000Z",
+    },
+  ];
+  const duplicate = buildInvoiceRunPlanForTest({
+    allActiveLearners: [linked],
+    processedLearners: [linked],
+    plansByLearnerId: { "fe-nov": plan(1800) },
+    explicitlyEmpty: new Set(),
+    accountNoByLearnerId: { "fe-nov": "FAMILY NAME" },
+    existingLedger: already,
+    invoicePeriod: period,
+  });
+  assert(duplicate.learnerRows[0]?.skipReason === "DUPLICATE_INVOICE", "November duplicate stays protected");
+
+  const after = fs.existsSync(LEDGER_FILE) ? fs.readFileSync(LEDGER_FILE) : Buffer.alloc(0);
+  assert(before.equals(after), "November preview plan does not change billing-ledger.json");
+  console.log("✓ November preview plans without creating invoices or payments");
+}
+
 async function main() {
   testNormalizeInvoicePeriod();
   testSumBillingPlanAmount();
@@ -590,6 +695,9 @@ async function main() {
   testUnrelatedAccountUnaffectedBySiblingDuplicate();
   testFlyEagleExpressNameEligibilityExcludesUnlinked();
   testDuplicatePeriodOnExpressHistory();
+  testNovemberPreviewPlanDoesNotMutateLedger();
+  testPreviewRouteStaysReadOnly();
+  testIsolatedRetryDoesNotDuplicateOrTouchPayments();
   testFailedIntegrityGateSiblingMissed();
   await testIntegrityFailureWritesNothing();
   console.log("invoiceRunExecute.test.ts: OK");

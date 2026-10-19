@@ -2,10 +2,17 @@ import type { NextFunction, Request, Response } from "express";
 
 import { prisma } from "../prisma";
 import { getUserAccessMeta } from "../utils/userAccessStore";
-import { appRoleFromPrismaRole } from "../utils/userPermissions";
+import {
+  appRoleFromPrismaRole,
+  hasPermission,
+  resolveStoredPermissions,
+  type PermissionMap,
+} from "../utils/userPermissions";
 import { verifyStaffJwt, type StaffJwtPayload } from "../utils/staffJwt";
 
 const ALLOWED_EXECUTE_ROLES = new Set(["Owner", "Admin", "Finance"]);
+
+export type InvoiceRunAuthIntent = "preview" | "execute";
 
 export type InvoiceRunExecuteAuthRequest = Request & {
   invoiceRunExecuteAuth?: StaffJwtPayload & { appRole: string; authorizedSchoolId: string };
@@ -20,12 +27,34 @@ export type InvoiceRunExecuteAuthDecision =
     }
   | { allowed: false; status: 401 | 403; error: string };
 
+function hasInvoiceRunPermission(
+  appRole: string,
+  permissions: PermissionMap | null | undefined,
+  intent: InvoiceRunAuthIntent
+): boolean {
+  const resolved = resolveStoredPermissions(appRole || "Viewer", permissions ?? null);
+  const permUser = { appRole, isActive: true, permissions: resolved };
+  if (intent === "preview") {
+    return (
+      hasPermission(permUser, "invoiceRuns", "view") ||
+      hasPermission(permUser, "invoiceRuns", "create") ||
+      hasPermission(permUser, "invoiceRuns", "manage")
+    );
+  }
+  return (
+    hasPermission(permUser, "invoiceRuns", "create") ||
+    hasPermission(permUser, "invoiceRuns", "manage")
+  );
+}
+
 /** Pure auth decision — school is bound from the session user, never from client schoolId. */
 export function evaluateInvoiceRunExecuteAuth(input: {
   jwtPayload: StaffJwtPayload | null;
   user: { schoolId: string; role: string; isActive: boolean } | null;
   appRole: string;
   requestSchoolId: string;
+  permissions?: PermissionMap | null;
+  intent?: InvoiceRunAuthIntent;
 }): InvoiceRunExecuteAuthDecision {
   const payload = input.jwtPayload;
   if (!payload?.userId || !payload?.schoolId) {
@@ -39,11 +68,15 @@ export function evaluateInvoiceRunExecuteAuth(input: {
   }
 
   const appRole = String(input.appRole || "").trim();
-  if (!ALLOWED_EXECUTE_ROLES.has(appRole)) {
+  const intent = input.intent || "execute";
+  if (!ALLOWED_EXECUTE_ROLES.has(appRole) && !hasInvoiceRunPermission(appRole, input.permissions, intent)) {
     return {
       allowed: false,
       status: 403,
-      error: "Owner, Admin or Finance role required for invoice run preview and execute",
+      error:
+        intent === "preview"
+          ? "Invoice Runs permission required for invoice run preview"
+          : "Invoice Runs create permission required for invoice run execute",
     };
   }
 
@@ -65,10 +98,11 @@ export function evaluateInvoiceRunExecuteAuth(input: {
   return { allowed: true, authorizedSchoolId, appRole, auth };
 }
 
-export async function requireInvoiceRunExecuteAuth(
+async function authorizeInvoiceRun(
   req: InvoiceRunExecuteAuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
+  intent: InvoiceRunAuthIntent
 ) {
   const payload = verifyStaffJwt(req.headers.authorization);
   const user = payload?.userId
@@ -85,6 +119,8 @@ export async function requireInvoiceRunExecuteAuth(
     jwtPayload: payload,
     user,
     appRole,
+    permissions: meta?.permissions ?? null,
+    intent,
     requestSchoolId: String(body.schoolId || req.query?.schoolId || "").trim(),
   });
 
@@ -94,4 +130,21 @@ export async function requireInvoiceRunExecuteAuth(
 
   req.invoiceRunExecuteAuth = decision.auth;
   return next();
+}
+
+export function requireInvoiceRunExecuteAuth(
+  req: InvoiceRunExecuteAuthRequest,
+  res: Response,
+  next: NextFunction
+) {
+  return authorizeInvoiceRun(req, res, next, "execute");
+}
+
+/** Read-only preview. Custom roles with Invoice Runs view may preview; execute stays stricter. */
+export function requireInvoiceRunPreviewAuth(
+  req: InvoiceRunExecuteAuthRequest,
+  res: Response,
+  next: NextFunction
+) {
+  return authorizeInvoiceRun(req, res, next, "preview");
 }

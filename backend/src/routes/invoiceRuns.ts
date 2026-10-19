@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import {
   requireInvoiceRunExecuteAuth,
+  requireInvoiceRunPreviewAuth,
   type InvoiceRunExecuteAuthRequest,
 } from "../middleware/requireInvoiceRunExecuteAuth";
 import {
@@ -98,7 +99,7 @@ router.post("/execute", requireInvoiceRunExecuteAuth, (req: InvoiceRunExecuteAut
   handleExecute(req, res, req.body?.dryRun === true)
 );
 
-router.post("/preview", requireInvoiceRunExecuteAuth, (req: InvoiceRunExecuteAuthRequest, res) =>
+router.post("/preview", requireInvoiceRunPreviewAuth, (req: InvoiceRunExecuteAuthRequest, res) =>
   handleExecute(req, res, true)
 );
 

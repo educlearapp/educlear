@@ -32,6 +32,7 @@ import {
   mergeInvoiceRunLists,
   paginateInvoiceRunRows,
   persistInvoiceRunDraft,
+  invoiceRunPreviewBlockedMessage,
   invoiceRunPreviewCacheKey,
   shouldPrefetchInvoiceRunPreview,
   stampLegacyInvoiceRunDrafts,
@@ -143,6 +144,8 @@ export default function InvoiceRuns(props: any) {
   const [billingLoading, setBillingLoading] = useState(false);
   const invoiceRunNotifiedRef = useRef<string>("");
   const invoiceRunPreviewInFlightRef = useRef(false);
+  const invoiceRunPreviewPromiseRef = useRef<Promise<any> | null>(null);
+  const invoiceRunPreviewErrorRef = useRef("");
   const wizardPreviewKeyRef = useRef("");
   const invoiceRunPreviewLoadedRunIdRef = useRef("");
   const [invoiceRunServerPreview, setInvoiceRunServerPreview] = useState<any | null>(null);
@@ -1312,33 +1315,48 @@ export default function InvoiceRuns(props: any) {
     };
   };
 
+  const rememberInvoiceRunPreviewError = (detail: unknown) => {
+    const message = invoiceRunPreviewBlockedMessage(detail);
+    invoiceRunPreviewErrorRef.current = message;
+    setInvoiceRunPreviewError(message);
+  };
+
   const loadInvoiceRunPreview = async (run: any) => {
     const schoolId = localStorage.getItem("schoolId") || "";
-    if (!schoolId || !run?.id) return null;
+    if (!schoolId || !run?.id) {
+      rememberInvoiceRunPreviewError(
+        !schoolId ? "Missing school" : "Missing invoice run"
+      );
+      return null;
+    }
     const previewKey = invoiceRunPreviewCacheKey(run);
-    if (invoiceRunPreviewInFlightRef.current) return invoiceRunServerPreview;
+    if (invoiceRunPreviewPromiseRef.current) return invoiceRunPreviewPromiseRef.current;
     if (wizardPreviewKeyRef.current === previewKey && invoiceRunServerPreview) {
       return invoiceRunServerPreview;
     }
-    invoiceRunPreviewInFlightRef.current = true;
-    wizardPreviewKeyRef.current = previewKey;
-    setInvoiceRunPreviewLoading(true);
-    setInvoiceRunPreviewError("");
-    try {
-      const result = await previewInvoiceRun(buildRunExecutePayload(run));
-      setInvoiceRunServerPreview(result);
-      return result;
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Invoice run preview failed";
-      setInvoiceRunPreviewError(message);
-      setInvoiceRunServerPreview(null);
-      wizardPreviewKeyRef.current = "";
-      return null;
-    } finally {
-      invoiceRunPreviewInFlightRef.current = false;
-      setInvoiceRunPreviewLoading(false);
-    }
+    const promise = (async () => {
+      invoiceRunPreviewInFlightRef.current = true;
+      wizardPreviewKeyRef.current = previewKey;
+      setInvoiceRunPreviewLoading(true);
+      invoiceRunPreviewErrorRef.current = "";
+      setInvoiceRunPreviewError("");
+      try {
+        const result = await previewInvoiceRun(buildRunExecutePayload(run));
+        setInvoiceRunServerPreview(result);
+        return result;
+      } catch (error) {
+        rememberInvoiceRunPreviewError(error);
+        setInvoiceRunServerPreview(null);
+        wizardPreviewKeyRef.current = "";
+        return null;
+      } finally {
+        invoiceRunPreviewInFlightRef.current = false;
+        setInvoiceRunPreviewLoading(false);
+        invoiceRunPreviewPromiseRef.current = null;
+      }
+    })();
+    invoiceRunPreviewPromiseRef.current = promise;
+    return promise;
   };
 
   const runInvoiceRunExecute = async (run: any) => {
@@ -4105,7 +4123,8 @@ export default function InvoiceRuns(props: any) {
           const preview = await loadInvoiceRunPreview(run);
           if (!preview) {
             window.alert(
-              invoiceRunPreviewError || "Invoice run preview failed. No invoices were created."
+              invoiceRunPreviewErrorRef.current ||
+                "Invoice run preview failed. No invoices were created."
             );
             return false;
           }

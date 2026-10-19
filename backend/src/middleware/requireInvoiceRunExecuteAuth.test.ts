@@ -4,6 +4,7 @@
  * Run: npx tsx src/middleware/requireInvoiceRunExecuteAuth.test.ts
  */
 import { evaluateInvoiceRunExecuteAuth } from "./requireInvoiceRunExecuteAuth";
+import { emptyPermissionMap, type PermissionMap } from "../utils/userPermissions";
 
 const FLY_EAGLE = "cmt1e8bjp0jo8lcjeketlynhl";
 const DA_SILVA = "cmpideqeq0000108xb6ouv9zi";
@@ -124,6 +125,123 @@ function testEmptyBodyUsesAuthorizedSchool() {
   console.log("✓ empty request schoolId uses authenticated school");
 }
 
+function invoiceRunPermissions(action: "view" | "create" | "manage"): PermissionMap {
+  const map = emptyPermissionMap();
+  map.invoiceRuns[action] = true;
+  return map;
+}
+
+function testCustomRoleFollowsInvoiceRunPermission() {
+  const viewOnly = evaluateInvoiceRunExecuteAuth({
+    jwtPayload: jwtPayload(FLY_EAGLE),
+    user: activeUser(FLY_EAGLE),
+    appRole: "Custom",
+    permissions: invoiceRunPermissions("view"),
+    intent: "preview",
+    requestSchoolId: FLY_EAGLE,
+  });
+  assert(viewOnly.allowed, "Fly Eagle Custom with invoiceRuns.view can preview");
+
+  const viewCannotExecute = evaluateInvoiceRunExecuteAuth({
+    jwtPayload: jwtPayload(FLY_EAGLE),
+    user: activeUser(FLY_EAGLE),
+    appRole: "Custom",
+    permissions: invoiceRunPermissions("view"),
+    intent: "execute",
+    requestSchoolId: FLY_EAGLE,
+  });
+  assert(!viewCannotExecute.allowed && viewCannotExecute.status === 403, "view-only Custom cannot execute");
+
+  const createCanExecute = evaluateInvoiceRunExecuteAuth({
+    jwtPayload: jwtPayload(FLY_EAGLE),
+    user: activeUser(FLY_EAGLE),
+    appRole: "Custom",
+    permissions: invoiceRunPermissions("create"),
+    intent: "execute",
+    requestSchoolId: FLY_EAGLE,
+  });
+  assert(createCanExecute.allowed, "Custom with invoiceRuns.create can execute");
+
+  const teacher = evaluateInvoiceRunExecuteAuth({
+    jwtPayload: jwtPayload(FLY_EAGLE),
+    user: activeUser(FLY_EAGLE),
+    appRole: "Teacher",
+    permissions: emptyPermissionMap(),
+    intent: "preview",
+    requestSchoolId: FLY_EAGLE,
+  });
+  assert(!teacher.allowed && teacher.status === 403, "Teacher without Invoice Runs permission → 403");
+
+  const manageCanExecute = evaluateInvoiceRunExecuteAuth({
+    jwtPayload: jwtPayload(DA_SILVA),
+    user: activeUser(DA_SILVA),
+    appRole: "Custom",
+    permissions: invoiceRunPermissions("manage"),
+    intent: "execute",
+    requestSchoolId: DA_SILVA,
+  });
+  assert(manageCanExecute.allowed, "Da Silva Custom with invoiceRuns.manage can execute");
+
+  const daSilvaView = evaluateInvoiceRunExecuteAuth({
+    jwtPayload: jwtPayload(DA_SILVA),
+    user: activeUser(DA_SILVA),
+    appRole: "Custom",
+    permissions: invoiceRunPermissions("view"),
+    intent: "preview",
+    requestSchoolId: DA_SILVA,
+  });
+  assert(daSilvaView.allowed, "Da Silva Custom with invoiceRuns.view can preview");
+  const daSilvaViewExecute = evaluateInvoiceRunExecuteAuth({
+    jwtPayload: jwtPayload(DA_SILVA),
+    user: activeUser(DA_SILVA),
+    appRole: "Custom",
+    permissions: invoiceRunPermissions("view"),
+    intent: "execute",
+    requestSchoolId: DA_SILVA,
+  });
+  assert(
+    !daSilvaViewExecute.allowed &&
+      daSilvaViewExecute.status === 403 &&
+      daSilvaViewExecute.error === "Invoice Runs create permission required for invoice run execute",
+    "Da Silva view-only Custom gets a clear execute error"
+  );
+
+  const noInvoiceRuns = evaluateInvoiceRunExecuteAuth({
+    jwtPayload: jwtPayload(FLY_EAGLE),
+    user: activeUser(FLY_EAGLE),
+    appRole: "Custom",
+    permissions: emptyPermissionMap(),
+    intent: "preview",
+    requestSchoolId: FLY_EAGLE,
+  });
+  assert(
+    !noInvoiceRuns.allowed &&
+      noInvoiceRuns.error === "Invoice Runs permission required for invoice run preview",
+    "Custom without Invoice Runs permission cannot preview"
+  );
+
+  const ownerWithoutBits = evaluateInvoiceRunExecuteAuth({
+    jwtPayload: jwtPayload(DA_SILVA),
+    user: activeUser(DA_SILVA),
+    appRole: "Owner",
+    permissions: emptyPermissionMap(),
+    intent: "execute",
+    requestSchoolId: DA_SILVA,
+  });
+  assert(ownerWithoutBits.allowed, "Owner access is unchanged when permission bits are empty");
+
+  const spoof = evaluateInvoiceRunExecuteAuth({
+    jwtPayload: jwtPayload(FLY_EAGLE),
+    user: activeUser(FLY_EAGLE),
+    appRole: "Custom",
+    permissions: invoiceRunPermissions("create"),
+    intent: "preview",
+    requestSchoolId: DA_SILVA,
+  });
+  assert(!spoof.allowed && spoof.status === 403, "Custom permission cannot cross tenants");
+  console.log("✓ Custom Invoice Runs permission allows preview without bypassing tenant or execute gates");
+}
+
 function testMatchingBodySchoolAllowed() {
   const d = evaluateInvoiceRunExecuteAuth({
     jwtPayload: jwtPayload(FLY_EAGLE),
@@ -142,6 +260,7 @@ function main() {
   testClientSchoolIdCannotOverrideTenant();
   testJwtSchoolMismatch403();
   testEmptyBodyUsesAuthorizedSchool();
+  testCustomRoleFollowsInvoiceRunPermission();
   testMatchingBodySchoolAllowed();
   console.log("requireInvoiceRunExecuteAuth.test.ts: OK");
 }
