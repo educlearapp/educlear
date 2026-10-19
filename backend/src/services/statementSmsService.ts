@@ -13,9 +13,18 @@ import { normalizeSaPhone } from "./parentPortalService";
 import { isSchoolSmsReady, sendSchoolSms } from "./schoolSmsService";
 import { WinSmsApiError } from "./winSmsClient";
 import { isOutboundSmsDisabled } from "../utils/outboundSafety";
+import {
+  analyseSmsMessage,
+  STATEMENT_SMS_MAX_CHARS,
+  STATEMENT_SMS_MAX_SEGMENTS,
+  STATEMENT_SMS_SEGMENT_CHARS,
+} from "./smsSegmentCalculator";
 
-export const STATEMENT_SMS_MAX_CHARS = 480;
-export const STATEMENT_SMS_SEGMENT_CHARS = 160;
+export {
+  STATEMENT_SMS_MAX_CHARS,
+  STATEMENT_SMS_MAX_SEGMENTS,
+  STATEMENT_SMS_SEGMENT_CHARS,
+};
 
 export type StatementSmsBalanceClass = "outstanding" | "settled" | "credit";
 
@@ -151,7 +160,7 @@ export function buildDefaultStatementSmsMessage(input: {
 }
 
 export function sanitiseStatementSmsMessage(raw: string): {
-  ok: true; message: string; charCount: number; segments: number
+  ok: true; message: string; charCount: number; segments: number; encoding: "gsm" | "ucs2"; credits: number
 } | { ok: false; error: string } {
   const message = String(raw || "").trim();
   if (!message) {
@@ -160,12 +169,24 @@ export function sanitiseStatementSmsMessage(raw: string): {
   if (message.length > STATEMENT_SMS_MAX_CHARS) {
     return {
       ok: false,
-      error: `SMS message must be ${STATEMENT_SMS_MAX_CHARS} characters or fewer.`,
+      error: `SMS message must be ${STATEMENT_SMS_MAX_CHARS} characters or fewer. The message was not shortened.`,
     };
   }
-  const charCount = message.length;
-  const segments = Math.max(1, Math.ceil(charCount / STATEMENT_SMS_SEGMENT_CHARS));
-  return { ok: true, message, charCount, segments };
+  const counted = analyseSmsMessage(message);
+  if (counted.segments > STATEMENT_SMS_MAX_SEGMENTS) {
+    return {
+      ok: false,
+      error: `This message is ${counted.segments} SMS segments, above the limit of ${STATEMENT_SMS_MAX_SEGMENTS}. Shorten it before sending. The message was not changed.`,
+    };
+  }
+  return {
+    ok: true,
+    message,
+    charCount: message.length,
+    segments: counted.segments,
+    encoding: counted.encoding,
+    credits: counted.credits,
+  };
 }
 
 export function rankStatementSmsContacts(

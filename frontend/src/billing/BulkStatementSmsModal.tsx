@@ -315,6 +315,8 @@ export default function BulkStatementSmsModal({
               <div style={{ marginTop: 8, fontSize: 12, color: "#64748b", fontWeight: 700 }}>
                 {messageTemplate.trim().length}/{STATEMENT_SMS_MAX_CHARS} characters · ~
                 {templateSegments} SMS segment
+                {templateSegments === 1 ? "" : "s"} · ~
+                {templateSegments} credit
                 {templateSegments === 1 ? "" : "s"} (before per-account substitution)
               </div>
               <button
@@ -373,6 +375,19 @@ export default function BulkStatementSmsModal({
                   <div>Duplicate numbers removed: {preview.duplicateNumbersRemoved}</div>
                   <div>Total outstanding: {formatMoney(preview.totalOutstanding)}</div>
                   <div>Estimated SMS segments: {preview.estimatedSegments}</div>
+                  <div>
+                    Longest message: {resultCount(preview.maxMessageSegments) || "—"} segment
+                    {(resultCount(preview.maxMessageSegments) || 0) === 1 ? "" : "s"}
+                  </div>
+                  <div>
+                    Estimated SMS credits: {preview.estimatedCredits ?? preview.estimatedSegments}{" "}
+                    (1 credit per segment)
+                  </div>
+                  {preview.messageLimitError ? (
+                    <div style={{ marginTop: 8, color: "#991b1b", fontWeight: 800 }}>
+                      {preview.messageLimitError}
+                    </div>
+                  ) : null}
                   <div>
                     Strategy:{" "}
                     {preview.recipientStrategy === "all_eligible"

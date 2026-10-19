@@ -119,7 +119,25 @@ function testUnconfirmedOutcomeSummary() {
   const partial = summariseBulkSmsDestinationOutcome([{ status: "sent" }, { status: "failed" }], 2, 2);
   assert.equal(partial.summary, "1 SMS sent. 1 SMS failed. 2 accounts skipped.");
   const failed = summariseBulkSmsDestinationOutcome([{ status: "failed" }], 1, 0);
-  assert.deepEqual([failed.ok, failed.status, failed.summary], [false, 502, "Bulk SMS send failed."]);
+  assert.deepEqual(
+    [failed.ok, failed.status, failed.summary],
+    [false, 502, "WinSMS rejected every message before sending it."]
+  );
+  const rejected = summariseBulkSmsDestinationOutcome(
+    [
+      {
+        status: "failed",
+        error:
+          "The GSM Encoded segment count of the 'message' parameter is 4. This exceeds the 'maxSegments' value of 3 specified.",
+      },
+    ],
+    1,
+    0
+  );
+  assert.equal(rejected.status, 502);
+  assert.match(rejected.summary, /WinSMS rejected the message before sending it/);
+  assert.match(rejected.summary, /GSM Encoded segment count/);
+  assert.doesNotMatch(rejected.summary, /082|api key/i);
   console.log("  ✓ unconfirmed outcomes preserved separately; existing sent/partial/failed results unchanged");
 }
 

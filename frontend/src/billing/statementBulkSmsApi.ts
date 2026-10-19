@@ -1,7 +1,12 @@
 import { API_URL } from "../api";
 import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 import type { StatementSmsContact } from "./statementSmsApi";
-import { STATEMENT_SMS_MAX_CHARS, STATEMENT_SMS_SEGMENT_CHARS } from "./statementSmsApi";
+import {
+  analyseSmsMessage,
+  SMS_CREDITS_PER_SEGMENT,
+  STATEMENT_SMS_MAX_CHARS,
+  STATEMENT_SMS_SEGMENT_CHARS,
+} from "./statementSmsApi";
 
 export type BulkStatementSmsRecipientStrategy = "recommended" | "all_eligible";
 
@@ -48,6 +53,9 @@ export type BulkStatementSmsPreview = {
   duplicateNumbersRemoved: number;
   totalOutstanding: number;
   estimatedSegments: number;
+  estimatedCredits?: number;
+  maxMessageSegments?: number;
+  messageLimitError?: string | null;
   recipientStrategy: BulkStatementSmsRecipientStrategy;
   messageTemplate: string;
   defaultMessageTemplate: string;
@@ -105,9 +113,11 @@ export const BULK_STATEMENT_SMS_DEFAULT_TEMPLATE =
 export { STATEMENT_SMS_MAX_CHARS, STATEMENT_SMS_SEGMENT_CHARS };
 
 export function estimateBulkTemplateSegments(template: string): number {
-  const len = String(template || "").trim().length;
-  if (len <= 0) return 0;
-  return Math.max(1, Math.ceil(len / STATEMENT_SMS_SEGMENT_CHARS));
+  return analyseSmsMessage(String(template || "").trim()).segments;
+}
+
+export function estimateBulkTemplateCredits(template: string): number {
+  return analyseSmsMessage(String(template || "").trim()).segments * SMS_CREDITS_PER_SEGMENT;
 }
 
 export function formatBulkSmsPreviewRecipientLine(
@@ -197,7 +207,9 @@ export async function sendBulkStatementSmsRequest(input: {
   });
   const json = (await res.json().catch(() => ({}))) as BulkStatementSmsSendResponse;
   if (!res.ok && !json.success) {
-    throw new Error(json.error || json.message || "Bulk SMS send failed.");
+    throw new Error(
+      json.error || json.summary || json.message || "WinSMS rejected the message before sending it."
+    );
   }
   return json;
 }

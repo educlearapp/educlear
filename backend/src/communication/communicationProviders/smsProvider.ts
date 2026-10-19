@@ -2,6 +2,7 @@ import type { ProviderSendContext, ProviderSendResult } from "./emailProvider";
 import { normalizeSaPhone } from "../../services/parentPortalService";
 import { isSchoolSmsReady, sendSchoolSms } from "../../services/schoolSmsService";
 import { WinSmsApiError } from "../../services/winSmsClient";
+import { analyseSmsMessage } from "../../services/smsSegmentCalculator";
 
 export async function sendSmsPlaceholder(ctx: ProviderSendContext): Promise<ProviderSendResult> {
   const schoolId = String(ctx.schoolId || "").trim();
@@ -22,7 +23,7 @@ export async function sendSmsPlaceholder(ctx: ProviderSendContext): Promise<Prov
     const response = await sendSchoolSms(schoolId, {
       message: body,
       recipients: [{ mobileNumber: plainInternational, clientMessageId: ctx.messageId }],
-      maxSegments: Math.max(1, Math.ceil(body.length / 160)),
+      maxSegments: analyseSmsMessage(body).segments || 1,
       clientMessageIdPrefix: ctx.messageId ? `comm-${ctx.messageId}` : "comm",
     });
 

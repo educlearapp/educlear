@@ -16,6 +16,7 @@ import {
   type SmsRecord,
 } from "./communicationApi";
 import { checkSchoolSmsCreditBalance } from "./schoolSmsApi";
+import { analyseSmsMessage } from "../billing/smsSegmentCalculator";
 import {
   fieldStyle,
   ghostBtn,
@@ -39,7 +40,6 @@ type Props = {
 type View = "list" | "compose";
 
 const PAGE_SIZE = 10;
-const SMS_LIMIT = 160;
 
 /** Plain default for manual compose — automated invoice/statement SMS still use settings placeholders. */
 function manualSmsDefaultMessage(schoolName: string): string {
@@ -103,7 +103,7 @@ export default function SMS({
   const [settings, setSettings] = useState<CommunicationSettings | null>(null);
 
   const charCount = message.length;
-  const segments = Math.max(1, Math.ceil(charCount / SMS_LIMIT));
+  const segments = analyseSmsMessage(message.trim()).segments;
 
   const refreshLiveWinSmsBalance = useCallback(async () => {
     if (!schoolId) {
@@ -422,8 +422,9 @@ export default function SMS({
               value={message}
               onChange={(e) => setMessage(e.target.value)}
             />
-            <span style={{ fontSize: 12, fontWeight: 700, color: charCount > SMS_LIMIT ? "#b91c1c" : "#64748b" }}>
-              {charCount} / {SMS_LIMIT} characters · {segments} segment(s)
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#64748b" }}>
+              {charCount} characters · {segments} segment{segments === 1 ? "" : "s"} · {segments} credit
+              {segments === 1 ? "" : "s"}
             </span>
           </label>
         </div>

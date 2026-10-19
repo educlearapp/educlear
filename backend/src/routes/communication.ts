@@ -27,6 +27,7 @@ import {
   testSchoolSmsConnection,
 } from "../services/schoolSmsService";
 import { WinSmsApiError } from "../services/winSmsClient";
+import { analyseSmsMessage } from "../services/smsSegmentCalculator";
 
 const router = Router();
 const DATA_FILE = path.join(process.cwd(), "data", "communication-store.json");
@@ -680,7 +681,7 @@ router.post("/sms/:id/send", async (req, res) => {
       });
     }
 
-    const segments = Math.max(1, Math.ceil(message.length / 160));
+    const segments = analyseSmsMessage(message).segments || 1;
     const now = new Date().toISOString();
     const invalidContactIds = new Set<string>();
     const prepared: { contact: SmsContact; mobileNumber: string }[] = [];

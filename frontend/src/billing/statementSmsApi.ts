@@ -1,5 +1,6 @@
 import { API_URL } from "../api";
 import { staffAuthHeaders } from "../auth/staffAuthHeaders";
+import { analyseSmsMessage } from "./smsSegmentCalculator";
 
 export type StatementSmsContact = {
   parentId: string;
@@ -136,11 +137,14 @@ export async function sendStatementSmsRequest(input: {
   return json;
 }
 
-export const STATEMENT_SMS_MAX_CHARS = 480;
-export const STATEMENT_SMS_SEGMENT_CHARS = 160;
+export {
+  STATEMENT_SMS_MAX_CHARS,
+  STATEMENT_SMS_MAX_SEGMENTS,
+  STATEMENT_SMS_SEGMENT_CHARS,
+  SMS_CREDITS_PER_SEGMENT,
+  analyseSmsMessage,
+} from "./smsSegmentCalculator";
 
 export function estimateStatementSmsSegments(text: string): number {
-  const len = String(text || "").length;
-  if (len <= 0) return 0;
-  return Math.max(1, Math.ceil(len / STATEMENT_SMS_SEGMENT_CHARS));
+  return analyseSmsMessage(String(text || "").trim()).segments;
 }

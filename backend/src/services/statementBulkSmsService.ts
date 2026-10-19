@@ -22,6 +22,7 @@ import { resolveAuthoritativeAccountBalance, roundStatementMoney } from "./state
 import { isSchoolSmsReady, sendSchoolSms } from "./schoolSmsService";
 import { WinSmsApiError } from "./winSmsClient";
 import { isOutboundSmsDisabled } from "../utils/outboundSafety";
+import { publicSmsProviderError, SMS_CREDITS_PER_SEGMENT } from "./smsSegmentCalculator";
 
 /** Matches bulk statement email concurrency (frontend BULK_STATEMENT_SEND_CONCURRENCY). */
 export const BULK_STATEMENT_SMS_CONCURRENCY = 5;
@@ -216,7 +217,7 @@ export function classifyWinSmsDestinationOutcome(acceptance: ReturnType<typeof s
  * warning instead of a generic failure that would invite resending the whole batch.
  */
 export function summariseBulkSmsDestinationOutcome(
-  rows: Array<{ status: BulkStatementSmsDestinationResult["status"] }>,
+  rows: Array<{ status: BulkStatementSmsDestinationResult["status"]; error?: string | null }>,
   eligibleAccountCount: number,
   skippedAccountCount: number
 ): {
@@ -264,7 +265,37 @@ export function summariseBulkSmsDestinationOutcome(
       summary: `${successfulDestinations} SMS sent. ${failedDestinations} SMS failed. ${skippedText}`,
     };
   }
-  return { ...counts, ok: false, status: 502, summary: "Bulk SMS send failed." };
+  const reasons = [
+    ...new Set(
+      rows
+        .filter((row) => row.status === "failed" && String(row.error || "").trim())
+        .map((row) => publicSmsProviderError(row.error))
+    ),
+  ];
+  const detail = reasons.length ? reasons.slice(0, 3).join(" ") : "";
+  return {
+    ...counts,
+    ok: false,
+    status: 502,
+    summary: detail
+      ? `WinSMS rejected the message before sending it. ${detail}`
+      : "WinSMS rejected every message before sending it.",
+  };
+}
+
+/** Stops the whole batch before WinSMS when any rendered message is over the limit. */
+export function describeBulkMessageLimitBlock(
+  rows: Array<{ skipReason?: string | null; skipMessage?: string | null; accountNo?: string | null }>
+): { blocked: boolean; error: string | null } {
+  const hits = rows.filter((row) => row.skipReason === "INVALID_MESSAGE");
+  if (!hits.length) return { blocked: false, error: null };
+  const shown = hits.slice(0, 8).map((row) => String(row.accountNo || "").trim() || "account");
+  const extra = hits.length > shown.length ? ` and ${hits.length - shown.length} more` : "";
+  const reason = String(hits[0].skipMessage || "").trim();
+  return {
+    blocked: true,
+    error: `Not sent. ${hits.length} message${hits.length === 1 ? "" : "s"} exceed the SMS limit (${shown.join(", ")}${extra}). ${reason}`.trim(),
+  };
 }
 
 export type BulkStatementSmsSendDiagnostics = {
@@ -767,6 +798,7 @@ async function previewBulkStatementSmsUnlogged(input: PreviewBulkStatementSmsInp
   let destinationCount = 0;
   let duplicateNumbersRemoved = 0;
   let estimatedSegments = 0;
+  let maxMessageSegments = 0;
 
   for (const row of resolved) {
     if (row.ok) {
@@ -775,6 +807,7 @@ async function previewBulkStatementSmsUnlogged(input: PreviewBulkStatementSmsInp
       destinationCount += row.account.destinations.length;
       duplicateNumbersRemoved += row.account.duplicateMobilesRemoved;
       estimatedSegments += row.account.segments * row.account.destinations.length;
+      if (row.account.segments > maxMessageSegments) maxMessageSegments = row.account.segments;
       if (sampleMessages.length < 3) sampleMessages.push(row.account.message);
       const accountRecipients = buildSafeBulkSmsPreviewRecipients(
         row.account.destinations,
@@ -823,11 +856,13 @@ async function previewBulkStatementSmsUnlogged(input: PreviewBulkStatementSmsInp
     }
   }
 
+  const messageLimit = describeBulkMessageLimitBlock(accounts);
   const canSend =
     smsReady &&
     !outboundDisabled &&
     eligibleAccountCount > 0 &&
-    destinationCount > 0;
+    destinationCount > 0 &&
+    !messageLimit.blocked;
 
   return {
     ok: true as const,
@@ -838,6 +873,9 @@ async function previewBulkStatementSmsUnlogged(input: PreviewBulkStatementSmsInp
     duplicateNumbersRemoved,
     totalOutstanding,
     estimatedSegments,
+    estimatedCredits: estimatedSegments * SMS_CREDITS_PER_SEGMENT,
+    maxMessageSegments,
+    messageLimitError: messageLimit.error,
     recipientStrategy: strategy,
     messageTemplate:
       String(messageTemplate || "").trim() || BULK_STATEMENT_SMS_DEFAULT_TEMPLATE,
@@ -1024,6 +1062,35 @@ async function sendBulkStatementSmsUnlogged(
     }
   }
 
+  const messageLimit = describeBulkMessageLimitBlock(skippedAccounts);
+  if (messageLimit.blocked) {
+    return {
+      ok: false as const,
+      status: 400,
+      error: messageLimit.error,
+      summary: messageLimit.error,
+      code: "SMS_SEGMENT_LIMIT",
+      simulated: false,
+      requestedAccountCount: familyAccountIds.length,
+      eligibleAccountCount: eligibleAccounts.length,
+      skippedAccountCount: skippedAccounts.length,
+      attemptedDestinations: 0,
+      successfulDestinations: 0,
+      failedDestinations: 0,
+      unconfirmedDestinations: 0,
+      skippedAccounts,
+      results: [] as BulkStatementSmsDestinationResult[],
+      accountResults: [] as Array<{
+        familyAccountId: string;
+        accountNo: string;
+        balance: number;
+        sentCount: number;
+        failedCount: number;
+        status: "skipped" | "sent" | "partial" | "failed";
+      }>,
+    };
+  }
+
   if (!jobs.length) {
     return {
       ok: false as const,
@@ -1084,12 +1151,13 @@ async function sendBulkStatementSmsUnlogged(
       } satisfies BulkStatementSmsDestinationResult;
     } catch (error) {
       incrementCount(diagnostics.errorCodes, safeBulkSmsErrorCode(error));
-      const errMsg =
+      const errMsg = publicSmsProviderError(
         error instanceof WinSmsApiError
           ? error.message
           : error instanceof Error
             ? error.message
-            : "SMS send failed";
+            : "SMS send failed"
+      );
       return {
         familyAccountId: job.familyAccountId,
         accountNo: job.accountNo,
@@ -1159,6 +1227,7 @@ async function sendBulkStatementSmsUnlogged(
     status: outcome.status,
     simulated: false,
     summary: outcome.summary,
+    ...(outcome.ok ? {} : { error: outcome.summary }),
     recipientStrategy: strategy,
     requestedAccountCount: familyAccountIds.length,
     eligibleAccountCount: eligibleAccounts.length,

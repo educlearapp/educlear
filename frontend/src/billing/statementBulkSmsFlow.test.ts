@@ -6,6 +6,7 @@ import assert from "assert";
 import { readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
+import { analyseSmsMessage } from "./smsSegmentCalculator.ts";
 import {
   BULK_STATEMENT_SMS_DEFAULT_TEMPLATE,
   collectBulkSmsPreviewRecipients,
@@ -85,6 +86,11 @@ function testSegmentEstimate() {
   );
   assert.ok(BULK_STATEMENT_SMS_DEFAULT_TEMPLATE.includes("{{amount}}"));
   assert.ok(STATEMENT_SMS_MAX_CHARS === 480);
+  const november = "A".repeat(460);
+  assert.strictEqual(estimateBulkTemplateSegments(november), 4);
+  assert.strictEqual(analyseSmsMessage(november).encoding, "gsm");
+  assert.strictEqual(analyseSmsMessage("A".repeat(161)).segments, 2);
+  assert.strictEqual(analyseSmsMessage("😀".repeat(36)).segments, 2);
 }
 
 function testFailureSummaryCopyable() {
