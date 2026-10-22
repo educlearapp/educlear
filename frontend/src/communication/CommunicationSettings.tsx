@@ -212,6 +212,7 @@ export default function CommunicationSettings({
   const [resolvedSchoolName, setResolvedSchoolName] = useState(schoolName);
   const [resolvedSchoolEmail, setResolvedSchoolEmail] = useState(schoolEmail);
   const [winSmsKeyInput, setWinSmsKeyInput] = useState("");
+  const [replaceApiKey, setReplaceApiKey] = useState(false);
   const [smsSettings, setSmsSettings] = useState<SchoolSmsSettings | null>(null);
   const [smsTestLoading, setSmsTestLoading] = useState(false);
   const [smsBalanceLoading, setSmsBalanceLoading] = useState(false);
@@ -269,7 +270,8 @@ export default function CommunicationSettings({
       const loadedSchoolEmail = String(res.schoolEmail || schoolEmail || "").trim();
       setResolvedSchoolName(loadedSchoolName);
       setResolvedSchoolEmail(loadedSchoolEmail);
-      setWinSmsKeyInput("");
+      // Never clear winSmsKeyInput here: a reload (e.g. branding props
+      // arriving after mount) must not wipe a key being typed.
       const loadedSmsSettings =
         smsRes?.settings || {
           schoolId,
@@ -518,6 +520,7 @@ export default function CommunicationSettings({
       const res = await saveSchoolSmsSettings(payload);
       applySmsSettings(res.settings);
       setWinSmsKeyInput("");
+      setReplaceApiKey(false);
       setMessage("WinSMS account saved. Use Test Connection to verify.");
     } catch (e: any) {
       setError(e?.message || "Could not connect WinSMS account");
@@ -540,12 +543,12 @@ export default function CommunicationSettings({
         });
       }
 
-      const res = await testSchoolSmsConnection(
-        schoolId,
-        winSmsKeyInput && winSmsKeyInput !== "********" ? winSmsKeyInput : undefined
-      );
+      // The typed key was saved above. Test the stored key (no override)
+      // so a successful result persists the Connected status.
+      const res = await testSchoolSmsConnection(schoolId);
       applySmsSettings(res.settings);
       setWinSmsKeyInput("");
+      setReplaceApiKey(false);
       setMessage(
         res.message ||
           `Connected. Available Credits: ${Number(res.creditBalance || 0).toLocaleString("en-ZA")}`
@@ -889,17 +892,64 @@ export default function CommunicationSettings({
                   />
                 </label>
 
-                <label>
-                  API Key
-                  <input
-                    type="password"
-                    style={fieldStyle}
-                    placeholder={smsSettings.apiKeySet ? "******** (unchanged)" : "From your WinSMS account"}
-                    value={winSmsKeyInput}
-                    onChange={(e) => setWinSmsKeyInput(e.target.value)}
-                    autoComplete="off"
-                  />
-                </label>
+                {smsSettings.apiKeySet && !replaceApiKey ? (
+                  <div>
+                    <div style={{ fontWeight: 700, marginBottom: 6 }}>API Key</div>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <span style={{ fontWeight: 700, color: "#334155" }}>
+                        ******** (saved — hidden for security)
+                      </span>
+                      <button
+                        type="button"
+                        style={ghostBtn}
+                        onClick={() => {
+                          setWinSmsKeyInput("");
+                          setReplaceApiKey(true);
+                        }}
+                      >
+                        Replace API Key
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label>
+                    {smsSettings.apiKeySet ? "New API Key" : "API Key"}
+                    <input
+                      id="educlear-winsms-api-key"
+                      name="winsmsApiKey"
+                      type="password"
+                      style={fieldStyle}
+                      placeholder={
+                        smsSettings.apiKeySet
+                          ? "Paste the replacement WinSMS API key"
+                          : "From your WinSMS account"
+                      }
+                      value={winSmsKeyInput}
+                      onChange={(e) => setWinSmsKeyInput(e.target.value)}
+                      autoComplete="off"
+                      autoFocus={replaceApiKey}
+                    />
+                    {smsSettings.apiKeySet ? (
+                      <button
+                        type="button"
+                        style={{ ...ghostBtn, marginTop: 8 }}
+                        onClick={() => {
+                          setWinSmsKeyInput("");
+                          setReplaceApiKey(false);
+                        }}
+                      >
+                        Cancel Replace
+                      </button>
+                    ) : null}
+                  </label>
+                )}
 
                 <p style={{ margin: 0, fontSize: 12, color: "#64748b", fontWeight: 600, lineHeight: 1.5 }}>
                   Register and purchase SMS credits directly from WinSMS. Once you have your WinSMS account,

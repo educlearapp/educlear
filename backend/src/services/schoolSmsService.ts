@@ -228,11 +228,40 @@ async function persistConnectionFailure(
   return toPublicSettings(row, schoolId);
 }
 
+/**
+ * A connection-test result may be written to the school's stored settings
+ * only when the key that was tested is the key actually stored for that
+ * school (tested directly, or an override identical to the stored key —
+ * e.g. the settings screen saves a replacement key, then tests it).
+ * Testing an unsaved candidate key must neither mark the school Connected
+ * nor overwrite its stored status with a failure.
+ */
+export function shouldPersistConnectionTestResult(input: {
+  usedStoredKey: boolean;
+  storedKeyMatchesTestedKey: boolean;
+}): boolean {
+  return input.usedStoredKey || input.storedKeyMatchesTestedKey;
+}
+
 export async function testSchoolSmsConnection(schoolId: string, overrideApiKey?: string) {
+  let persistResult = false;
   try {
     const { apiKey, persist } = await resolveApiKeyForAction(schoolId, overrideApiKey);
+    let storedKeyMatchesTestedKey = false;
+    if (!persist) {
+      try {
+        const stored = await getDecryptedSchoolSmsApiKey(schoolId);
+        storedKeyMatchesTestedKey = Boolean(stored) && stored === apiKey;
+      } catch {
+        storedKeyMatchesTestedKey = false;
+      }
+    }
+    persistResult = shouldPersistConnectionTestResult({
+      usedStoredKey: persist,
+      storedKeyMatchesTestedKey,
+    });
     const { creditBalance } = await getWinSmsCreditBalance(apiKey);
-    const settings = await persistConnectionSuccess(schoolId, creditBalance, persist);
+    const settings = await persistConnectionSuccess(schoolId, creditBalance, persistResult);
     return {
       ok: true as const,
       creditBalance,
@@ -246,11 +275,7 @@ export async function testSchoolSmsConnection(schoolId: string, overrideApiKey?:
         : error instanceof Error
           ? error.message
           : "WinSMS connection test failed";
-    const settings = await persistConnectionFailure(
-      schoolId,
-      message,
-      Boolean(await getSchoolSmsSettingsRow(schoolId))
-    );
+    const settings = await persistConnectionFailure(schoolId, message, persistResult);
     return {
       ok: false as const,
       error: message,
