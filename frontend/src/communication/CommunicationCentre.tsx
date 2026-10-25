@@ -3,6 +3,7 @@ import {
   fetchEngineCampaigns,
   fetchEngineMessages,
   fetchEngineStats,
+  previewEngineQueue,
   processEngineQueue,
   retryEngineMessage,
   type EngineMessage,
@@ -89,13 +90,33 @@ export default function CommunicationCentre({ schoolId, schoolName = "" }: Props
     }
   }, [tab, loadMessages, loadCampaigns]);
 
+  const handlePreviewQueue = async () => {
+    setLoading(true);
+    setError("");
+    setMessage("");
+    try {
+      const res = await previewEngineQueue(schoolId, 40);
+      setMessage(
+        `Preview: ${res.count} message(s) would be processed for this school. Nothing was sent.`
+      );
+    } catch (e: any) {
+      setError(e?.message || "Preview failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleProcessQueue = async () => {
     setLoading(true);
     setError("");
     setMessage("");
     try {
-      const res = await processEngineQueue();
-      setMessage(`Processed ${res.processed} message(s).`);
+      const res = await processEngineQueue({ schoolId, dryRun: false });
+      const held = (res.results || []).filter((r) => r.status === "failed" && r.simulated).length;
+      const sent = (res.results || []).filter((r) => r.status === "sent").length;
+      setMessage(
+        `Processed ${res.processed} for this school — sent: ${sent}, held/failed (incl. simulated): ${held}. Simulated providers are never marked sent.`
+      );
       await loadStats();
       await loadMessages();
     } catch (e: any) {
@@ -109,8 +130,8 @@ export default function CommunicationCentre({ schoolId, schoolName = "" }: Props
     setLoading(true);
     setError("");
     try {
-      await retryEngineMessage(id);
-      setMessage("Message re-queued.");
+      await retryEngineMessage(id, schoolId);
+      setMessage("Message re-queued for this school.");
       await loadMessages();
       await loadStats();
     } catch (e: any) {
@@ -120,7 +141,7 @@ export default function CommunicationCentre({ schoolId, schoolName = "" }: Props
     }
   };
 
-  const title = schoolName ? `${schoolName} - Communication Centre` : "Communication Centre";
+  const title = schoolName ? `${schoolName} — Delivery Queue` : "Delivery Queue";
 
   return (
     <div style={pageWrap}>
@@ -128,13 +149,18 @@ export default function CommunicationCentre({ schoolId, schoolName = "" }: Props
         <div>
           <h1 style={{ margin: 0, fontSize: 22, color: "#0f172a", fontWeight: 900 }}>{title}</h1>
           <p style={{ margin: "8px 0 0", color: "#64748b", fontWeight: 600, maxWidth: 720 }}>
-            Central queue for SMS, email, WhatsApp, push (future), and in-app audit. Automated sends use templates;
-            providers are simulated until integrated.
+            School-scoped outbound queue (SMS, email, WhatsApp, push). Owner/Admin only for process and retry.
+            Preview never sends. Simulated or unavailable providers are held as failed — never marked sent.
           </p>
         </div>
-        <button type="button" style={goldBtn} onClick={handleProcessQueue} disabled={loading}>
-          Process queue
-        </button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button type="button" style={ghostBtn} onClick={() => void handlePreviewQueue()} disabled={loading}>
+            Preview queue
+          </button>
+          <button type="button" style={goldBtn} onClick={() => void handleProcessQueue()} disabled={loading}>
+            Process queue
+          </button>
+        </div>
       </div>
 
       {stats && (

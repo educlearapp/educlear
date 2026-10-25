@@ -15,7 +15,14 @@ export async function sendSmsPlaceholder(ctx: ProviderSendContext): Promise<Prov
 
   const ready = await isSchoolSmsReady(schoolId);
   if (!ready) {
-    return { ok: true, simulated: true, reference: `sms:${ctx.messageId}` };
+    // Do not report success — queue must not mark this as sent.
+    return {
+      ok: false,
+      simulated: true,
+      error: "sms_provider_not_ready",
+      reference: `sms-held:${ctx.messageId}`,
+      setupRequired: true,
+    };
   }
 
   try {

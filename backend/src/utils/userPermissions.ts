@@ -59,6 +59,12 @@ export function isSchoolOwnerRole(appRole: string | null | undefined): boolean {
   return String(appRole || "").trim() === "Owner";
 }
 
+/** Owner or Admin — required for communication queue process/retry. */
+export function isSchoolOwnerOrAdminRole(appRole: string | null | undefined): boolean {
+  const role = String(appRole || "").trim();
+  return role === "Owner" || role === "Admin";
+}
+
 
 export function emptyPermissionMap(): PermissionMap {
   const map = {} as PermissionMap;

@@ -1,15 +1,68 @@
 import { Router } from "express";
 import type { CommunicationChannel, CommunicationMessageStatus } from "@prisma/client";
 import { prisma } from "../prisma";
-import { processCommunicationQueueBatch, retryCommunicationMessage } from "../communication/communicationQueue";
+import {
+  previewCommunicationQueueBatch,
+  processCommunicationQueueBatch,
+  retryCommunicationMessage,
+} from "../communication/communicationQueue";
 import { ensureDefaultCommunicationTemplates } from "../communication/communicationEngine";
+import {
+  evaluateStaffSchoolMatch,
+  loadStaffSchoolAuth,
+  type StaffSchoolAuth,
+} from "../middleware/requireOwnerSchoolAccess";
+import { isSchoolOwnerOrAdminRole } from "../utils/userPermissions";
 
 const router = Router();
 
+type AuthOk = { auth: StaffSchoolAuth; schoolId: string };
+
+/**
+ * Resolve authorised school from JWT user record — never trust a forged body/query schoolId
+ * that does not match the staff user's school.
+ */
+async function requireEngineSchoolAccess(
+  req: { headers: { authorization?: string }; query?: unknown; body?: unknown; params?: unknown },
+  res: { status: (n: number) => { json: (b: unknown) => unknown } },
+  opts?: { requireOwnerOrAdmin?: boolean }
+): Promise<AuthOk | null> {
+  const auth = await loadStaffSchoolAuth(req.headers.authorization);
+  if (!auth) {
+    res.status(401).json({ success: false, error: "Authentication required", code: "AUTH_REQUIRED" });
+    return null;
+  }
+
+  const q = (req.query || {}) as Record<string, unknown>;
+  const b = (req.body || {}) as Record<string, unknown>;
+  const requested = String(q.schoolId || b.schoolId || "").trim();
+  const match = evaluateStaffSchoolMatch(auth, requested || auth.authorizedSchoolId);
+  if (!match.allowed) {
+    res.status(match.status).json({
+      success: false,
+      error: match.error,
+      code: match.status === 401 ? "AUTH_REQUIRED" : "SCHOOL_MISMATCH",
+    });
+    return null;
+  }
+
+  if (opts?.requireOwnerOrAdmin && !isSchoolOwnerOrAdminRole(auth.appRole)) {
+    res.status(403).json({
+      success: false,
+      error: "Owner or Admin access required",
+      code: "ROLE_DENIED",
+    });
+    return null;
+  }
+
+  return { auth, schoolId: auth.authorizedSchoolId };
+}
+
 router.get("/messages", async (req, res) => {
   try {
-    const schoolId = String(req.query.schoolId || "").trim();
-    if (!schoolId) return res.status(400).json({ success: false, error: "schoolId required" });
+    const gate = await requireEngineSchoolAccess(req, res);
+    if (!gate) return;
+    const schoolId = gate.schoolId;
 
     const status = String(req.query.status || "").trim() as CommunicationMessageStatus | "";
     const channel = String(req.query.channel || "").trim() as CommunicationChannel | "";
@@ -34,7 +87,7 @@ router.get("/messages", async (req, res) => {
       prisma.communicationMessage.count({ where }),
     ]);
 
-    return res.json({ success: true, items, total, limit, offset });
+    return res.json({ success: true, items, total, limit, offset, schoolId });
   } catch (e) {
     console.error("[communication-engine] list messages", e);
     return res.status(500).json({ success: false, error: "Failed to load messages" });
@@ -43,8 +96,9 @@ router.get("/messages", async (req, res) => {
 
 router.get("/messages/stats", async (req, res) => {
   try {
-    const schoolId = String(req.query.schoolId || "").trim();
-    if (!schoolId) return res.status(400).json({ success: false, error: "schoolId required" });
+    const gate = await requireEngineSchoolAccess(req, res);
+    if (!gate) return;
+    const schoolId = gate.schoolId;
 
     const grouped = await prisma.communicationMessage.groupBy({
       by: ["status"],
@@ -66,6 +120,7 @@ router.get("/messages/stats", async (req, res) => {
 
     return res.json({
       success: true,
+      schoolId,
       byStatus: Object.fromEntries(grouped.map((g) => [g.status, g._count._all])),
       byChannel: Object.fromEntries(byChannel.map((g) => [g.channel, g._count._all])),
       byCategory: Object.fromEntries(byCategory.map((g) => [g.category, g._count._all])),
@@ -78,8 +133,9 @@ router.get("/messages/stats", async (req, res) => {
 
 router.get("/campaigns", async (req, res) => {
   try {
-    const schoolId = String(req.query.schoolId || "").trim();
-    if (!schoolId) return res.status(400).json({ success: false, error: "schoolId required" });
+    const gate = await requireEngineSchoolAccess(req, res);
+    if (!gate) return;
+    const schoolId = gate.schoolId;
     const campaigns = await prisma.communicationCampaign.findMany({
       where: { schoolId },
       orderBy: { createdAt: "desc" },
@@ -88,7 +144,7 @@ router.get("/campaigns", async (req, res) => {
         _count: { select: { messages: true } },
       },
     });
-    return res.json({ success: true, campaigns });
+    return res.json({ success: true, campaigns, schoolId });
   } catch (e) {
     console.error("[communication-engine] campaigns", e);
     return res.status(500).json({ success: false, error: "Failed to load campaigns" });
@@ -97,22 +153,72 @@ router.get("/campaigns", async (req, res) => {
 
 router.post("/messages/:id/retry", async (req, res) => {
   try {
+    const gate = await requireEngineSchoolAccess(req, res, { requireOwnerOrAdmin: true });
+    if (!gate) return;
     const id = String(req.params.id || "").trim();
     if (!id) return res.status(400).json({ success: false, error: "id required" });
-    const r = await retryCommunicationMessage(prisma, id);
-    if (!r.ok) return res.status(400).json({ success: false, error: r.error });
-    return res.json({ success: true });
+    const r = await retryCommunicationMessage(prisma, { messageId: id, schoolId: gate.schoolId });
+    if (!r.ok) {
+      const status = r.error === "not_found" ? 404 : 400;
+      return res.status(status).json({ success: false, error: r.error });
+    }
+    return res.json({ success: true, schoolId: gate.schoolId });
   } catch (e) {
     console.error("[communication-engine] retry", e);
     return res.status(500).json({ success: false, error: "Retry failed" });
   }
 });
 
-router.post("/queue/process", async (_req, res) => {
+/** Dry-run: list candidates only — never claims or sends. Owner/Admin. */
+router.get("/queue/preview", async (req, res) => {
   try {
+    const gate = await requireEngineSchoolAccess(req, res, { requireOwnerOrAdmin: true });
+    if (!gate) return;
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 40));
+    const preview = await previewCommunicationQueueBatch(prisma, {
+      schoolId: gate.schoolId,
+      limit,
+    });
+    return res.json({
+      success: true,
+      dryRun: true,
+      sent: false,
+      ...preview,
+      note: "Preview only — no messages were claimed or sent.",
+    });
+  } catch (e) {
+    console.error("[communication-engine] preview", e);
+    return res.status(500).json({ success: false, error: "Preview failed" });
+  }
+});
+
+/**
+ * Process queue for the authenticated staff school only.
+ * Optional body.dryRun=true previews without sending (same as GET /queue/preview).
+ * Client schoolId is ignored for tenancy; JWT school wins.
+ */
+router.post("/queue/process", async (req, res) => {
+  try {
+    const gate = await requireEngineSchoolAccess(req, res, { requireOwnerOrAdmin: true });
+    if (!gate) return;
+
+    const dryRun =
+      req.body?.dryRun === true ||
+      String(req.body?.dryRun || req.query.dryRun || "").toLowerCase() === "true";
+
     await ensureDefaultCommunicationTemplates(prisma);
-    const result = await processCommunicationQueueBatch(prisma, 40);
-    return res.json({ success: true, ...result });
+    const result = await processCommunicationQueueBatch(prisma, {
+      schoolId: gate.schoolId,
+      limit: 40,
+      dryRun,
+    });
+    return res.json({
+      success: true,
+      ...result,
+      note: dryRun
+        ? "Dry run — no providers called and no statuses changed."
+        : "Processed for authorised school only. Simulated provider results are not marked sent.",
+    });
   } catch (e) {
     console.error("[communication-engine] process", e);
     return res.status(500).json({ success: false, error: "Process failed" });
@@ -121,8 +227,9 @@ router.post("/queue/process", async (_req, res) => {
 
 router.get("/provider-settings", async (req, res) => {
   try {
-    const schoolId = String(req.query.schoolId || "").trim();
-    if (!schoolId) return res.status(400).json({ success: false, error: "schoolId required" });
+    const gate = await requireEngineSchoolAccess(req, res);
+    if (!gate) return;
+    const schoolId = gate.schoolId;
     const row = await prisma.schoolCommunicationProfile.findUnique({ where: { schoolId } });
     return res.json({
       success: true,
@@ -144,8 +251,9 @@ router.get("/provider-settings", async (req, res) => {
 
 router.put("/provider-settings", async (req, res) => {
   try {
-    const schoolId = String(req.body?.schoolId || "").trim();
-    if (!schoolId) return res.status(400).json({ success: false, error: "schoolId required" });
+    const gate = await requireEngineSchoolAccess(req, res, { requireOwnerOrAdmin: true });
+    if (!gate) return;
+    const schoolId = gate.schoolId;
     const smtp = req.body?.smtp;
     const smsProvider = req.body?.smsProvider;
     const whatsappProvider = req.body?.whatsappProvider;
@@ -182,8 +290,6 @@ router.put("/provider-settings", async (req, res) => {
 
 /**
  * Legacy unauthenticated body-based register — disabled (Phase 4A).
- * Parents must use /api/parent-portal/push/subscriptions with parent JWT.
- * Accepting schoolId/parentId from the request body enabled endpoint hijacking.
  */
 router.post("/push/register", async (_req, res) => {
   return res.status(410).json({
@@ -195,15 +301,17 @@ router.post("/push/register", async (_req, res) => {
 
 router.get("/templates", async (req, res) => {
   try {
-    const schoolId = String(req.query.schoolId || "").trim();
+    const gate = await requireEngineSchoolAccess(req, res);
+    if (!gate) return;
+    const schoolId = gate.schoolId;
     await ensureDefaultCommunicationTemplates(prisma);
     const templates = await prisma.communicationTemplate.findMany({
       where: {
-        OR: [{ schoolId: null }, ...(schoolId ? [{ schoolId }] : [])],
+        OR: [{ schoolId: null }, { schoolId }],
       },
       orderBy: [{ schoolId: "asc" }, { templateKey: "asc" }],
     });
-    return res.json({ success: true, templates });
+    return res.json({ success: true, templates, schoolId });
   } catch (e) {
     console.error("[communication-engine] templates", e);
     return res.status(500).json({ success: false, error: "Failed to load templates" });

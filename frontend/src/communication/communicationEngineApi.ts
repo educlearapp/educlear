@@ -68,19 +68,41 @@ export async function fetchEngineCampaigns(schoolId: string) {
   return request<{ success: boolean; campaigns: any[] }>(`/campaigns?${q.toString()}`);
 }
 
-export async function retryEngineMessage(messageId: string) {
+export async function retryEngineMessage(messageId: string, schoolId?: string) {
   return request<{ success: boolean }>(`/messages/${encodeURIComponent(messageId)}/retry`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({}),
+    body: JSON.stringify(schoolId ? { schoolId } : {}),
   });
 }
 
-export async function processEngineQueue() {
-  return request<{ success: boolean; processed: number; results: { id: string; status: string }[] }>(
-    "/queue/process",
-    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }
-  );
+export async function previewEngineQueue(schoolId: string, limit = 40) {
+  const q = new URLSearchParams({ schoolId, limit: String(limit) });
+  return request<{
+    success: boolean;
+    dryRun: boolean;
+    sent: boolean;
+    count: number;
+    items: Array<{ id: string; channel: string; recipient: string | null; subject: string }>;
+  }>(`/queue/preview?${q.toString()}`);
+}
+
+export async function processEngineQueue(opts?: { schoolId?: string; dryRun?: boolean }) {
+  return request<{
+    success: boolean;
+    processed: number;
+    dryRun?: boolean;
+    schoolId?: string;
+    results: { id: string; status: string; simulated?: boolean; error?: string }[];
+    note?: string;
+  }>("/queue/process", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...(opts?.schoolId ? { schoolId: opts.schoolId } : {}),
+      ...(opts?.dryRun ? { dryRun: true } : {}),
+    }),
+  });
 }
 
 export async function fetchProviderSettings(schoolId: string) {
