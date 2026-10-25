@@ -5,6 +5,15 @@ import {
   useTeacherAssignedClassrooms,
 } from "./useTeacherAssignedClassrooms";
 import { formatTeacherUploadError } from "./teacherUploadErrors";
+import TeacherAttachmentList from "./TeacherAttachmentList";
+
+type NoticeRow = {
+  id: string;
+  title: string;
+  noticeType: string;
+  publishedAt: string;
+  attachments?: unknown;
+};
 
 type Props = { defaultNoticeType?: "CLASS" | "ASSESSMENT" | "EXAM" };
 
@@ -16,7 +25,7 @@ export default function TeacherNoticesPage({ defaultNoticeType = "CLASS" }: Prop
   const [body, setBody] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [files, setFiles] = useState<FileList | null>(null);
-  const [notices, setNotices] = useState<unknown[]>([]);
+  const [notices, setNotices] = useState<NoticeRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -27,8 +36,8 @@ export default function TeacherNoticesPage({ defaultNoticeType = "CLASS" }: Prop
 
   async function loadNotices() {
     try {
-      const n = (await staffApiFetch("/api/teacher-app/notices")) as { notices?: unknown[] };
-      setNotices(n.notices || []);
+      const n = (await staffApiFetch("/api/teacher-app/notices")) as { notices?: NoticeRow[] };
+      setNotices(Array.isArray(n.notices) ? n.notices : []);
     } catch (e: unknown) {
       console.error("[teacher-app] Failed to load notices:", e instanceof Error ? e.message : e);
     }
@@ -132,11 +141,13 @@ export default function TeacherNoticesPage({ defaultNoticeType = "CLASS" }: Prop
         </form>
       )}
       <h2 className="teacher-section-title">Recent</h2>
+      {notices.length === 0 ? <p className="teacher-muted">No notices yet.</p> : null}
       <ul className="teacher-record-list">
-        {(notices as { id: string; title: string; noticeType: string; publishedAt: string }[]).map((n) => (
+        {notices.map((n) => (
           <li key={n.id} className="teacher-record-card">
             <strong>{n.title}</strong>
             {n.noticeType} · {new Date(n.publishedAt).toLocaleString()}
+            <TeacherAttachmentList attachments={n.attachments} label="Attachments" />
           </li>
         ))}
       </ul>

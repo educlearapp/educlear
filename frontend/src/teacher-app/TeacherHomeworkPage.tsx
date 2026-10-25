@@ -10,6 +10,7 @@ import TeacherVisibilitySelect, {
   type TeacherVisibility,
 } from "./TeacherVisibilitySelect";
 import { formatTeacherUploadError } from "./teacherUploadErrors";
+import TeacherAttachmentList from "./TeacherAttachmentList";
 
 type HomeworkPost = {
   id: string;
@@ -18,6 +19,7 @@ type HomeworkPost = {
   createdAt: string;
   visibility?: string;
   createdBy?: string;
+  attachments?: unknown;
 };
 
 export default function TeacherHomeworkPage() {
@@ -154,11 +156,15 @@ export default function TeacherHomeworkPage() {
         ))}
       </div>
       <h2 className="teacher-section-title">Recent (your classes)</h2>
+      {posts.length === 0 ? (
+        <p className="teacher-muted">No homework in this view yet.</p>
+      ) : null}
       <ul className="teacher-record-list">
         {posts.map((p) => (
           <li key={p.id} className="teacher-record-card">
             <strong>{p.title}</strong>
             {p.className || "—"} · {visibilityBadge(p.visibility)} · {new Date(p.createdAt).toLocaleString()}
+            <TeacherAttachmentList attachments={p.attachments} label="Attachments" />
           </li>
         ))}
       </ul>

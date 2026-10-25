@@ -29,6 +29,8 @@ import {
 import ParentFinanceHub from "./ParentFinanceHub";
 import ParentEventsPanel from "./ParentEventsPanel";
 import ParentPushSettings from "./ParentPushSettings";
+import ParentAttachmentList from "./ParentAttachmentList";
+import { downloadAuthenticatedBlob } from "../utils/authenticatedBlobDownload";
 import { usePortalPwaHead } from "../pwa/usePortalPwaHead";
 import { parentPortalPwaHead } from "../pwa/pwaIconConfig";
 import { useParentNotificationLive } from "./useParentNotificationLive";
@@ -175,25 +177,11 @@ async function downloadParentDocument(doc: {
   const path =
     String(doc.downloadPath || "").trim() ||
     (doc.id ? `/api/parent-portal/documents/${encodeURIComponent(doc.id)}/file` : "");
-  if (!path) throw new Error("Document download unavailable");
-  const { getParentToken } = await import("./parentApi");
-  const token = getParentToken();
-  const res = await fetch(`${API_URL}${path.startsWith("/") ? path : `/${path}`}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    cache: "no-store",
+  await downloadAuthenticatedBlob(path, doc.fileName || doc.title || "document", {
+    mode: "parent",
+    token: getParentToken(),
+    apiBase: API_URL,
   });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as { error?: string }).error || "Download failed");
-  }
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = doc.fileName || doc.title || "document";
-  a.rel = "noopener";
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 function formatMoney(value: unknown) {
@@ -1410,49 +1398,7 @@ export default function ParentPortalApp() {
                 >
                   <div className="parent-portal-notif-type" style={{ fontSize: 10 }}>{m.senderName || m.sender}</div>
                   <div style={{ fontSize: 14, lineHeight: 1.45 }}>{m.body}</div>
-                  {Array.isArray(m.attachments) &&
-                    m.attachments.map((a, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        className="parent-portal-link"
-                        style={{
-                          display: "block",
-                          background: "none",
-                          border: 0,
-                          padding: 0,
-                          marginTop: 4,
-                          cursor: "pointer",
-                          textAlign: "left",
-                          fontSize: 12,
-                        }}
-                        onClick={() => {
-                          void (async () => {
-                            const path = String(a.downloadPath || "").trim();
-                            if (!path) return;
-                            const { getParentToken } = await import("./parentApi");
-                            const token = getParentToken();
-                            const res = await fetch(`${API_URL}${path}`, {
-                              headers: token ? { Authorization: `Bearer ${token}` } : {},
-                              cache: "no-store",
-                            });
-                            if (!res.ok) {
-                              window.alert("Download failed");
-                              return;
-                            }
-                            const blob = await res.blob();
-                            const url = URL.createObjectURL(blob);
-                            const link = document.createElement("a");
-                            link.href = url;
-                            link.download = a.name || "attachment";
-                            link.click();
-                            URL.revokeObjectURL(url);
-                          })();
-                        }}
-                      >
-                        {a.name || "Attachment"}
-                      </button>
-                    ))}
+                  <ParentAttachmentList attachments={m.attachments} label="Message attachments" />
                 </div>
               ))}
             </div>
@@ -1485,26 +1431,7 @@ export default function ParentPortalApp() {
                 ) : (
                   <div className="parent-portal-muted" style={{ fontSize: 12, marginTop: 4 }}>No due date</div>
                 )}
-                {Array.isArray(h.attachments) &&
-                  h.attachments.map((a: { name?: string; downloadPath?: string }, i: number) => (
-                    <button
-                      key={i}
-                      type="button"
-                      className="parent-portal-link"
-                      style={{ display: "block", background: "none", border: 0, padding: 0, marginTop: 4, cursor: "pointer", fontSize: 12 }}
-                      onClick={() => {
-                        void downloadParentDocument({
-                          title: a.name || "attachment",
-                          downloadPath: a.downloadPath,
-                          fileName: a.name,
-                        }).catch((e: unknown) =>
-                          window.alert(e instanceof Error ? e.message : "Download failed")
-                        );
-                      }}
-                    >
-                      {a.name || "Attachment"}
-                    </button>
-                  ))}
+                <ParentAttachmentList attachments={h.attachments} label="Homework attachments" />
               </div>
             ))}
             {contentListHasMore ? (
@@ -1523,6 +1450,7 @@ export default function ParentPortalApp() {
               <div key={n.id} className="parent-portal-list-divider">
                 <strong style={{ fontSize: 14 }}>{n.title}</strong>
                 <div className="parent-portal-muted" style={{ fontSize: 13, marginTop: 4 }}>{String(n.body || "").slice(0, 220)}</div>
+                <ParentAttachmentList attachments={n.attachments} label="Notice attachments" />
               </div>
             ))}
             {contentListHasMore ? (
