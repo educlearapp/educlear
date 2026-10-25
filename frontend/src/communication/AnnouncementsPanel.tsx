@@ -48,8 +48,10 @@ function canPublishSchoolWide(role: string, appRole: string, isOwner: boolean): 
 }
 
 function statusLabel(n: NoticeRow): Lifecycle {
+  // Legacy safety: isDraft=true must never render as PUBLISHED even if lifecycleStatus is stale.
+  if (n.isDraft) return "DRAFT";
   if (n.lifecycleStatus) return n.lifecycleStatus;
-  return n.isDraft ? "DRAFT" : "PUBLISHED";
+  return "PUBLISHED";
 }
 
 function targetingLabel(n: NoticeRow): string {

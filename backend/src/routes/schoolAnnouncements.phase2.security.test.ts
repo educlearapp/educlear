@@ -16,6 +16,7 @@ import {
   assertActorMayManageTarget,
   lifecycleToIsDraft,
   parentVisibleNoticeWhere,
+  resolveNoticeLifecycle,
 } from "../services/schoolAnnouncementService";
 import { uniqueParentLearnerLinks } from "../services/parentPortalService";
 
@@ -98,6 +99,11 @@ async function main() {
   assert.equal(lifecycleToIsDraft("PUBLISHED"), false);
   assert.equal(lifecycleToIsDraft("UNPUBLISHED"), false);
   assert.equal(lifecycleToIsDraft("ARCHIVED"), false);
+  assert.equal(
+    resolveNoticeLifecycle({ isDraft: true, lifecycleStatus: "PUBLISHED" }),
+    "DRAFT",
+    "legacy isDraft=true must not resolve as PUBLISHED"
+  );
   const gate = parentVisibleNoticeWhere();
   assert.equal(gate.lifecycleStatus, "PUBLISHED");
   assert.equal(gate.isDraft, false);
@@ -283,6 +289,26 @@ async function main() {
     },
   });
 
+  // Inconsistent legacy: isDraft=true but lifecycleStatus left at PUBLISHED (schema default).
+  // Must never appear as published to parents or in staff PUBLISHED filter. No DB rewrite.
+  const legacyInconsistent = await prisma.schoolNotice.create({
+    data: {
+      schoolId: schoolA.id,
+      noticeType: "SCHOOL",
+      title: "Legacy inconsistent draft",
+      body: "isDraft true with PUBLISHED lifecycle",
+      isDraft: true,
+      lifecycleStatus: "PUBLISHED",
+      visibility: "CLASS_TEACHERS",
+      createdBy: "legacy@c2.test",
+    },
+  });
+  assert.equal(
+    resolveNoticeLifecycle(legacyInconsistent),
+    "DRAFT",
+    "effective lifecycle treats inconsistent row as DRAFT"
+  );
+
   const adminTok = bearer({
     id: admin.id,
     schoolId: schoolA.id,
@@ -307,7 +333,7 @@ async function main() {
     idNumber: parent.idNumber || undefined,
   });
 
-  // Probe API
+  // Probe API + legacy inconsistent compatibility
   {
     const probe = await json(`/api/school-announcements?schoolId=${encodeURIComponent(schoolA.id)}`, {
       headers: { Authorization: adminTok },
@@ -317,6 +343,60 @@ async function main() {
       `API not reachable at ${API} (status ${probe.status}) — start local backend first`
     );
     assert.equal(probe.status, 200, `admin list failed: ${JSON.stringify(probe.body)}`);
+
+    const publishedList = await json(
+      `/api/school-announcements?schoolId=${encodeURIComponent(schoolA.id)}&lifecycle=PUBLISHED`,
+      { headers: { Authorization: adminTok } }
+    );
+    assert.equal(publishedList.status, 200);
+    const pubIds = (publishedList.body.items || []).map((n: { id: string }) => n.id);
+    assert.ok(!pubIds.includes(legacyInconsistent.id), "inconsistent isDraft=true excluded from PUBLISHED list");
+    assert.ok(pubIds.includes(legacyPublished.id), "true published remains in PUBLISHED list");
+
+    const draftList = await json(
+      `/api/school-announcements?schoolId=${encodeURIComponent(schoolA.id)}&lifecycle=DRAFT`,
+      { headers: { Authorization: adminTok } }
+    );
+    assert.equal(draftList.status, 200);
+    const draftItem = (draftList.body.items || []).find(
+      (n: { id: string }) => n.id === legacyInconsistent.id
+    );
+    assert.ok(draftItem, "inconsistent legacy appears under DRAFT filter");
+    assert.equal(draftItem.lifecycleStatus, "DRAFT", "API presents effective DRAFT (no DB rewrite required)");
+
+    const parentLegacy = await json(
+      `/api/parent-portal/notices?learnerId=${encodeURIComponent(kids[0].id)}&limit=50`,
+      { headers: { Authorization: `Bearer ${parentTok}` } }
+    );
+    assert.equal(parentLegacy.status, 200, JSON.stringify(parentLegacy.body));
+    const parentLegacyIds = (parentLegacy.body.notices || []).map((n: { id: string }) => n.id);
+    assert.ok(
+      !parentLegacyIds.includes(legacyInconsistent.id),
+      "inconsistent isDraft=true hidden from parents"
+    );
+    assert.ok(parentLegacyIds.includes(legacyPublished.id), "consistent published still visible to parents");
+
+    // Cannot unpublish an isDraft=true row even if stored lifecycle says PUBLISHED
+    const badUnpublish = await json(`/api/school-announcements/${legacyInconsistent.id}/unpublish`, {
+      method: "POST",
+      headers: { Authorization: adminTok },
+      body: JSON.stringify({ schoolId: schoolA.id }),
+    });
+    assert.equal(badUnpublish.status, 400, "legacy draft cannot be unpublished as if published");
+
+    // Publish repairs consistency going forward (still no destructive cleanup of other rows)
+    const repairPublish = await json(`/api/school-announcements/${legacyInconsistent.id}/publish`, {
+      method: "POST",
+      headers: { Authorization: adminTok },
+      body: JSON.stringify({ schoolId: schoolA.id }),
+    });
+    assert.equal(repairPublish.status, 200, JSON.stringify(repairPublish.body));
+    assert.equal(repairPublish.body.notice.lifecycleStatus, "PUBLISHED");
+    assert.equal(repairPublish.body.notice.isDraft, false);
+    const repairedRow = await prisma.schoolNotice.findUnique({ where: { id: legacyInconsistent.id } });
+    assert.equal(repairedRow?.lifecycleStatus, "PUBLISHED");
+    assert.equal(repairedRow?.isDraft, false);
+    console.log("✓ Legacy isDraft/lifecycleStatus inconsistency handled without destructive cleanup");
   }
 
   // Draft create + edit
@@ -422,6 +502,10 @@ async function main() {
     },
   });
   assert.equal(afterPublishNotifs.length, 1, "first publish → one parent alert (multi-child dedupe)");
+  const firstNotifId = afterPublishNotifs[0].id;
+  const notifCountBeforeEdit = await prisma.parentNotification.count({
+    where: { schoolId: schoolA.id, parentId: parent.id },
+  });
 
   // Ordinary edit — no new notification
   const editPub = await json(`/api/school-announcements/${draftId}`, {
@@ -442,8 +526,13 @@ async function main() {
     },
   });
   assert.equal(notifsAfterEdit.length, 1, "edit published does not re-notify");
+  assert.equal(
+    await prisma.parentNotification.count({ where: { schoolId: schoolA.id, parentId: parent.id } }),
+    notifCountBeforeEdit,
+    "ordinary edit does not create any new parent notifications"
+  );
 
-  // Unpublish / parent exclusion
+  // Unpublish / parent exclusion — no new alerts
   const unpublish = await json(`/api/school-announcements/${draftId}/unpublish`, {
     method: "POST",
     headers: { Authorization: adminTok },
@@ -451,6 +540,17 @@ async function main() {
   });
   assert.equal(unpublish.status, 200);
   assert.equal(unpublish.body.notice.lifecycleStatus, "UNPUBLISHED");
+  assert.equal(
+    await prisma.parentNotification.count({
+      where: {
+        schoolId: schoolA.id,
+        parentId: parent.id,
+        metadata: { path: ["noticeId"], equals: draftId },
+      },
+    }),
+    1,
+    "unpublish does not create alerts"
+  );
 
   const parentList1 = await json(`/api/parent-portal/notices?learnerId=${kids[0].id}&limit=50`, {
     headers: { Authorization: `Bearer ${parentTok}` },
@@ -461,7 +561,12 @@ async function main() {
   assert.ok(!parentIds1.includes(classDraftId), "draft hidden from parent");
   assert.ok(parentIds1.includes(legacyPublished.id), "legacy published still visible");
 
-  // Republish
+  // Mark original alert read, then republish — must not duplicate or clear read state
+  await prisma.parentNotification.update({
+    where: { id: firstNotifId },
+    data: { isRead: true, readAt: new Date() },
+  });
+
   const republish = await json(`/api/school-announcements/${draftId}/republish`, {
     method: "POST",
     headers: { Authorization: adminTok },
@@ -479,8 +584,34 @@ async function main() {
   assert.equal(
     notifsAfterRepub.length,
     1,
-    "republish fan-out respects Phase 0 dedupe (no duplicate row)"
+    "republish does not send another alert when original notice notification exists"
   );
+  assert.equal(notifsAfterRepub[0].id, firstNotifId, "historical notification row unchanged");
+  assert.equal(notifsAfterRepub[0].isRead, true, "read status preserved across republish");
+
+  // Distinct notice → distinct alert
+  const distinct = await json("/api/school-announcements", {
+    method: "POST",
+    headers: { Authorization: adminTok },
+    body: JSON.stringify({
+      schoolId: schoolA.id,
+      title: "Distinct notice two",
+      body: "another",
+      noticeType: "SCHOOL",
+      publishNow: true,
+    }),
+  });
+  assert.equal(distinct.status, 200, JSON.stringify(distinct.body));
+  const distinctId = distinct.body.notice.id as string;
+  const distinctNotifs = await prisma.parentNotification.findMany({
+    where: {
+      schoolId: schoolA.id,
+      parentId: parent.id,
+      metadata: { path: ["noticeId"], equals: distinctId },
+    },
+  });
+  assert.equal(distinctNotifs.length, 1, "distinct notice generates its own alert");
+  assert.notEqual(distinctNotifs[0].id, firstNotifId);
 
   const parentList2 = await json(`/api/parent-portal/notices?learnerId=${kids[0].id}&limit=50`, {
     headers: { Authorization: `Bearer ${parentTok}` },

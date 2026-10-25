@@ -27,6 +27,43 @@ export function lifecycleToIsDraft(lifecycle: SchoolNoticeLifecycle): boolean {
   return lifecycle === "DRAFT";
 }
 
+/**
+ * Authoritative effective lifecycle for staff UI / transitions.
+ * Legacy rows may have isDraft=true with lifecycleStatus still PUBLISHED (schema default).
+ * isDraft=true always wins as DRAFT — never treat those as published.
+ * Does not mutate stored rows.
+ */
+export function resolveNoticeLifecycle(n: {
+  isDraft?: boolean | null;
+  lifecycleStatus?: SchoolNoticeLifecycle | string | null;
+}): SchoolNoticeLifecycle {
+  if (n.isDraft === true) return "DRAFT";
+  const raw = String(n.lifecycleStatus || "PUBLISHED").toUpperCase();
+  if (raw === "DRAFT" || raw === "PUBLISHED" || raw === "UNPUBLISHED" || raw === "ARCHIVED") {
+    return raw as SchoolNoticeLifecycle;
+  }
+  return "PUBLISHED";
+}
+
+/** Staff list filter that keeps isDraft=true out of published/unpublished/archived buckets. */
+export function staffLifecycleWhere(
+  lifecycle: SchoolNoticeLifecycle | "ALL"
+): Prisma.SchoolNoticeWhereInput {
+  if (lifecycle === "ALL") return {};
+  if (lifecycle === "DRAFT") {
+    return { OR: [{ lifecycleStatus: "DRAFT" }, { isDraft: true }] };
+  }
+  return { lifecycleStatus: lifecycle, isDraft: false };
+}
+
+/** Present notices with effective lifecycleStatus; never rewrite DB. */
+export function presentAnnouncement<T extends { isDraft?: boolean | null; lifecycleStatus?: SchoolNoticeLifecycle }>(
+  notice: T
+): T {
+  const effective = resolveNoticeLifecycle(notice);
+  return { ...notice, lifecycleStatus: effective, isDraft: lifecycleToIsDraft(effective) };
+}
+
 /** Parent-facing notice gate: published + class-teacher visibility + legacy isDraft false. */
 export function parentVisibleNoticeWhere() {
   return {
@@ -172,17 +209,19 @@ export async function listAnnouncements(opts: {
   const lifecycle = opts.lifecycle || "ALL";
   const q = String(opts.q || "").trim();
 
+  const and: Prisma.SchoolNoticeWhereInput[] = [staffLifecycleWhere(lifecycle)];
+  if (q) {
+    and.push({
+      OR: [
+        { title: { contains: q, mode: "insensitive" } },
+        { body: { contains: q, mode: "insensitive" } },
+      ],
+    });
+  }
+
   const where: Prisma.SchoolNoticeWhereInput = {
     schoolId: opts.schoolId,
-    ...(lifecycle !== "ALL" ? { lifecycleStatus: lifecycle } : {}),
-    ...(q
-      ? {
-          OR: [
-            { title: { contains: q, mode: "insensitive" } },
-            { body: { contains: q, mode: "insensitive" } },
-          ],
-        }
-      : {}),
+    AND: and,
   };
 
   if (!opts.actor.isSchoolWideAdmin) {
@@ -197,7 +236,7 @@ export async function listAnnouncements(opts: {
     ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
   });
   const hasMore = rows.length > take;
-  const items = rows.slice(0, take);
+  const items = rows.slice(0, take).map((n) => presentAnnouncement(n));
   return {
     items,
     hasMore,
@@ -264,7 +303,7 @@ export async function createAnnouncementDraft(opts: {
     await fanOutPublishNotifications({ schoolId: opts.schoolId, notice });
   }
 
-  return notice;
+  return presentAnnouncement(notice);
 }
 
 export async function updateAnnouncement(opts: {
@@ -281,7 +320,8 @@ export async function updateAnnouncement(opts: {
     where: { id: opts.noticeId, schoolId: opts.schoolId },
   });
   if (!existing) throw Object.assign(new Error("Announcement not found"), { status: 404 });
-  if (existing.lifecycleStatus === "ARCHIVED") {
+  const effectiveBefore = resolveNoticeLifecycle(existing);
+  if (effectiveBefore === "ARCHIVED") {
     throw Object.assign(new Error("Archived announcements cannot be edited"), { status: 400 });
   }
 
@@ -329,15 +369,15 @@ export async function updateAnnouncement(opts: {
     schoolId: opts.schoolId,
     noticeId: existing.id,
     actor: opts.actor,
-    action: existing.lifecycleStatus === "PUBLISHED" ? "EDIT_PUBLISHED" : "EDIT_DRAFT",
-    previousLifecycle: existing.lifecycleStatus,
-    newLifecycle: existing.lifecycleStatus,
+    action: effectiveBefore === "PUBLISHED" ? "EDIT_PUBLISHED" : "EDIT_DRAFT",
+    previousLifecycle: effectiveBefore,
+    newLifecycle: effectiveBefore,
     previousTargeting: existing,
     newTargeting: nextTarget,
     detail: { titleChanged: opts.title != null, bodyChanged: opts.body != null },
   });
 
-  return updated;
+  return presentAnnouncement(updated);
 }
 
 export async function transitionAnnouncement(opts: {
@@ -354,7 +394,8 @@ export async function transitionAnnouncement(opts: {
   const deny = assertActorMayManageTarget(opts.actor, existing);
   if (deny) throw Object.assign(new Error(deny), { status: 403 });
 
-  const from = existing.lifecycleStatus;
+  // Use effective lifecycle so isDraft=true never transitions as if PUBLISHED.
+  const from = resolveNoticeLifecycle(existing);
   let to: SchoolNoticeLifecycle = from;
   let actionName = opts.action.toUpperCase();
 
@@ -404,8 +445,8 @@ export async function transitionAnnouncement(opts: {
     newTargeting: existing,
   });
 
-  // Notify on first publish from DRAFT, CREATE_AND_PUBLISH path, and REPUBLISH attempts.
-  // Phase 0 dedupeKey (school+parent+noticeId) prevents duplicate rows / rewrite of existing alerts.
+  // First publish + republish attempt fan-out. Phase 0 dedupeKey prevents a second row /
+  // rewrite when the parent already has an alert for this noticeId (read status preserved).
   if (
     (actionName === "PUBLISH" || actionName === "REPUBLISH") &&
     updated.visibility === "CLASS_TEACHERS"
@@ -413,11 +454,12 @@ export async function transitionAnnouncement(opts: {
     await fanOutPublishNotifications({ schoolId: opts.schoolId, notice: updated });
   }
 
-  return updated;
+  return presentAnnouncement(updated);
 }
 
 export async function getAnnouncement(schoolId: string, noticeId: string) {
-  return prisma.schoolNotice.findFirst({ where: { id: noticeId, schoolId } });
+  const notice = await prisma.schoolNotice.findFirst({ where: { id: noticeId, schoolId } });
+  return notice ? presentAnnouncement(notice) : null;
 }
 
 export async function listAnnouncementAudit(schoolId: string, noticeId: string) {
