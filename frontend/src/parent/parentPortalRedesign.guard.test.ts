@@ -28,6 +28,11 @@ assert.ok(appSrc.includes('label: "Documents"'), "Documents tile");
 assert.ok(appSrc.includes('label: "Incidents"'), "Incidents tile");
 assert.ok(appSrc.includes('label: "Alerts"'), "Alerts tile");
 assert.ok(appSrc.includes('label: "Settings"'), "Settings tile");
+assert.ok(appSrc.includes("ParentPushSettings"), "Settings hosts push/notification preferences");
+assert.ok(appSrc.includes("parentPortalPwaHead"), "Parent PWA head registration");
+assert.ok(appSrc.includes("usePortalPwaHead"), "uses shared portal PWA head hook");
+assert.equal(appSrc.includes("useParentPortalPushPreparation"), false, "placeholder SW prep hook removed from app");
+assert.equal(appSrc.includes("push-sw-placeholder"), false, "no placeholder SW registration in app");
 
 assert.equal(/label:\s*"Calendar"/.test(appSrc), false, "no invented Calendar tile (Events is the live surface)");
 assert.equal(/label:\s*"Academic/.test(appSrc), false, "no Academic Progress tile");

@@ -180,50 +180,17 @@ router.put("/provider-settings", async (req, res) => {
   }
 });
 
-router.post("/push/register", async (req, res) => {
-  try {
-    const schoolId = String(req.body?.schoolId || "").trim();
-    const parentId = String(req.body?.parentId || "").trim();
-    const endpoint = String(req.body?.endpoint || "").trim();
-    const keys = req.body?.keys;
-    const userAgent = String(req.body?.userAgent || "").trim();
-
-    if (!schoolId || !parentId || !endpoint) {
-      return res.status(400).json({ success: false, error: "schoolId, parentId, endpoint required" });
-    }
-
-    const parent = await prisma.parent.findFirst({
-      where: { id: parentId, schoolId },
-      select: { id: true },
-    });
-    if (!parent) return res.status(404).json({ success: false, error: "Parent not found" });
-
-    const sub = await prisma.pushSubscription.upsert({
-      where: { endpoint },
-      create: {
-        schoolId,
-        parentId,
-        endpoint,
-        keys: keys === undefined ? undefined : keys,
-        userAgent: userAgent || undefined,
-      },
-      update: {
-        schoolId,
-        parentId,
-        keys: keys === undefined ? undefined : keys,
-        userAgent: userAgent || undefined,
-      },
-    });
-
-    return res.json({
-      success: true,
-      subscriptionId: sub.id,
-      note: "Push delivery is not enabled yet; subscription is stored for a future release.",
-    });
-  } catch (e) {
-    console.error("[communication-engine] push register", e);
-    return res.status(500).json({ success: false, error: "Registration failed" });
-  }
+/**
+ * Legacy unauthenticated body-based register — disabled (Phase 4A).
+ * Parents must use /api/parent-portal/push/subscriptions with parent JWT.
+ * Accepting schoolId/parentId from the request body enabled endpoint hijacking.
+ */
+router.post("/push/register", async (_req, res) => {
+  return res.status(410).json({
+    success: false,
+    error: "Push registration moved to authenticated parent-portal endpoints",
+    code: "PUSH_REGISTER_MOVED",
+  });
 });
 
 router.get("/templates", async (req, res) => {

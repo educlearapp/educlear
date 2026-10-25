@@ -103,7 +103,13 @@ export async function purgeImportedSchoolData(schoolId: string): Promise<SchoolP
   await run("parentNotification", () =>
     prisma.parentNotification.deleteMany({ where: { schoolId } })
   );
+  await run("parentPushDelivery", () =>
+    prisma.parentPushDelivery.deleteMany({ where: { schoolId } })
+  );
   await run("pushSubscription", () => prisma.pushSubscription.deleteMany({ where: { schoolId } }));
+  await run("parentNotificationPreference", () =>
+    prisma.parentNotificationPreference.deleteMany({ where: { schoolId } })
+  );
   await run("parent", () => prisma.parent.deleteMany({ where: { schoolId } }));
   await run("familyAccount", () => prisma.familyAccount.deleteMany({ where: { schoolId } }));
   await run("homeworkPost", () => prisma.homeworkPost.deleteMany({ where: { schoolId } }));

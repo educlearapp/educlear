@@ -28,7 +28,9 @@ import {
 } from "./parentApi";
 import ParentFinanceHub from "./ParentFinanceHub";
 import ParentEventsPanel from "./ParentEventsPanel";
-import { useParentPortalPushPreparation } from "./useParentPortalPushPreparation";
+import ParentPushSettings from "./ParentPushSettings";
+import { usePortalPwaHead } from "../pwa/usePortalPwaHead";
+import { parentPortalPwaHead } from "../pwa/pwaIconConfig";
 import { fetchBillingSettings } from "../billingSettings/billingSettingsApi";
 import type { FinancePolicySettings } from "../finance/financePolicy";
 import {
@@ -300,13 +302,8 @@ export default function ParentPortalApp() {
   }, [schoolId, idNumber, cellNo]);
 
   const sid = session?.parent?.school?.id || "";
-  const parentId = session?.parent?.id || "";
 
-  useParentPortalPushPreparation({
-    enabled: import.meta.env.VITE_REGISTER_PARENT_PUSH_SW === "true",
-    schoolId: sid,
-    parentId,
-  });
+  usePortalPwaHead(parentPortalPwaHead);
 
   useEffect(() => {
     if (!sid) return;
@@ -1481,12 +1478,11 @@ export default function ParentPortalApp() {
           <div className="parent-portal-card">
             <PanelHeader title="Settings" onBack={() => setPanel("dashboard")} />
             <p className="parent-portal-muted" style={{ fontSize: 13 }}>Keep things simple: use the dashboard for day-to-day updates.</p>
-            {isMobile() && (
-              <button type="button" className="parent-portal-btn-primary parent-portal-full-width" onClick={() => setShellView("pwa")}>
-                Install app instructions
-              </button>
-            )}
-            <button type="button" className="parent-portal-btn-ghost parent-portal-full-width" onClick={logout}>
+            <button type="button" className="parent-portal-btn-primary parent-portal-full-width" onClick={() => setShellView("pwa")}>
+              Install app instructions
+            </button>
+            <ParentPushSettings />
+            <button type="button" className="parent-portal-btn-ghost parent-portal-full-width" style={{ marginTop: 16 }} onClick={logout}>
               Sign out
             </button>
           </div>

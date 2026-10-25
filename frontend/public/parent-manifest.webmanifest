@@ -1,0 +1,32 @@
+{
+  "id": "/parent/",
+  "name": "EduClear Parent Portal",
+  "short_name": "EduClear Parent",
+  "description": "EduClear Parent Portal — school notices, events, messages and alerts for your children.",
+  "start_url": "/parent",
+  "scope": "/parent",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#0b1f3a",
+  "theme_color": "#0b1f3a",
+  "icons": [
+    {
+      "src": "/parent-pwa/educlear-parent-icon-v2-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/parent-pwa/educlear-parent-icon-v2-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/parent-pwa/educlear-parent-icon-v2-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

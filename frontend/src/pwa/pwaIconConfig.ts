@@ -48,3 +48,23 @@ export const adminHomeSafePwaHead: PortalPwaHeadConfig = {
   appleTouch180: mainEduClearIcon,
   manifestIcon192: mainEduClearIcon,
 };
+
+/** Parent Portal PWA — scoped to /parent so it does not collide with Teacher PWA (/teacher/). */
+export const parentPwaIcons = {
+  manifestHref: `/parent-manifest.webmanifest?${v}`,
+  manifestIcon192: `/parent-pwa/educlear-parent-icon-v2-192.png`,
+  manifestIcon512: `/parent-pwa/educlear-parent-icon-v2-512.png`,
+  appleTouch180: `/parent-pwa/educlear-parent-apple-touch-v2-180.png`,
+} as const;
+
+export const parentPortalPwaHead: PortalPwaHeadConfig = {
+  documentTitle: "EduClear Parent Portal",
+  appleWebAppTitle: "EduClear Parent",
+  themeColor: "#0b1f3a",
+  manifestHref: parentPwaIcons.manifestHref,
+  appleTouch180: parentPwaIcons.appleTouch180,
+  manifestIcon192: parentPwaIcons.manifestIcon192,
+  serviceWorkerPath: "/parent-sw.js",
+  /** Scope must cover /parent and /parent/* ; trailing path without slash matches Vite public SW registration. */
+  serviceWorkerScope: "/parent",
+};

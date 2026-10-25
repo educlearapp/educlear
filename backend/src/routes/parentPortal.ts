@@ -50,11 +50,21 @@ import {
 import { lookupParentPortalBySchool } from "../services/parentPortalLookup";
 import { loadSchoolClassMembership, type SchoolClassMembership } from "../utils/classroomMembership";
 import { rateLimitParentPortalLookup } from "../middleware/parentPortalLookupRateLimit";
+import { rateLimitParentPushSubscribe } from "../middleware/parentPushSubscribeRateLimit";
 import {
   allowSchool,
   resolveStaffSchoolGate,
   sendAuthRequired,
 } from "../middleware/staffSchoolGate";
+import {
+  assertVapidConfiguredForSubscribe,
+  disableParentSubscription,
+  getOrDefaultPreferences,
+  listParentSubscriptions,
+  upsertParentSubscription,
+  upsertPreferences,
+  type ParentNotificationPreferenceInput,
+} from "../services/parentPushFoundation";
 import {
   listParentVisibleNotices,
   parentVisibleNoticeWhere,
@@ -810,6 +820,148 @@ router.patch("/notifications/read-all", parentAuthMiddleware, async (req, res) =
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ success: false, error: "Failed to mark all read" });
+  }
+});
+
+// ——— Push subscriptions + notification preferences (Phase 4A foundation; no live send) ———
+
+router.get("/push/vapid-public-key", parentAuthMiddleware, async (_req, res) => {
+  const publicKey = assertVapidConfiguredForSubscribe();
+  return res.json({
+    success: true,
+    publicKey,
+    configured: Boolean(publicKey),
+    deliveryEnabled: false,
+    note: "Web Push delivery is deferred to Phase 4B. Public key only — never expose private VAPID.",
+  });
+});
+
+router.get("/push/subscriptions", parentAuthMiddleware, async (req, res) => {
+  try {
+    const auth = (req as any).parentAuth;
+    const subscriptions = await listParentSubscriptions(auth.schoolId, auth.parentId);
+    return res.json({ success: true, subscriptions, deliveryEnabled: false });
+  } catch (e) {
+    console.error("[parent-portal] list push subscriptions", e);
+    return res.status(500).json({ success: false, error: "Failed to list subscriptions" });
+  }
+});
+
+router.post("/push/subscriptions", parentAuthMiddleware, rateLimitParentPushSubscribe, async (req, res) => {
+  try {
+    const auth = (req as any).parentAuth;
+    // schoolId / parentId come only from verified JWT — ignore any body spoofing.
+    const subscription = await upsertParentSubscription({
+      schoolId: auth.schoolId,
+      parentId: auth.parentId,
+      endpoint: String(req.body?.endpoint || ""),
+      keys: req.body?.keys || null,
+      userAgent: String(req.headers["user-agent"] || req.body?.userAgent || "").slice(0, 400) || null,
+      deviceLabel: req.body?.deviceLabel != null ? String(req.body.deviceLabel) : null,
+    });
+    console.info("[parent-portal] push subscription upsert", {
+      schoolId: auth.schoolId,
+      parentId: auth.parentId,
+      subscriptionId: subscription.id,
+      endpointHost: subscription.endpointHost,
+    });
+    return res.json({
+      success: true,
+      subscription,
+      deliveryEnabled: false,
+      note: "Subscription stored. Live Web Push send is not enabled in Phase 4A.",
+    });
+  } catch (e: any) {
+    const status = Number(e?.status) || 500;
+    if (status >= 500) console.error("[parent-portal] push subscribe", e);
+    return res.status(status).json({
+      success: false,
+      error: status >= 500 ? "Subscription failed" : String(e?.message || "Subscription failed"),
+    });
+  }
+});
+
+router.delete(
+  "/push/subscriptions/:id",
+  parentAuthMiddleware,
+  rateLimitParentPushSubscribe,
+  async (req, res) => {
+    try {
+      const auth = (req as any).parentAuth;
+      const result = await disableParentSubscription({
+        schoolId: auth.schoolId,
+        parentId: auth.parentId,
+        subscriptionId: String(req.params.id || ""),
+      });
+      return res.json({ success: true, ...result });
+    } catch (e: any) {
+      const status = Number(e?.status) || 500;
+      if (status >= 500) console.error("[parent-portal] push unsubscribe", e);
+      return res.status(status).json({
+        success: false,
+        error: status >= 500 ? "Unsubscribe failed" : String(e?.message || "Unsubscribe failed"),
+      });
+    }
+  }
+);
+
+router.post("/push/unsubscribe", parentAuthMiddleware, rateLimitParentPushSubscribe, async (req, res) => {
+  try {
+    const auth = (req as any).parentAuth;
+    const result = await disableParentSubscription({
+      schoolId: auth.schoolId,
+      parentId: auth.parentId,
+      endpoint: req.body?.endpoint ? String(req.body.endpoint) : undefined,
+      subscriptionId: req.body?.subscriptionId ? String(req.body.subscriptionId) : undefined,
+    });
+    return res.json({ success: true, ...result });
+  } catch (e: any) {
+    const status = Number(e?.status) || 500;
+    if (status >= 500) console.error("[parent-portal] push unsubscribe by endpoint", e);
+    return res.status(status).json({
+      success: false,
+      error: status >= 500 ? "Unsubscribe failed" : String(e?.message || "Unsubscribe failed"),
+    });
+  }
+});
+
+router.get("/notification-preferences", parentAuthMiddleware, async (req, res) => {
+  try {
+    const auth = (req as any).parentAuth;
+    const preferences = await getOrDefaultPreferences(auth.schoolId, auth.parentId);
+    return res.json({ success: true, preferences });
+  } catch (e) {
+    console.error("[parent-portal] get notification preferences", e);
+    return res.status(500).json({ success: false, error: "Failed to load preferences" });
+  }
+});
+
+router.put("/notification-preferences", parentAuthMiddleware, async (req, res) => {
+  try {
+    const auth = (req as any).parentAuth;
+    const body = (req.body || {}) as ParentNotificationPreferenceInput;
+    const input: ParentNotificationPreferenceInput = {};
+    if (typeof body.pushEnabled === "boolean") input.pushEnabled = body.pushEnabled;
+    if (typeof body.pushTeacherMessages === "boolean") input.pushTeacherMessages = body.pushTeacherMessages;
+    if (typeof body.pushAnnouncements === "boolean") input.pushAnnouncements = body.pushAnnouncements;
+    if (typeof body.pushEvents === "boolean") input.pushEvents = body.pushEvents;
+    if (typeof body.soundEnabled === "boolean") input.soundEnabled = body.soundEnabled;
+    if (typeof body.lockScreenPreview === "boolean") input.lockScreenPreview = body.lockScreenPreview;
+    if (body.quietHoursStart !== undefined) {
+      input.quietHoursStart = body.quietHoursStart == null ? null : String(body.quietHoursStart);
+    }
+    if (body.quietHoursEnd !== undefined) {
+      input.quietHoursEnd = body.quietHoursEnd == null ? null : String(body.quietHoursEnd);
+    }
+    const preferences = await upsertPreferences(auth.schoolId, auth.parentId, input);
+    return res.json({ success: true, preferences });
+  } catch (e: any) {
+    const status = Number(e?.status) || 500;
+    if (status >= 500) console.error("[parent-portal] put notification preferences", e);
+    return res.status(status).json({
+      success: false,
+      error: status >= 500 ? "Failed to save preferences" : String(e?.message || "Failed to save preferences"),
+    });
   }
 });
 

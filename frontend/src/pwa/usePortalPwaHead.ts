@@ -73,7 +73,12 @@ export function usePortalPwaHead(config: PortalPwaHeadConfig): void {
       for (const reg of regs) {
         const script =
           reg.active?.scriptURL ?? reg.installing?.scriptURL ?? reg.waiting?.scriptURL ?? "";
+        // Clean mistaken root-scoped teacher SW only — never unregister the other portal's SW.
         if (script.endsWith("/teacher-sw.js") && reg.scope === `${window.location.origin}/`) {
+          await reg.unregister();
+        }
+        // Retire Phase-0 parent push placeholder if still registered.
+        if (script.endsWith("/push-sw-placeholder.js")) {
           await reg.unregister();
         }
       }

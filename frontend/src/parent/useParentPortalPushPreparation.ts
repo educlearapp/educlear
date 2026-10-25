@@ -1,17 +1,11 @@
-import { useEffect } from "react";
-
 /**
- * Registers the placeholder service worker when enabled.
- * Full Web Push (VAPID, subscribe, server send) is intentionally not implemented yet.
+ * @deprecated Phase 4A — Parent Portal now registers `/parent-sw.js` via `usePortalPwaHead(parentPortalPwaHead)`.
+ * Kept as a no-op so any leftover callers do not re-register the old placeholder SW.
  */
-export function useParentPortalPushPreparation(opts: {
+export function useParentPortalPushPreparation(_opts: {
   enabled: boolean;
   schoolId: string;
   parentId: string;
 }) {
-  useEffect(() => {
-    if (!opts.enabled || !opts.schoolId || !opts.parentId) return;
-    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
-    void navigator.serviceWorker.register("/push-sw-placeholder.js").catch(() => {});
-  }, [opts.enabled, opts.schoolId, opts.parentId]);
+  // Intentionally empty: do not register /push-sw-placeholder.js.
 }

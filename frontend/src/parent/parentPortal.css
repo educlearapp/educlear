@@ -1979,3 +1979,35 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+
+/* Phase 4A — notification preference toggles (Settings) */
+.parent-portal-root .parent-push-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--p-ink);
+  margin: 0 0 10px;
+  cursor: pointer;
+}
+
+.parent-portal-root .parent-push-toggle input {
+  margin-top: 3px;
+  accent-color: var(--p-accent);
+}
+
+.parent-portal-root .parent-push-device-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.parent-portal-root .parent-push-device-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--p-border);
+}

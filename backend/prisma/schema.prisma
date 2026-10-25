@@ -171,6 +171,7 @@ model School {
   schoolNoticeAuditLogs            SchoolNoticeAuditLog[]
   schoolEventAuditLogs             SchoolEventAuditLog[]
   pushSubscriptions                PushSubscription[]
+  parentNotificationPreferences    ParentNotificationPreference[]
   bulkStatementEmailJobs           BulkStatementEmailJob[]
   bulkStatementEmailRecipients     BulkStatementEmailRecipient[]
   schoolCommunicationProfile       SchoolCommunicationProfile?
@@ -719,6 +720,7 @@ model Parent {
   outreachQueue         ParentOutreachQueue[]
   communicationMessages CommunicationMessage[]
   pushSubscriptions     PushSubscription[]
+  notificationPreference ParentNotificationPreference?
 
   /// Soft match targets from Online Admissions (staging) — never auto-created from applications.
   admissionGuardianMatches AdmissionGuardian[] @relation("AdmissionGuardianMatchedParent")
@@ -3461,18 +3463,69 @@ model CommunicationLog {
 }
 
 model PushSubscription {
-  id        String   @id @default(cuid())
-  schoolId  String
-  parentId  String
-  endpoint  String   @unique
-  keys      Json?
-  userAgent String?
-  createdAt DateTime @default(now())
+  id            String    @id @default(cuid())
+  schoolId      String
+  parentId      String
+  endpoint      String    @unique
+  keys          Json?
+  userAgent     String?
+  deviceLabel   String?
+  /// Soft-disable without deleting endpoint history.
+  enabled       Boolean   @default(true)
+  lastSeenAt    DateTime?
+  lastSuccessAt DateTime?
+  failCount     Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  school    School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  parent    Parent               @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  deliveries ParentPushDelivery[]
+
+  @@index([schoolId, parentId])
+  @@index([schoolId, parentId, enabled])
+}
+
+/// Per-parent, per-school notification preferences (Phase 4A). Lock-screen preview defaults OFF.
+model ParentNotificationPreference {
+  id                    String   @id @default(cuid())
+  schoolId              String
+  parentId              String   @unique
+  pushEnabled           Boolean  @default(false)
+  pushTeacherMessages   Boolean  @default(true)
+  pushAnnouncements     Boolean  @default(true)
+  pushEvents            Boolean  @default(true)
+  soundEnabled          Boolean  @default(false)
+  /// Optional quiet hours in school-local HH:mm (24h). Null = no quiet hours.
+  quietHoursStart       String?
+  quietHoursEnd         String?
+  /// When false (default), push payloads must not include message bodies.
+  lockScreenPreview     Boolean  @default(false)
+  updatedAt             DateTime @updatedAt
+  createdAt             DateTime @default(now())
 
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   parent Parent @relation(fields: [parentId], references: [id], onDelete: Cascade)
 
-  @@index([schoolId, parentId])
+  @@index([schoolId])
+}
+
+/// Future Phase 4B: one delivery attempt per notification per device (not sent in 4A).
+model ParentPushDelivery {
+  id                   String    @id @default(cuid())
+  schoolId             String
+  parentNotificationId String
+  subscriptionId       String
+  status               String    @default("queued")
+  attemptedAt          DateTime?
+  error                String?
+  createdAt            DateTime  @default(now())
+
+  subscription PushSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([parentNotificationId, subscriptionId])
+  @@index([schoolId, status])
+  @@index([subscriptionId])
 }
 
 enum BulkStatementEmailJobStatus {
