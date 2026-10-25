@@ -3510,22 +3510,34 @@ model ParentNotificationPreference {
   @@index([schoolId])
 }
 
-/// Future Phase 4B: one delivery attempt per notification per device (not sent in 4A).
+/// Phase 4B: one delivery attempt per notification per subscribed device.
+/// Status: queued | deferred | sending | sent | mock_ok | failed | expired | skipped | suppressed
 model ParentPushDelivery {
   id                   String    @id @default(cuid())
   schoolId             String
+  parentId             String
   parentNotificationId String
   subscriptionId       String
   status               String    @default("queued")
+  /// True only after a real external Web Push provider acknowledged the send.
+  externalSent         Boolean   @default(false)
+  attemptCount         Int       @default(0)
+  nextAttemptAt        DateTime?
+  claimedAt            DateTime?
+  claimedBy            String?
   attemptedAt          DateTime?
+  sentAt               DateTime?
   error                String?
   createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   subscription PushSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@unique([parentNotificationId, subscriptionId])
   @@index([schoolId, status])
+  @@index([schoolId, parentId])
   @@index([subscriptionId])
+  @@index([status, nextAttemptAt])
 }
 
 enum BulkStatementEmailJobStatus {

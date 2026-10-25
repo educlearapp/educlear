@@ -274,14 +274,12 @@ export async function disableParentSubscription(opts: {
   return { disabled: result.count };
 }
 
-/**
- * Phase 4B hook documentation — not invoked in 4A.
- * One ParentPushDelivery row per (notification, subscription); payload must omit bodies unless lockScreenPreview.
- */
+/** Documented Phase 4B delivery contract (implemented in parentPushDeliveryEngine). */
 export function phase4bDeliveryContract() {
   return {
-    status: "deferred",
+    status: "implemented",
     rule: "one delivery per parentNotificationId + subscriptionId",
+    featureFlag: "WEB_PUSH_DELIVERY_ENABLED",
     defaultPayload: ["notificationId", "type", "title"],
     omitUnlessPreview: ["body", "learnerName", "message"],
     neverInclude: ["billing", "account balances", "OTP", "full teacher message body by default"],

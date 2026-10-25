@@ -15,6 +15,7 @@ import {
   createClassroomResolver,
   loadSchoolClassMembership,
 } from "../utils/classroomMembership";
+import { enqueueParentPushDeliveriesForNotification } from "./parentPushDeliveryEngine";
 
 export function normalizeSaPhone(phone: string) {
   const digits = String(phone || "").replace(/\D/g, "");
@@ -521,6 +522,18 @@ export async function createParentNotification(opts: {
     templateKey: templateKey || undefined,
     templateVariables: templateKey ? templateVariables : undefined,
   });
+
+  // Phase 4B: enqueue Web Push deliveries for new notifications only (dedupe hits return above).
+  try {
+    await enqueueParentPushDeliveriesForNotification(parentNotification);
+  } catch (e) {
+    console.error("[parent-push] enqueue after notification failed", {
+      notificationId: parentNotification.id,
+      schoolId: parentNotification.schoolId,
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+
   return parentNotification;
 }
 

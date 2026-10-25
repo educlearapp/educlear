@@ -120,7 +120,7 @@ async function main() {
   });
   assert.equal(placeholder.ok, false);
   assert.equal(placeholder.simulated, true);
-  assert.ok(String(placeholder.error).includes("phase_4a"));
+  assert.ok(String(placeholder.error).includes("parent_push_engine"));
 
   // Legacy engine register must not create subscriptions (410 when reached; 401/403 if staff module gate blocks first)
   const legacy = await json("/api/communication-engine/push/register", {
