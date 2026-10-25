@@ -23,6 +23,7 @@ import {
   clearParentSession,
   getParentSession,
   getParentToken,
+  isParentSessionUnauthorized,
   parentApiFetch,
   setParentSession,
 } from "./parentApi";
@@ -426,8 +427,20 @@ export default function ParentPortalApp() {
           transactions: Array.isArray(data.transactions) ? data.transactions : [],
         });
       })
-      .catch(() => {
-        if (!cancelled) setFamilyBilling(null);
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        setFamilyBilling(null);
+        if (isParentSessionUnauthorized(e)) {
+          clearParentSession();
+          setSession(null);
+          setDashboard(null);
+          setError(
+            e && typeof e === "object" && "message" in e
+              ? String((e as { message?: string }).message || "Invalid or expired parent session")
+              : "Invalid or expired parent session"
+          );
+          setShellView("login");
+        }
       })
       .finally(() => {
         if (!cancelled) setBillingLoading(false);
@@ -449,7 +462,14 @@ export default function ParentPortalApp() {
         setThreadMessages(data?.thread?.messages || []);
       })
       .catch((e: any) => {
-        if (!cancelled) setError(e?.message || "Failed to load messages");
+        if (cancelled) return;
+        setError(e?.message || "Failed to load messages");
+        if (isParentSessionUnauthorized(e)) {
+          clearParentSession();
+          setSession(null);
+          setDashboard(null);
+          setShellView("login");
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -491,10 +511,20 @@ export default function ParentPortalApp() {
         setContentList(Array.isArray(data?.[key]) ? data[key] : []);
         setContentListHasMore(Boolean(data?.hasMore));
       })
-      .catch(() => {
-        if (!cancelled) {
-          setContentList([]);
-          setContentListHasMore(false);
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        setContentList([]);
+        setContentListHasMore(false);
+        if (isParentSessionUnauthorized(e)) {
+          clearParentSession();
+          setSession(null);
+          setDashboard(null);
+          setError(
+            e && typeof e === "object" && "message" in e
+              ? String((e as { message?: string }).message || "Invalid or expired parent session")
+              : "Invalid or expired parent session"
+          );
+          setShellView("login");
         }
       })
       .finally(() => {
@@ -534,8 +564,11 @@ export default function ParentPortalApp() {
       }
     } catch (e: any) {
       setError(e?.message || "Failed to load dashboard");
-      if (String(e?.message || "").includes("401")) {
+      // ApiError.message is the server error string (not "401"); use status.
+      if (isParentSessionUnauthorized(e)) {
         clearParentSession();
+        setSession(null);
+        setDashboard(null);
         setShellView("login");
       }
     } finally {
