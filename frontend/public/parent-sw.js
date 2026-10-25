@@ -1,8 +1,14 @@
 /**
- * EduClear Parent Portal service worker (Phase 4A).
- * - Install/activate only for PWA + future Web Push.
- * - Does NOT cache authenticated API responses (billing, messages, learners).
- * - Push handler shows a generic notification; bodies stay server-side until Phase 4B.
+ * EduClear Parent Portal service worker (Phase 4A–4C).
+ * - No authenticated API caching.
+ * - Push UI is privacy-safe by default; click opens /parent?panel=alerts.
+ * - Skips OS notification when a visible Parent Portal client is already focused
+ *   (avoids duplicate foreground + background presentation).
+ *
+ * Browser / iOS notes:
+ * - iOS Web Push requires the PWA installed to Home Screen; background sound is
+ *   controlled by iOS Focus / Silent Mode — the web app cannot override it.
+ * - Chrome/Edge/Firefox on desktop support Badging + Notification APIs when permitted.
  */
 /* eslint-disable no-restricted-globals */
 
@@ -13,7 +19,6 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
-      // Drop any accidental caches from earlier experiments — never retain private API data.
       const keys = await caches.keys();
       await Promise.all(
         keys
@@ -27,11 +32,9 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
-  // Never intercept API or auth traffic — network only, no offline cache of private data.
   if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/auth")) {
     return;
   }
-  // Navigation: network-first; on failure show a minimal offline response (no cached app shell with secrets).
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request).catch(
@@ -45,55 +48,68 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
-self.addEventListener("push", (event) => {
-  // Phase 4A: foundation only — real payloads arrive in 4B. Always show a visible notification
-  // when a push arrives so iOS does not revoke the subscription for silent handling.
-  let title = "EduClear";
-  let body = "You have a new school update. Open Parent Portal for details.";
-  let data = {};
-  try {
-    if (event.data) {
-      const parsed = event.data.json();
-      if (parsed && typeof parsed === "object") {
-        if (parsed.title) title = String(parsed.title).slice(0, 80);
-        // Default privacy: ignore body unless explicitly allowed by payload flag from server (4B).
-        if (parsed.lockScreenPreview === true && parsed.body) {
-          body = String(parsed.body).slice(0, 140);
-        }
-        data = {
-          notificationId: parsed.notificationId || null,
-          type: parsed.type || null,
-        };
-      }
-    }
-  } catch {
-    /* use defaults */
-  }
+const ALERTS_URL = "/parent?panel=alerts";
 
+self.addEventListener("push", (event) => {
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      data,
-      icon: "/parent-pwa/educlear-parent-icon-v2-192.png",
-      badge: "/parent-pwa/educlear-parent-icon-v2-192.png",
-    })
+    (async () => {
+      let title = "EduClear";
+      let body = "You have a new school update. Open Parent Portal for details.";
+      let data = { openPanel: "alerts" };
+      try {
+        if (event.data) {
+          const parsed = event.data.json();
+          if (parsed && typeof parsed === "object") {
+            if (parsed.title) title = String(parsed.title).slice(0, 80);
+            if (parsed.lockScreenPreview === true && parsed.body) {
+              body = String(parsed.body).slice(0, 140);
+            }
+            data = {
+              openPanel: "alerts",
+              notificationId: parsed.notificationId || null,
+              type: parsed.type || null,
+            };
+          }
+        }
+      } catch {
+        /* defaults */
+      }
+
+      const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      const visibleParent = clients.filter(
+        (c) => String(c.url || "").includes("/parent") && c.visibilityState === "visible"
+      );
+      if (visibleParent.length > 0) {
+        for (const client of visibleParent) {
+          client.postMessage({ type: "educlear-parent-push", ...data });
+        }
+        return;
+      }
+
+      await self.registration.showNotification(title, {
+        body,
+        data,
+        icon: "/parent-pwa/educlear-parent-icon-v2-192.png",
+        badge: "/parent-pwa/educlear-parent-icon-v2-192.png",
+      });
+    })()
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = "/parent";
   event.waitUntil(
     (async () => {
       const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       for (const client of all) {
-        if ("focus" in client && String(client.url || "").includes("/parent")) {
+        if (String(client.url || "").includes("/parent") && "focus" in client) {
           await client.focus();
+          client.postMessage({ type: "educlear-parent-open-alerts" });
           return;
         }
       }
       if (self.clients.openWindow) {
-        await self.clients.openWindow(target);
+        await self.clients.openWindow(ALERTS_URL);
       }
     })()
   );

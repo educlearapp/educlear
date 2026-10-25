@@ -2011,3 +2011,11 @@
   padding: 10px 0;
   border-bottom: 1px solid var(--p-border);
 }
+
+.parent-portal-root .parent-push-settings-card {
+  margin: 0 0 14px;
+  padding: 14px 14px 10px;
+  border: 1px solid var(--p-border);
+  border-radius: 14px;
+  background: #fff;
+}

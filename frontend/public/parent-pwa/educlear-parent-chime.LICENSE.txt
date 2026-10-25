@@ -1,0 +1,6 @@
+EduClear Parent Portal notification chime
+File: educlear-parent-chime.wav
+
+Original audio generated for EduClear (two soft sine tones, ~0.5s).
+Not a third-party sample. Licensed for use within the EduClear product only.
+Do not redistribute as a standalone asset pack.

@@ -7,6 +7,7 @@ import {
   unsubscribeBrowserPush,
   type PushSupportState,
 } from "./parentPushClient";
+import { testParentNotificationChime } from "./parentNotificationSound";
 
 type Prefs = {
   pushEnabled: boolean;
@@ -41,17 +42,17 @@ const DEFAULT_PREFS: Prefs = {
 function supportMessage(state: PushSupportState): string {
   switch (state) {
     case "unsupported":
-      return "Push notifications are not supported in this browser.";
+      return "Push notifications are not supported in this browser. You can still use in-app Alerts and sound while the Parent Portal is open.";
     case "insecure_context":
-      return "Push requires a secure (HTTPS) connection.";
+      return "Push requires a secure (HTTPS) connection. In-app Alerts still work when you are signed in.";
     case "denied":
-      return "Browser notifications are blocked. Enable them in browser settings if you want alerts.";
+      return "Browser notifications are blocked. Enable them in browser settings if you want lock-screen alerts, or use in-app Alerts and sound.";
     default:
-      return "Alerts stay on this device only after you enable them below. We never turn them on automatically.";
+      return "We never turn on notifications automatically. Choose what you want below.";
   }
 }
 
-export default function ParentPushSettings() {
+export default function ParentPushSettings(props: { onPrefsChanged?: () => void }) {
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
   const [devices, setDevices] = useState<DeviceRow[]>([]);
   const [vapidKey, setVapidKey] = useState<string | null>(null);
@@ -61,6 +62,7 @@ export default function ParentPushSettings() {
   const [error, setError] = useState<string | null>(null);
   const [quietStart, setQuietStart] = useState("");
   const [quietEnd, setQuietEnd] = useState("");
+  const [testSoundNote, setTestSoundNote] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setError(null);
@@ -102,6 +104,7 @@ export default function ParentPushSettings() {
         setQuietEnd(data.preferences.quietHoursEnd || "");
       }
       setNotice("Preferences saved.");
+      props.onPrefsChanged?.();
     } catch (e: any) {
       setError(e?.message || "Could not save preferences");
     } finally {
@@ -114,16 +117,16 @@ export default function ParentPushSettings() {
     setError(null);
     setNotice(null);
     try {
-      // Persist opt-in preference first; browser permission only after this user action.
       await parentApiFetch("/api/parent-portal/notification-preferences", {
         method: "PUT",
         body: JSON.stringify({ pushEnabled: true }),
       });
+      props.onPrefsChanged?.();
 
       if (!vapidKey) {
         setPrefs((p) => ({ ...p, pushEnabled: true }));
         setNotice(
-          "Push preference saved. Device subscription needs a VAPID public key (set VAPID_PUBLIC_KEY locally). Live delivery is not enabled yet."
+          "Push preference saved. Device registration needs a VAPID public key on the server. Live delivery remains controlled by the school."
         );
         setSupport(getPushSupportState());
         return;
@@ -146,7 +149,7 @@ export default function ParentPushSettings() {
         }),
       });
       await refresh();
-      setNotice("This device is registered for future alerts. Live push delivery is not enabled yet (Phase 4B).");
+      setNotice("This device is registered for alerts when your school sends them.");
     } catch (e: any) {
       setError(e?.message || "Could not enable push on this device");
     } finally {
@@ -200,11 +203,25 @@ export default function ParentPushSettings() {
     });
   };
 
+  const onTestSound = async () => {
+    setTestSoundNote(null);
+    const result = await testParentNotificationChime();
+    if (result === "played") setTestSoundNote("Playing EduClear chime.");
+    else if (result === "skipped_denied") {
+      setTestSoundNote("Browser blocked audio. Tap again after interacting with the page, or check device volume.");
+    } else if (result === "unsupported") setTestSoundNote("Audio is not available in this browser.");
+    else setTestSoundNote("Sound skipped — try again in a moment.");
+  };
+
   return (
     <div className="parent-push-settings" style={{ marginTop: 16 }}>
       <div className="parent-portal-section-label">Notifications</div>
-      <p className="parent-portal-muted" style={{ fontSize: 13, marginBottom: 12 }}>
+      <p className="parent-portal-muted" style={{ fontSize: 13, marginBottom: 12, lineHeight: 1.45 }}>
         {supportMessage(support)}
+      </p>
+      <p className="parent-portal-muted" style={{ fontSize: 12, marginBottom: 14, lineHeight: 1.45 }}>
+        On iPhone, background notification sound is controlled by iOS (Focus / Silent Mode). EduClear cannot override
+        that. In-app sound only plays while the Parent Portal is open and unlocked by your tap.
       </p>
 
       {error ? (
@@ -218,73 +235,99 @@ export default function ParentPushSettings() {
         </p>
       ) : null}
 
-      <label className="parent-push-toggle">
-        <input
-          type="checkbox"
-          checked={prefs.pushEnabled}
-          disabled={busy || support === "unsupported" || support === "insecure_context"}
-          onChange={(e) => {
-            if (e.target.checked) void onEnablePush();
-            else void onDisablePush();
-          }}
-        />
-        <span>Enable push notifications</span>
-      </label>
-
-      <label className="parent-push-toggle">
-        <input
-          type="checkbox"
-          checked={prefs.pushTeacherMessages}
-          disabled={busy}
-          onChange={(e) => void savePrefs({ pushTeacherMessages: e.target.checked })}
-        />
-        <span>Teacher messages</span>
-      </label>
-
-      <label className="parent-push-toggle">
-        <input
-          type="checkbox"
-          checked={prefs.pushAnnouncements}
-          disabled={busy}
-          onChange={(e) => void savePrefs({ pushAnnouncements: e.target.checked })}
-        />
-        <span>School announcements</span>
-      </label>
-
-      <label className="parent-push-toggle">
-        <input
-          type="checkbox"
-          checked={prefs.pushEvents}
-          disabled={busy}
-          onChange={(e) => void savePrefs({ pushEvents: e.target.checked })}
-        />
-        <span>School events</span>
-      </label>
-
-      <label className="parent-push-toggle">
-        <input
-          type="checkbox"
-          checked={prefs.soundEnabled}
-          disabled={busy}
-          onChange={(e) => void savePrefs({ soundEnabled: e.target.checked })}
-        />
-        <span>In-app sound</span>
-      </label>
-
-      <label className="parent-push-toggle">
-        <input
-          type="checkbox"
-          checked={prefs.lockScreenPreview}
-          disabled={busy}
-          onChange={(e) => void savePrefs({ lockScreenPreview: e.target.checked })}
-        />
-        <span>Show message previews on lock screen (off by default)</span>
-      </label>
-
-      <div style={{ marginTop: 12 }}>
-        <div className="parent-portal-muted" style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-          Quiet hours (optional, HH:mm)
+      <div className="parent-push-settings-card">
+        <div className="parent-portal-muted" style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.04em", marginBottom: 8 }}>
+          PUSH
         </div>
+        <label className="parent-push-toggle">
+          <input
+            type="checkbox"
+            checked={prefs.pushEnabled}
+            disabled={busy || support === "unsupported" || support === "insecure_context"}
+            onChange={(e) => {
+              if (e.target.checked) void onEnablePush();
+              else void onDisablePush();
+            }}
+          />
+          <span>Enable push notifications</span>
+        </label>
+
+        <label className="parent-push-toggle">
+          <input
+            type="checkbox"
+            checked={prefs.pushTeacherMessages}
+            disabled={busy}
+            onChange={(e) => void savePrefs({ pushTeacherMessages: e.target.checked })}
+          />
+          <span>Teacher messages</span>
+        </label>
+
+        <label className="parent-push-toggle">
+          <input
+            type="checkbox"
+            checked={prefs.pushAnnouncements}
+            disabled={busy}
+            onChange={(e) => void savePrefs({ pushAnnouncements: e.target.checked })}
+          />
+          <span>School announcements</span>
+        </label>
+
+        <label className="parent-push-toggle">
+          <input
+            type="checkbox"
+            checked={prefs.pushEvents}
+            disabled={busy}
+            onChange={(e) => void savePrefs({ pushEvents: e.target.checked })}
+          />
+          <span>School events</span>
+        </label>
+
+        <label className="parent-push-toggle">
+          <input
+            type="checkbox"
+            checked={prefs.lockScreenPreview}
+            disabled={busy}
+            onChange={(e) => void savePrefs({ lockScreenPreview: e.target.checked })}
+          />
+          <span>Show message previews on lock screen (off by default)</span>
+        </label>
+      </div>
+
+      <div className="parent-push-settings-card">
+        <div className="parent-portal-muted" style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.04em", marginBottom: 8 }}>
+          IN-APP SOUND
+        </div>
+        <label className="parent-push-toggle">
+          <input
+            type="checkbox"
+            checked={prefs.soundEnabled}
+            disabled={busy}
+            onChange={(e) => void savePrefs({ soundEnabled: e.target.checked })}
+          />
+          <span>Play EduClear chime for new alerts while this page is open</span>
+        </label>
+        <button
+          type="button"
+          className="parent-portal-btn-ghost parent-portal-full-width"
+          disabled={busy}
+          onClick={() => void onTestSound()}
+        >
+          Test Sound
+        </button>
+        {testSoundNote ? (
+          <p className="parent-portal-muted" style={{ fontSize: 12, marginTop: 8 }}>
+            {testSoundNote}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="parent-push-settings-card">
+        <div className="parent-portal-muted" style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.04em", marginBottom: 8 }}>
+          QUIET HOURS
+        </div>
+        <p className="parent-portal-muted" style={{ fontSize: 12, marginBottom: 8 }}>
+          Optional. Uses 24-hour HH:mm. Applies to in-app sound and push delivery preferences.
+        </p>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <input
             className="parent-portal-input"
@@ -316,7 +359,7 @@ export default function ParentPushSettings() {
         </div>
       </div>
 
-      <div style={{ marginTop: 16 }}>
+      <div style={{ marginTop: 8 }}>
         <div className="parent-portal-section-label">This account’s devices</div>
         {devices.length === 0 ? (
           <p className="parent-portal-muted" style={{ fontSize: 13 }}>

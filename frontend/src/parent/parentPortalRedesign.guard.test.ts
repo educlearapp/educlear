@@ -29,10 +29,15 @@ assert.ok(appSrc.includes('label: "Incidents"'), "Incidents tile");
 assert.ok(appSrc.includes('label: "Alerts"'), "Alerts tile");
 assert.ok(appSrc.includes('label: "Settings"'), "Settings tile");
 assert.ok(appSrc.includes("ParentPushSettings"), "Settings hosts push/notification preferences");
+assert.ok(appSrc.includes("useParentNotificationLive"), "foreground live notification polling");
 assert.ok(appSrc.includes("parentPortalPwaHead"), "Parent PWA head registration");
 assert.ok(appSrc.includes("usePortalPwaHead"), "uses shared portal PWA head hook");
 assert.equal(appSrc.includes("useParentPortalPushPreparation"), false, "placeholder SW prep hook removed from app");
 assert.equal(appSrc.includes("push-sw-placeholder"), false, "no placeholder SW registration in app");
+
+const settingsSrc = fs.readFileSync(path.join(dir, "ParentPushSettings.tsx"), "utf8");
+assert.ok(settingsSrc.includes("Test Sound"), "Test Sound action");
+assert.ok(settingsSrc.includes("Silent Mode") || settingsSrc.includes("iOS"), "iOS sound limitation copy");
 
 assert.equal(/label:\s*"Calendar"/.test(appSrc), false, "no invented Calendar tile (Events is the live surface)");
 assert.equal(/label:\s*"Academic/.test(appSrc), false, "no Academic Progress tile");

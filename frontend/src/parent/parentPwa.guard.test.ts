@@ -26,9 +26,15 @@ assert.equal(teacherManifest.scope, "/teacher/");
 assert.notEqual(manifest.scope, teacherManifest.scope, "parent and teacher PWA scopes must differ");
 
 assert.ok(parentSw.includes('pathname.startsWith("/api/")'), "parent SW must not cache API");
-assert.ok(parentSw.includes("Never intercept API") || parentSw.includes("Never intercept API or auth"));
+assert.ok(
+  parentSw.includes("No authenticated API caching") || parentSw.includes("Never intercept API"),
+  "parent SW documents no API cache"
+);
 assert.equal(/caches\.open\(/.test(parentSw), false, "parent SW must not open caches for offline app shell");
 assert.ok(parentSw.includes("You are offline"));
+assert.ok(parentSw.includes("panel=alerts"), "SW opens Alerts panel");
+assert.ok(parentSw.includes("educlear-parent-open-alerts"), "SW posts open-alerts message");
+assert.ok(fs.existsSync(path.join(publicDir, "parent-pwa", "educlear-parent-chime.wav")), "chime asset");
 
 assert.ok(iconCfg.includes('serviceWorkerPath: "/parent-sw.js"'));
 assert.ok(iconCfg.includes('serviceWorkerScope: "/parent"'));

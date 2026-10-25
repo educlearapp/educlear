@@ -31,6 +31,8 @@ import ParentEventsPanel from "./ParentEventsPanel";
 import ParentPushSettings from "./ParentPushSettings";
 import { usePortalPwaHead } from "../pwa/usePortalPwaHead";
 import { parentPortalPwaHead } from "../pwa/pwaIconConfig";
+import { useParentNotificationLive } from "./useParentNotificationLive";
+import { clearParentAppBadge } from "./parentAppBadge";
 import { fetchBillingSettings } from "../billingSettings/billingSettingsApi";
 import type { FinancePolicySettings } from "../finance/financePolicy";
 import {
@@ -280,10 +282,23 @@ export default function ParentPortalApp() {
     ? `${session.parent.firstName} ${session.parent.surname}`.trim()
     : "Parent";
 
-  const unreadNotifCount = useMemo(() => {
+  const sid = session?.parent?.school?.id || "";
+  const parentId = session?.parent?.id || "";
+
+  usePortalPwaHead(parentPortalPwaHead);
+
+  const liveNotifs = useParentNotificationLive({
+    enabled: shellView === "app" && Boolean(getParentToken()) && Boolean(sid) && Boolean(parentId),
+    schoolId: sid,
+    parentId,
+  });
+
+  const dashboardUnread = useMemo(() => {
     const list = (dashboard?.notifications || []) as Notification[];
     return list.filter((n) => !n.isRead).length;
   }, [dashboard?.notifications]);
+
+  const unreadNotifCount = liveNotifs.ready ? liveNotifs.unreadCount : dashboardUnread;
 
   useEffect(() => {
     void apiFetch("/api/public/schools", { skipAuth: true })
@@ -300,10 +315,6 @@ export default function ParentPortalApp() {
     setLoginSuccess(null);
     setError(null);
   }, [schoolId, idNumber, cellNo]);
-
-  const sid = session?.parent?.school?.id || "";
-
-  usePortalPwaHead(parentPortalPwaHead);
 
   useEffect(() => {
     if (!sid) return;
@@ -644,6 +655,7 @@ export default function ParentPortalApp() {
     try {
       await parentApiFetch(`/api/parent-portal/notifications/${encodeURIComponent(id)}/read`, { method: "PATCH" });
       await refreshNotificationsList();
+      await liveNotifs.syncAfterMarkRead();
       await loadDashboard();
     } catch {
       /* ignore */
@@ -664,6 +676,8 @@ export default function ParentPortalApp() {
   }
 
   function logout() {
+    liveNotifs.clearOnLogout();
+    void clearParentAppBadge();
     clearParentSession();
     setShellView("login");
     setDashboard(null);
@@ -671,6 +685,34 @@ export default function ParentPortalApp() {
     setSelectedLearnerId("");
     setPanel("dashboard");
   }
+
+  // Deep-link / SW: open Alerts panel (?panel=alerts or service-worker message).
+  useEffect(() => {
+    if (shellView !== "app") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("panel") === "alerts") {
+      void openNotificationsPanel();
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("panel");
+        window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+      } catch {
+        /* ignore */
+      }
+    }
+    const onMsg = (event: MessageEvent) => {
+      if (event.data?.type === "educlear-parent-open-alerts" || event.data?.type === "educlear-parent-push") {
+        if (event.data?.type === "educlear-parent-open-alerts") void openNotificationsPanel();
+        else void liveNotifs.pollNow();
+      }
+    };
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", onMsg);
+      return () => navigator.serviceWorker.removeEventListener("message", onMsg);
+    }
+    return undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shellView]);
 
   const parentAccountLabel = useMemo(() => {
     if (!familyBilling) return "";
@@ -1481,7 +1523,7 @@ export default function ParentPortalApp() {
             <button type="button" className="parent-portal-btn-primary parent-portal-full-width" onClick={() => setShellView("pwa")}>
               Install app instructions
             </button>
-            <ParentPushSettings />
+            <ParentPushSettings onPrefsChanged={() => void liveNotifs.refreshPrefs()} />
             <button type="button" className="parent-portal-btn-ghost parent-portal-full-width" style={{ marginTop: 16 }} onClick={logout}>
               Sign out
             </button>
