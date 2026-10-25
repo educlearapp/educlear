@@ -27,8 +27,11 @@ assert.equal(defaults.lockScreenPreview, false);
 assert.equal(defaults.soundEnabled, false);
 assert.equal(defaults.pushTeacherMessages, true);
 
+// Phase 4B (0a003fb) flipped documentation status from "deferred" → "implemented".
+// External send remains gated by WEB_PUSH_DELIVERY_ENABLED (default unset/off).
 const contract = phase4bDeliveryContract();
-assert.equal(contract.status, "deferred");
+assert.equal(contract.status, "implemented");
+assert.equal(contract.featureFlag, "WEB_PUSH_DELIVERY_ENABLED");
 assert.ok(contract.neverInclude.includes("billing"));
 
 console.log("parentPushFoundation.unit.test: PASS");
