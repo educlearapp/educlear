@@ -1,0 +1,327 @@
+/* Scoped to Communications Centre hub only — do not leak into Parent Portal or Finance Hub. */
+.communications-centre-hub {
+  --cch-navy: #0b1f3a;
+  --cch-navy-soft: #143056;
+  --cch-gold: #c9a227;
+  --cch-gold-soft: #e8d48b;
+  --cch-ink: #102033;
+  --cch-muted: #5b6b7c;
+  --cch-line: rgba(15, 32, 51, 0.1);
+  --cch-surface: #ffffff;
+  --cch-wash: #f4f7fb;
+  box-sizing: border-box;
+  color: var(--cch-ink);
+  background:
+    radial-gradient(1200px 420px at 10% -10%, rgba(201, 162, 39, 0.12), transparent 55%),
+    linear-gradient(180deg, #eef3f9 0%, var(--cch-wash) 40%, #e8eef6 100%);
+  border: 1px solid var(--cch-line);
+  border-radius: 18px;
+  min-height: calc(100vh - 120px);
+  padding: 18px 18px 28px;
+}
+
+.communications-centre-hub *,
+.communications-centre-hub *::before,
+.communications-centre-hub *::after {
+  box-sizing: border-box;
+}
+
+.communications-centre-hub__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 20px;
+  margin-bottom: 16px;
+}
+
+.communications-centre-hub__eyebrow {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cch-gold);
+}
+
+.communications-centre-hub__title {
+  margin: 0;
+  font-size: clamp(1.45rem, 2.2vw, 1.85rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: var(--cch-navy);
+}
+
+.communications-centre-hub__sub {
+  margin: 6px 0 0;
+  max-width: 46rem;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--cch-muted);
+  font-weight: 600;
+}
+
+.communications-centre-hub__school {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--cch-navy-soft);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--cch-line);
+  border-radius: 999px;
+  padding: 8px 14px;
+}
+
+.communications-centre-hub__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--cch-line);
+  border-radius: 14px;
+}
+
+.communications-centre-hub__tab {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--cch-muted);
+  font-weight: 800;
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.communications-centre-hub__tab:hover:not(:disabled) {
+  color: var(--cch-navy);
+  background: rgba(11, 31, 58, 0.05);
+}
+
+.communications-centre-hub__tab.is-active {
+  color: var(--cch-navy);
+  background: linear-gradient(135deg, rgba(232, 212, 139, 0.55), rgba(201, 162, 39, 0.28));
+  border-color: rgba(201, 162, 39, 0.45);
+}
+
+.communications-centre-hub__tab.is-future {
+  opacity: 0.72;
+  cursor: default;
+}
+
+.communications-centre-hub__tab:disabled {
+  cursor: default;
+}
+
+.communications-centre-hub__panel {
+  background: var(--cch-surface);
+  border: 1px solid var(--cch-line);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 12px 28px rgba(11, 31, 58, 0.06);
+}
+
+.communications-centre-hub__panel-note {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--cch-muted);
+  font-weight: 600;
+}
+
+.communications-centre-hub__future {
+  padding: 28px 18px;
+  text-align: left;
+}
+
+.communications-centre-hub__future h3 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  color: var(--cch-navy);
+}
+
+.communications-centre-hub__future p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--cch-muted);
+  line-height: 1.5;
+  max-width: 40rem;
+}
+
+.communications-centre-hub__badge {
+  display: inline-block;
+  margin-bottom: 10px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cch-navy);
+  background: rgba(201, 162, 39, 0.2);
+  border: 1px solid rgba(201, 162, 39, 0.4);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+.communications-centre-hub__announce-grid {
+  display: grid;
+  gap: 16px;
+}
+
+@media (min-width: 960px) {
+  .communications-centre-hub__announce-grid {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    align-items: start;
+  }
+}
+
+.communications-centre-hub__card {
+  border: 1px solid var(--cch-line);
+  border-radius: 14px;
+  padding: 14px;
+  background: #fbfcfe;
+}
+
+.communications-centre-hub__card h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  color: var(--cch-navy);
+}
+
+.communications-centre-hub__card p.lead {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--cch-muted);
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.communications-centre-hub__field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.communications-centre-hub__field label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cch-muted);
+}
+
+.communications-centre-hub__field input,
+.communications-centre-hub__field select,
+.communications-centre-hub__field textarea {
+  width: 100%;
+  border: 1px solid var(--cch-line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--cch-ink);
+  background: #fff;
+}
+
+.communications-centre-hub__field textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.communications-centre-hub__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.communications-centre-hub__btn {
+  appearance: none;
+  border-radius: 10px;
+  border: 1px solid rgba(184, 147, 41, 0.7);
+  background: linear-gradient(135deg, #f7d56a, #d4af37);
+  color: var(--cch-navy);
+  font-weight: 900;
+  font-size: 13px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.communications-centre-hub__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.communications-centre-hub__btn--ghost {
+  background: #fff;
+  border-color: var(--cch-line);
+  color: var(--cch-navy-soft);
+}
+
+.communications-centre-hub__status {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.communications-centre-hub__status.is-error {
+  color: #b42318;
+}
+
+.communications-centre-hub__status.is-ok {
+  color: #067647;
+}
+
+.communications-centre-hub__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  max-height: 420px;
+  overflow: auto;
+}
+
+.communications-centre-hub__list li {
+  border: 1px solid var(--cch-line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.communications-centre-hub__list strong {
+  display: block;
+  font-size: 14px;
+  color: var(--cch-navy);
+  margin-bottom: 2px;
+}
+
+.communications-centre-hub__list span {
+  font-size: 11px;
+  color: var(--cch-muted);
+  font-weight: 700;
+}
+
+.communications-centre-hub__locked {
+  border: 1px dashed rgba(201, 162, 39, 0.55);
+  border-radius: 12px;
+  padding: 14px;
+  background: rgba(201, 162, 39, 0.06);
+  font-size: 13px;
+  color: var(--cch-muted);
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .communications-centre-hub {
+    padding: 12px;
+    border-radius: 12px;
+    min-height: auto;
+  }
+
+  .communications-centre-hub__panel {
+    padding: 12px;
+  }
+}

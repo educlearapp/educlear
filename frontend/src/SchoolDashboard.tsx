@@ -40,6 +40,7 @@ import Email from "./communication/Email";
 import SMS from "./communication/SMS";
 import CommunicationSettings from "./communication/CommunicationSettings";
 import CommunicationCentre from "./communication/CommunicationCentre";
+import CommunicationsCentreHub from "./communication/CommunicationsCentreHub";
 import AccountingOverview from "./accounting/AccountingOverview";
 import AccountingExportCenter from "./accounting/AccountingExportCenter";
 import AccountingBanking from "./accounting/AccountingBanking";
@@ -263,6 +264,8 @@ type PageKey =
 
   | "teacherInbox"
 
+  | "communicationsHub"
+
   | "learnerProfile"
 
 
@@ -424,6 +427,7 @@ const MOBILE_PAGE_TITLES: Partial<Record<PageKey, string>> = {
   sasamsReportUpload: "SASAMS Upload",
   parentPortal: "Parent Portal",
   teacherInbox: "Teacher Inbox",
+  communicationsHub: "Communications Centre",
   learnerProfile: "Learner Profile",
   addLearner: "Add Learner",
   classrooms: "Classrooms",
@@ -467,7 +471,7 @@ const MOBILE_PAGE_TITLES: Partial<Record<PageKey, string>> = {
   communicationEmail: "Email",
   communicationSms: "SMS",
   communicationSettings: "Communication Settings",
-  communicationCentre: "Communication Centre",
+  communicationCentre: "Delivery Queue",
   bankStatementImport: "Bank Import",
   accountingOverview: "Accounting",
   accountingBanking: "Banking",
@@ -1398,7 +1402,8 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       page === "communicationEmail" ||
       page === "communicationSms" ||
       page === "communicationSettings" ||
-      page === "communicationCentre"
+      page === "communicationCentre" ||
+      page === "communicationsHub"
     ) {
       setCommunicationOpen(true);
       setCommunicationMoreOpen(page === "communicationSettings");
@@ -17036,11 +17041,18 @@ return (
             <h1 className="page-title">Communication Settings</h1>
           );
 
+        case "communicationsHub":
+          return schoolId ? (
+            <CommunicationsCentreHub schoolId={schoolId} schoolName={schoolBranding.name} />
+          ) : (
+            <h1 className="page-title">Communications Centre</h1>
+          );
+
         case "communicationCentre":
           return schoolId ? (
             <CommunicationCentre schoolId={schoolId} schoolName={schoolBranding.name} />
           ) : (
-            <h1 className="page-title">Communication Centre</h1>
+            <h1 className="page-title">Delivery Queue</h1>
           );
   
   
@@ -17882,6 +17894,7 @@ return (
           {hasCoreModule &&
           canViewAnySchoolPage(
             [
+              "communicationsHub",
               "communicationCentre",
               "communicationEmail",
               "communicationSms",
@@ -17910,12 +17923,20 @@ return (
             </div>
             {communicationOpen && (
               <div className="submenu">
+                {canPage("communicationsHub") ? (
+                <div
+                  className={`submenu-item ${activePage === "communicationsHub" ? "active" : ""}`}
+                  onClick={() => go("communicationsHub")}
+                >
+                  Communications Centre
+                </div>
+                ) : null}
                 {canPage("communicationCentre") ? (
                 <div
                   className={`submenu-item ${activePage === "communicationCentre" ? "active" : ""}`}
                   onClick={() => go("communicationCentre")}
                 >
-                  Communication Centre
+                  Delivery Queue
                 </div>
                 ) : null}
                 {canPage("communicationEmail") ? (

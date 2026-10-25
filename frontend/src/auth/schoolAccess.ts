@@ -31,6 +31,8 @@ const PAGE_RULES: Record<string, PageRule> = {
   sasamsReportUpload: { module: "registrations", action: "view" },
   parentPortal: { module: "parents", action: "view" },
   teacherInbox: { module: "teachers", action: "view" },
+  /** Parent messaging + announcements hub (reuses Teacher Inbox / SchoolNotice). */
+  communicationsHub: { module: "teachers", action: "view" },
   learnerProfile: { module: "learners", action: "view" },
   addLearner: { module: "learners", action: "create" },
   classrooms: { module: "classrooms", action: "view" },

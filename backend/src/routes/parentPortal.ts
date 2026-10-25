@@ -69,6 +69,46 @@ async function requireSameSchoolStaff(
   return allowSchool(gate, schoolId, res);
 }
 
+/** School-wide parent announcement publish roles (Owner/Admin/SCHOOL_ADMIN or super-admin). */
+export function isSchoolWideNoticePublisherRole(opts: {
+  superAdmin?: boolean;
+  appRole?: string | null;
+  role?: string | null;
+}): boolean {
+  if (opts.superAdmin) return true;
+  const appRole = String(opts.appRole || "").trim();
+  const jwtRole = String(opts.role || "").trim();
+  return appRole === "Owner" || appRole === "Admin" || jwtRole === "SCHOOL_ADMIN";
+}
+
+async function requireSchoolWideNoticePublisher(
+  req: { headers: { authorization?: string } },
+  res: Parameters<typeof sendAuthRequired>[0],
+  schoolId: string
+): Promise<boolean> {
+  const gate = await resolveStaffSchoolGate(req.headers.authorization);
+  if (!gate) {
+    sendAuthRequired(res);
+    return false;
+  }
+  if (!allowSchool(gate, schoolId, res)) return false;
+  if (
+    isSchoolWideNoticePublisherRole({
+      superAdmin: gate.superAdmin,
+      appRole: gate.auth.appRole,
+      role: gate.auth.role,
+    })
+  ) {
+    return true;
+  }
+  res.status(403).json({
+    success: false,
+    error: "School admin access required to publish school-wide notices",
+    code: "FORBIDDEN",
+  });
+  return false;
+}
+
 const router = Router();
 
 /** Parent Portal is a CORE product surface (learners / billing / school communications). */
@@ -1312,7 +1352,7 @@ router.post("/staff/homework", async (req, res) => {
 router.post("/staff/notices", async (req, res) => {
   try {
     const schoolId = String(req.body?.schoolId || "").trim();
-    if (!(await requireSameSchoolStaff(req, res, schoolId))) return;
+    if (!(await requireSchoolWideNoticePublisher(req, res, schoolId))) return;
     const title = String(req.body?.title || "").trim();
     const noticeType = String(req.body?.noticeType || "SCHOOL").toUpperCase();
     if (!schoolId || !title) {
