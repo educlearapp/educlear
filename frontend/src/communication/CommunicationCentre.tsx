@@ -13,11 +13,27 @@ import { fieldStyle, ghostBtn, goldBtn, pageWrap, summaryCard, td, th } from "./
 type Props = {
   schoolId: string;
   schoolName?: string;
+  /** When true, omit outer page chrome (hub already provides title). */
+  embedded?: boolean;
 };
 
 type Tab = "queued" | "sent" | "failed" | "campaigns";
 
-export default function CommunicationCentre({ schoolId, schoolName = "" }: Props) {
+function canProcessQueue(): boolean {
+  const appRole = String(localStorage.getItem("appRole") || "").trim();
+  const role = String(localStorage.getItem("userRole") || "").trim();
+  const isOwner = localStorage.getItem("isOwner") === "true";
+  return (
+    isOwner ||
+    appRole === "Owner" ||
+    appRole === "Admin" ||
+    role === "SCHOOL_ADMIN" ||
+    role === "Owner" ||
+    role === "Admin"
+  );
+}
+
+export default function CommunicationCentre({ schoolId, schoolName = "", embedded = false }: Props) {
   const [tab, setTab] = useState<Tab>("queued");
   const [channelFilter, setChannelFilter] = useState<string>("");
   const [items, setItems] = useState<EngineMessage[]>([]);
@@ -27,6 +43,8 @@ export default function CommunicationCentre({ schoolId, schoolName = "" }: Props
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [confirmProcess, setConfirmProcess] = useState(false);
+  const canProcess = useMemo(() => canProcessQueue(), []);
 
   const statusForTab = useMemo(() => {
     if (tab === "queued") return "queued";
@@ -107,6 +125,7 @@ export default function CommunicationCentre({ schoolId, schoolName = "" }: Props
   };
 
   const handleProcessQueue = async () => {
+    setConfirmProcess(false);
     setLoading(true);
     setError("");
     setMessage("");
@@ -127,6 +146,7 @@ export default function CommunicationCentre({ schoolId, schoolName = "" }: Props
   };
 
   const handleRetry = async (id: string) => {
+    if (!canProcess) return;
     setLoading(true);
     setError("");
     try {
@@ -144,22 +164,40 @@ export default function CommunicationCentre({ schoolId, schoolName = "" }: Props
   const title = schoolName ? `${schoolName} — Delivery Queue` : "Delivery Queue";
 
   return (
-    <div style={pageWrap}>
+    <div style={embedded ? { padding: 0 } : pageWrap}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 22, color: "#0f172a", fontWeight: 900 }}>{title}</h1>
+          {!embedded ? (
+            <h1 style={{ margin: 0, fontSize: 22, color: "#0f172a", fontWeight: 900 }}>{title}</h1>
+          ) : (
+            <h2 style={{ margin: 0, fontSize: 16, color: "#0f172a", fontWeight: 900 }}>Outbound queue</h2>
+          )}
           <p style={{ margin: "8px 0 0", color: "#64748b", fontWeight: 600, maxWidth: 720 }}>
             School-scoped outbound queue (SMS, email, WhatsApp, push). Owner/Admin only for process and retry.
             Preview never sends. Simulated or unavailable providers are held as failed — never marked sent.
+            Queue is never processed on page load.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button type="button" style={ghostBtn} onClick={() => void handlePreviewQueue()} disabled={loading}>
-            Preview queue
-          </button>
-          <button type="button" style={goldBtn} onClick={() => void handleProcessQueue()} disabled={loading}>
-            Process queue
-          </button>
+          {canProcess ? (
+            <>
+              <button type="button" style={ghostBtn} onClick={() => void handlePreviewQueue()} disabled={loading}>
+                Preview queue
+              </button>
+              <button
+                type="button"
+                style={goldBtn}
+                onClick={() => setConfirmProcess(true)}
+                disabled={loading}
+              >
+                Process queue
+              </button>
+            </>
+          ) : (
+            <p style={{ margin: 0, color: "#64748b", fontWeight: 700, fontSize: 13 }}>
+              Process / retry restricted to Owner or Admin.
+            </p>
+          )}
         </div>
       </div>
 
@@ -262,7 +300,7 @@ export default function CommunicationCentre({ schoolId, schoolName = "" }: Props
                   <td style={td}>{m.subject || "-"}</td>
                   <td style={td}>{m.status}</td>
                   <td style={td}>
-                    {m.status === "failed" && m.channel !== "in_app" ? (
+                    {canProcess && m.status === "failed" && m.channel !== "in_app" ? (
                       <button type="button" style={ghostBtn} onClick={() => handleRetry(m.id)} disabled={loading}>
                         Retry
                       </button>
@@ -282,6 +320,51 @@ export default function CommunicationCentre({ schoolId, schoolName = "" }: Props
           <p style={{ marginTop: 10, color: "#64748b", fontWeight: 600 }}>Total: {total}</p>
         </div>
       )}
+
+      {confirmProcess ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="dq-confirm-title"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 90,
+            display: "grid",
+            placeItems: "center",
+            padding: 16,
+            background: "rgba(11, 31, 58, 0.45)",
+          }}
+        >
+          <div
+            style={{
+              width: "min(440px, 100%)",
+              background: "#fff",
+              borderRadius: 14,
+              border: "1px solid #e2e8f0",
+              padding: 16,
+              boxShadow: "0 18px 48px rgba(11, 31, 58, 0.18)",
+            }}
+          >
+            <h3 id="dq-confirm-title" style={{ margin: "0 0 8px", color: "#0f172a", fontSize: 16 }}>
+              Process delivery queue?
+            </h3>
+            <p style={{ margin: "0 0 14px", color: "#64748b", fontWeight: 600, fontSize: 13, lineHeight: 1.45 }}>
+              This will claim and attempt delivery for queued messages for this school only. Simulated or unavailable
+              providers are held as failed and are never marked sent. Confirm only if you intend a real process run
+              against configured local/mock providers.
+            </p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button type="button" style={ghostBtn} onClick={() => setConfirmProcess(false)} disabled={loading}>
+                Cancel
+              </button>
+              <button type="button" style={goldBtn} onClick={() => void handleProcessQueue()} disabled={loading}>
+                Confirm process
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

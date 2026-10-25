@@ -1,18 +1,53 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import TeacherInbox from "../teacher/TeacherInbox";
 import AnnouncementsPanel from "./AnnouncementsPanel";
 import EventsPanel from "./EventsPanel";
+import DocumentsPanel from "./DocumentsPanel";
+import NotificationsOverviewPanel from "./NotificationsOverviewPanel";
+import CommunicationCentre from "./CommunicationCentre";
 import "./communicationsCentreHub.css";
 
-type Tab = "messages" | "announcements" | "events" | "notifications";
+type Tab =
+  | "messages"
+  | "announcements"
+  | "events"
+  | "notifications"
+  | "documents"
+  | "deliveryQueue";
 
 type Props = {
   schoolId: string;
   schoolName?: string;
 };
 
+function canAccessDeliveryQueue(): boolean {
+  const appRole = String(localStorage.getItem("appRole") || "").trim();
+  const role = String(localStorage.getItem("userRole") || "").trim();
+  const isOwner = localStorage.getItem("isOwner") === "true";
+  return (
+    isOwner ||
+    appRole === "Owner" ||
+    appRole === "Admin" ||
+    role === "SCHOOL_ADMIN" ||
+    role === "Owner" ||
+    role === "Admin"
+  );
+}
+
+const TABS: { id: Tab; label: string; adminOnly?: boolean }[] = [
+  { id: "messages", label: "Messages" },
+  { id: "announcements", label: "Announcements" },
+  { id: "events", label: "Events" },
+  { id: "notifications", label: "Notifications" },
+  { id: "documents", label: "Documents" },
+  { id: "deliveryQueue", label: "Delivery Queue", adminOnly: true },
+];
+
 export default function CommunicationsCentreHub({ schoolId, schoolName = "" }: Props) {
+  const showQueue = useMemo(() => canAccessDeliveryQueue(), []);
   const [tab, setTab] = useState<Tab>("messages");
+
+  const visibleTabs = TABS.filter((t) => !t.adminOnly || showQueue);
 
   return (
     <div className="communications-centre-hub">
@@ -21,51 +56,27 @@ export default function CommunicationsCentreHub({ schoolId, schoolName = "" }: P
           <p className="communications-centre-hub__eyebrow">Staff · Parent communications</p>
           <h1 className="communications-centre-hub__title">Communications Centre</h1>
           <p className="communications-centre-hub__sub">
-            Message parents and publish school notices from one place. Delivery queue, SMS and email tooling remain
-            under Communication → Delivery queue / SMS / Email.
+            One workspace for parent messaging, announcements, events, notifications, documents and the
+            outbound delivery queue. Reuses existing Teacher Inbox, SchoolNotice, SchoolEvent and ParentDocument
+            systems — no parallel stacks.
           </p>
         </div>
         {schoolName ? <div className="communications-centre-hub__school">{schoolName}</div> : null}
       </header>
 
       <div className="communications-centre-hub__tabs" role="tablist" aria-label="Communications Centre sections">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "messages"}
-          className={`communications-centre-hub__tab${tab === "messages" ? " is-active" : ""}`}
-          onClick={() => setTab("messages")}
-        >
-          Messages
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "announcements"}
-          className={`communications-centre-hub__tab${tab === "announcements" ? " is-active" : ""}`}
-          onClick={() => setTab("announcements")}
-        >
-          Announcements
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "events"}
-          className={`communications-centre-hub__tab${tab === "events" ? " is-active" : ""}`}
-          onClick={() => setTab("events")}
-        >
-          Events
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "notifications"}
-          className={`communications-centre-hub__tab is-future${tab === "notifications" ? " is-active" : ""}`}
-          onClick={() => setTab("notifications")}
-          title="Placeholder — no notification console yet"
-        >
-          Notifications · soon
-        </button>
+        {visibleTabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            className={`communications-centre-hub__tab${tab === t.id ? " is-active" : ""}`}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
       <div className="communications-centre-hub__panel" role="tabpanel">
@@ -101,15 +112,26 @@ export default function CommunicationsCentreHub({ schoolId, schoolName = "" }: P
           </>
         ) : null}
 
-        {tab === "notifications" ? (
-          <div className="communications-centre-hub__future">
-            <span className="communications-centre-hub__badge">Future</span>
-            <h3>Notification centre</h3>
-            <p>
-              In-app parent alerts already exist from notices, homework and messages. A unified staff notification
-              console (with live push/email/SMS providers) arrives in a later phase — no operational controls here.
+        {tab === "notifications" ? <NotificationsOverviewPanel schoolId={schoolId} /> : null}
+
+        {tab === "documents" ? (
+          <>
+            <p className="communications-centre-hub__panel-note">
+              ParentDocument listing, upload and targeting. Teachers are limited to assigned classes; Admin/Owner may
+              publish school-wide or by grade. Authenticated downloads enforce school tenancy.
             </p>
-          </div>
+            <DocumentsPanel schoolId={schoolId} />
+          </>
+        ) : null}
+
+        {tab === "deliveryQueue" && showQueue ? (
+          <>
+            <p className="communications-centre-hub__panel-note">
+              School-scoped outbound queue. Preview never sends. Process requires explicit confirmation and never runs
+              on tab open. Simulated providers are held — never marked sent.
+            </p>
+            <CommunicationCentre schoolId={schoolId} schoolName={schoolName} embedded />
+          </>
         ) : null}
       </div>
     </div>

@@ -61,6 +61,10 @@ import teacherInboxRoutes from "./routes/teacherInbox";
 import teacherAppRoutes, { teacherAppUploadErrorHandler } from "./routes/teacherApp";
 import schoolAnnouncementsRoutes from "./routes/schoolAnnouncements";
 import schoolEventsRoutes from "./routes/schoolEvents";
+import schoolParentDocumentsRoutes, {
+  schoolParentDocumentsUploadErrorHandler,
+} from "./routes/schoolParentDocuments";
+import schoolNotificationsOverviewRoutes from "./routes/schoolNotificationsOverview";
 import migrationRoutes, {
   migrationErrorHandler,
   migrationUploadErrorHandler,
@@ -377,6 +381,17 @@ app.use(
   schoolAnnouncementsRoutes
 );
 app.use("/api/school-events", requireSchoolModule("CORE"), schoolEventsRoutes);
+app.use(
+  "/api/school-parent-documents",
+  requireSchoolModule("CORE"),
+  schoolParentDocumentsRoutes,
+  schoolParentDocumentsUploadErrorHandler
+);
+app.use(
+  "/api/school-notifications-overview",
+  requireSchoolModule("CORE"),
+  schoolNotificationsOverviewRoutes
+);
 app.post(
   `/api/migration${KIDESYS_ADAPTER_READINESS_PATH}`,
   requireSuperAdmin,

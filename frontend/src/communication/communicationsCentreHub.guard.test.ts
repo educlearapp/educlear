@@ -1,5 +1,5 @@
 /**
- * Communications Centre Phase 1/2 — structural guard.
+ * Communications Centre Phase 1/2/P1 — structural guard.
  * Run: npx tsx src/communication/communicationsCentreHub.guard.test.ts
  */
 import assert from "assert";
@@ -11,6 +11,9 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const hubCss = fs.readFileSync(path.join(here, "communicationsCentreHub.css"), "utf8");
 const hubTsx = fs.readFileSync(path.join(here, "CommunicationsCentreHub.tsx"), "utf8");
 const announceTsx = fs.readFileSync(path.join(here, "AnnouncementsPanel.tsx"), "utf8");
+const docsTsx = fs.readFileSync(path.join(here, "DocumentsPanel.tsx"), "utf8");
+const notifTsx = fs.readFileSync(path.join(here, "NotificationsOverviewPanel.tsx"), "utf8");
+const queueTsx = fs.readFileSync(path.join(here, "CommunicationCentre.tsx"), "utf8");
 const dashboard = fs.readFileSync(path.join(here, "../SchoolDashboard.tsx"), "utf8");
 const parentCss = fs.readFileSync(path.join(here, "../parent/parentPortal.css"), "utf8");
 
@@ -22,8 +25,22 @@ assert.equal(parentCss.includes(".communications-centre-hub"), false, "parent po
 assert.ok(hubTsx.includes("TeacherInbox"), "Messages tab reuses TeacherInbox");
 assert.ok(hubTsx.includes("AnnouncementsPanel"), "Announcements tab present");
 assert.ok(hubTsx.includes("EventsPanel") || hubTsx.includes("<EventsPanel"), "Events tab wired");
-assert.ok(hubTsx.includes("Notifications · soon"), "Notifications future tab labelled");
+assert.ok(hubTsx.includes("DocumentsPanel"), "Documents tab wired");
+assert.ok(hubTsx.includes("NotificationsOverviewPanel"), "Notifications overview wired");
+assert.ok(hubTsx.includes("CommunicationCentre"), "Delivery Queue reuses CommunicationCentre");
+assert.ok(hubTsx.includes("Delivery Queue"), "Delivery Queue tab labelled");
+assert.equal(hubTsx.includes("Notifications · soon"), false, "Notifications placeholder removed");
 assert.equal(hubTsx.includes("Events · soon"), false, "Events placeholder removed");
+
+assert.ok(docsTsx.includes("/api/school-parent-documents"), "documents API used");
+assert.ok(notifTsx.includes("/api/school-notifications-overview"), "notifications overview API used");
+assert.ok(notifTsx.includes("mock_ok"), "distinguishes mock_ok");
+assert.equal(/onClick=\{[^}]*resend/i.test(notifTsx), false, "no resend click handlers");
+assert.equal(notifTsx.includes("Resend"), false, "no Resend button label");
+
+assert.ok(queueTsx.includes("Confirm process") || queueTsx.includes("confirmProcess"), "process confirmation present");
+assert.ok(queueTsx.includes("never processed on page load") || queueTsx.includes("Queue is never processed"), "no auto-process copy");
+assert.ok(queueTsx.includes("Delivery Queue"), "legacy heading Delivery Queue");
 
 assert.ok(announceTsx.includes("/api/school-announcements"), "lifecycle API mounted in UI");
 assert.ok(announceTsx.includes("publish"), "publish control present");

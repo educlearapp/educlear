@@ -14,10 +14,10 @@ import {
   uniqueParentLearnerLinks,
 } from "../services/parentPortalService";
 import {
-  parentPublishedDocumentWhere,
   parentPublishedHomeworkOrNoticeWhere,
   parentPublishedIncidentWhere,
 } from "../utils/teacherVisibility";
+import { buildParentDocumentVisibilityWhere } from "../services/parentDocumentVisibility";
 import { parentAuthMiddleware, signParentToken, verifyParentToken } from "../middleware/parentAuth";
 import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
 import { resolveAuthoritativeAccountBalance } from "../services/statementAccounts";
@@ -70,6 +70,8 @@ import {
   parentVisibleNoticeWhere,
 } from "../services/schoolAnnouncementService";
 import { listParentVisibleEvents } from "../services/schoolEventService";
+import { assignedClassroomIdsForTeacher } from "../utils/classroomTeachers";
+import { normalizeStaffEmail } from "../utils/staffJwt";
 
 async function requireSameSchoolStaff(
   req: { headers: { authorization?: string } },
@@ -509,10 +511,12 @@ router.get("/dashboard", parentAuthMiddleware, async (req, res) => {
           take: 50,
         }),
         prisma.parentDocument.findMany({
-          where: {
+          where: buildParentDocumentVisibilityWhere({
             schoolId: auth.schoolId,
-            ...parentPublishedDocumentWhere(),
-          },
+            learners,
+            activeLearnerId: activeLearner?.id || null,
+            spellingsFor: (cn) => membership.spellingsFor(cn),
+          }),
           orderBy: { createdAt: "desc" },
           take: 30,
         }),
@@ -531,16 +535,7 @@ router.get("/dashboard", parentAuthMiddleware, async (req, res) => {
       : notices.filter((n) =>
           learners.some((l) => learnerMatchesNotice(membership, l, n))
         );
-    const filteredDocs = activeLearner
-      ? documents.filter(
-          (d) =>
-            (!d.learnerId && !d.grade && !d.className) ||
-            d.learnerId === activeLearner.id ||
-            d.grade === activeLearner.grade ||
-            d.className === activeLearner.className ||
-            (!!d.className && membership.resolver.sameClassroom(d.className, activeLearner.className))
-        )
-      : documents;
+    const filteredDocs = documents;
 
     return res.json({
       success: true,
@@ -1319,40 +1314,30 @@ router.get("/documents", parentAuthMiddleware, async (req, res) => {
     const active = learners.find((l) => l.id === learnerId) || null;
     const membership = await loadSchoolClassMembership(auth.schoolId);
 
-    const MAX_SCAN = 300;
-    const rows = await prisma.parentDocument.findMany({
-      where: {
-        schoolId: auth.schoolId,
-        ...parentPublishedDocumentWhere(),
-      },
-      orderBy: { createdAt: "desc" },
-      take: MAX_SCAN,
+    const where = buildParentDocumentVisibilityWhere({
+      schoolId: auth.schoolId,
+      learners,
+      activeLearnerId: active?.id || null,
+      spellingsFor: (cn) => membership.spellingsFor(cn),
     });
 
-    const matched = rows.filter((d) => {
-      if (!active) {
-        return learners.some(
-          (l) =>
-            (!d.learnerId && !d.grade && !d.className) ||
-            d.learnerId === l.id ||
-            d.grade === l.grade ||
-            (!!d.className && membership.resolver.sameClassroom(d.className, l.className))
-        );
-      }
-      return (
-        (!d.learnerId && !d.grade && !d.className) ||
-        d.learnerId === active.id ||
-        d.grade === active.grade ||
-        (!!d.className && membership.resolver.sameClassroom(d.className, active.className))
-      );
-    });
-    const page = matched.slice(offset, offset + limit);
+    const [page, total] = await Promise.all([
+      prisma.parentDocument.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: offset,
+        take: limit,
+      }),
+      prisma.parentDocument.count({ where }),
+    ]);
+
     return res.json({
       success: true,
       documents: page,
       limit,
       offset,
-      hasMore: offset + limit < matched.length || rows.length >= MAX_SCAN,
+      total,
+      hasMore: offset + limit < total,
     });
   } catch (e) {
     console.error("parent documents list", e);
@@ -1644,11 +1629,66 @@ router.post("/staff/notices", async (req, res) => {
 router.post("/staff/documents", async (req, res) => {
   try {
     const schoolId = String(req.body?.schoolId || "").trim();
-    if (!(await requireSameSchoolStaff(req, res, schoolId))) return;
+    const gate = await resolveStaffSchoolGate(req.headers.authorization);
+    if (!gate) {
+      sendAuthRequired(res);
+      return;
+    }
+    if (!allowSchool(gate, schoolId, res)) return;
+
     const title = String(req.body?.title || "").trim();
     const fileUrl = String(req.body?.fileUrl || "").trim();
     if (!schoolId || !title || !fileUrl) {
       return res.status(400).json({ success: false, error: "schoolId, title and fileUrl required" });
+    }
+
+    const grade = req.body?.grade ? String(req.body.grade).trim() : null;
+    const className = req.body?.className ? String(req.body.className).trim() : null;
+    const learnerId = req.body?.learnerId ? String(req.body.learnerId).trim() : null;
+    const schoolWide = !grade && !className && !learnerId;
+    const isAdmin = isSchoolWideNoticePublisherRole({
+      superAdmin: gate.superAdmin,
+      appRole: gate.auth.appRole,
+      role: gate.auth.role,
+    });
+
+    if (!isAdmin) {
+      if (schoolWide || grade || learnerId) {
+        return res.status(403).json({
+          success: false,
+          error: "Teachers may only upload documents for their assigned classes",
+          code: "TARGETING_DENIED",
+        });
+      }
+      const classroomIds = await assignedClassroomIdsForTeacher(
+        schoolId,
+        gate.auth.userId,
+        gate.auth.email
+      );
+      const classrooms = await prisma.classroom.findMany({
+        where: { schoolId, id: { in: classroomIds } },
+        select: { name: true },
+      });
+      const byEmail = await prisma.classroom.findMany({
+        where: {
+          schoolId,
+          teacherEmail: {
+            equals: normalizeStaffEmail(gate.auth.email),
+            mode: "insensitive",
+          },
+        },
+        select: { name: true },
+      });
+      const assigned = new Set(
+        [...classrooms, ...byEmail].map((c) => String(c.name || "").trim()).filter(Boolean)
+      );
+      if (!className || !assigned.has(className)) {
+        return res.status(403).json({
+          success: false,
+          error: "Class not in your assigned classrooms",
+          code: "CLASS_DENIED",
+        });
+      }
     }
 
     const doc = await prisma.parentDocument.create({
@@ -1656,11 +1696,13 @@ router.post("/staff/documents", async (req, res) => {
         schoolId,
         title,
         description: req.body?.description || null,
-        grade: req.body?.grade || null,
-        className: req.body?.className || null,
-        learnerId: req.body?.learnerId || null,
+        grade,
+        className,
+        learnerId,
         fileUrl,
         fileName: String(req.body?.fileName || ""),
+        createdBy: gate.auth.email || "",
+        createdByTeacherId: gate.auth.userId,
       },
     });
 
