@@ -46,6 +46,7 @@ import {
   type ParentPortalLearner as Learner,
   type ParentPortalLinkRow as LinkRow,
 } from "./parentPortalLearners";
+import { PortalIcon } from "./ParentPortalIcons";
 
 const LAST_VISIT_KEY = "parentPortalLastVisitAt";
 
@@ -105,36 +106,36 @@ type Panel =
   | "notifications"
   | "profile";
 
-const navItems: { key: Panel; label: string; icon: string; tile: string }[] = [
-  { key: "dashboard", label: "Dashboard", icon: "🏠", tile: "home" },
-  { key: "messages", label: "Messages", icon: "✉️", tile: "messages" },
-  { key: "homework", label: "Homework", icon: "📝", tile: "homework" },
-  { key: "notices", label: "Notices", icon: "📌", tile: "notices" },
-  { key: "events", label: "Events", icon: "📅", tile: "events" },
-  { key: "documents", label: "Documents", icon: "📎", tile: "documents" },
-  { key: "statements", label: "Finance Hub", icon: "💳", tile: "finance" },
-  { key: "incidents", label: "Incidents", icon: "⚠️", tile: "incidents" },
-  { key: "settings", label: "Settings", icon: "⚙️", tile: "settings" },
+const navItems: { key: Panel; label: string; tile: string }[] = [
+  { key: "dashboard", label: "Dashboard", tile: "home" },
+  { key: "messages", label: "Messages", tile: "messages" },
+  { key: "homework", label: "Homework", tile: "homework" },
+  { key: "notices", label: "Notices", tile: "notices" },
+  { key: "events", label: "Events", tile: "events" },
+  { key: "documents", label: "Documents", tile: "documents" },
+  { key: "statements", label: "Finance Hub", tile: "finance" },
+  { key: "incidents", label: "Incidents", tile: "incidents" },
+  { key: "settings", label: "Settings", tile: "settings" },
 ];
 
-const bottomNavItems: { key: Panel; label: string; icon: string }[] = [
-  { key: "dashboard", label: "Home", icon: "🏠" },
-  { key: "messages", label: "Messages", icon: "✉️" },
-  { key: "statements", label: "Finance", icon: "💳" },
-  { key: "notifications", label: "Alerts", icon: "🔔" },
+const bottomNavItems: { key: Panel; label: string; tile: string }[] = [
+  { key: "dashboard", label: "Home", tile: "home" },
+  { key: "messages", label: "Messages", tile: "messages" },
+  { key: "statements", label: "Finance", tile: "finance" },
+  { key: "notifications", label: "Alerts", tile: "alerts" },
 ];
 
 /** Dashboard shortcut tiles — only implemented parent-portal surfaces. */
-const dashboardTiles: { key: Panel; label: string; icon: string; tile: string; hint: string }[] = [
-  { key: "statements", label: "Finance", icon: "💳", tile: "finance", hint: "Balance & statements" },
-  { key: "messages", label: "Messages", icon: "✉️", tile: "messages", hint: "Teacher chat" },
-  { key: "homework", label: "Homework", icon: "📝", tile: "homework", hint: "Assignments" },
-  { key: "notices", label: "Notices", icon: "📌", tile: "notices", hint: "School updates" },
-  { key: "events", label: "Events", icon: "📅", tile: "events", hint: "School calendar" },
-  { key: "documents", label: "Documents", icon: "📎", tile: "documents", hint: "Files to download" },
-  { key: "incidents", label: "Incidents", icon: "⚠️", tile: "incidents", hint: "Behaviour notes" },
-  { key: "notifications", label: "Alerts", icon: "🔔", tile: "alerts", hint: "Notifications" },
-  { key: "settings", label: "Settings", icon: "⚙️", tile: "settings", hint: "App & sign out" },
+const dashboardTiles: { key: Panel; label: string; tile: string; hint: string }[] = [
+  { key: "statements", label: "Finance", tile: "finance", hint: "Balance & statements" },
+  { key: "messages", label: "Messages", tile: "messages", hint: "Teacher chat" },
+  { key: "homework", label: "Homework", tile: "homework", hint: "Assignments" },
+  { key: "notices", label: "Notices", tile: "notices", hint: "School updates" },
+  { key: "events", label: "Events", tile: "events", hint: "School calendar" },
+  { key: "documents", label: "Documents", tile: "documents", hint: "Files to download" },
+  { key: "incidents", label: "Incidents", tile: "incidents", hint: "Behaviour notes" },
+  { key: "notifications", label: "Alerts", tile: "alerts", hint: "Notifications" },
+  { key: "settings", label: "Settings", tile: "settings", hint: "App & sign out" },
 ];
 
 function isMobile() {
@@ -207,8 +208,15 @@ function nextDueHomework(homework: any[]): { title: string; due: string } | null
     .filter((x) => !Number.isNaN(x.t));
   withDue.sort((a, b) => a.t - b.t);
   const first = withDue[0];
-  if (!first) return list[0] ? { title: list[0].title, due: "No due date" } : null;
+  if (!first) return list[0] ? { title: list[0].title, due: "Due date not set" } : null;
   return { title: first.h.title, due: `Due ${new Date(first.h.dueDate).toLocaleDateString()}` };
+}
+
+function homeworkDueLabel(dueDate: unknown): string {
+  if (!dueDate) return "Due date not set";
+  const t = new Date(String(dueDate)).getTime();
+  if (Number.isNaN(t)) return "Due date not set";
+  return `Due ${new Date(t).toLocaleDateString()}`;
 }
 
 type ParentExportAction = "print" | "download" | "email";
@@ -921,6 +929,59 @@ export default function ParentPortalApp() {
     return list.slice(0, 3);
   }, [dashboard?.notices]);
 
+  const latestUpdates = useMemo(() => {
+    type UpdateRow = {
+      id: string;
+      kind: string;
+      tile: string;
+      title: string;
+      meta: string;
+      panel: Panel;
+    };
+    const rows: UpdateRow[] = [];
+    if (homeworkDuePreview) {
+      rows.push({
+        id: `hw-${homeworkDuePreview.title}`,
+        kind: "Homework",
+        tile: "homework",
+        title: homeworkDuePreview.title,
+        meta: homeworkDuePreview.due,
+        panel: "homework",
+      });
+    }
+    for (const n of noticePreview) {
+      rows.push({
+        id: `notice-${String(n.id || n.title)}`,
+        kind: "Notice",
+        tile: "notices",
+        title: String(n.title || "Notice"),
+        meta: String(n.body || "").slice(0, 90) || "Open notices",
+        panel: "notices",
+      });
+    }
+    const events = Array.isArray(dashboard?.upcomingEvents) ? dashboard.upcomingEvents.slice(0, 3) : [];
+    for (const ev of events) {
+      const cancelled = String(ev.lifecycleStatus || "").toUpperCase() === "CANCELLED";
+      rows.push({
+        id: `event-${String(ev.id || ev.title)}`,
+        kind: cancelled ? "Cancelled" : "Event",
+        tile: "events",
+        title: String(ev.title || "Event"),
+        meta: ev.startsAt
+          ? new Date(ev.startsAt).toLocaleString(undefined, {
+              weekday: "short",
+              day: "numeric",
+              month: "short",
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "Open events",
+        panel: "events",
+      });
+    }
+    return rows.slice(0, 4);
+  }, [homeworkDuePreview, noticePreview, dashboard?.upcomingEvents]);
+
   const profileLearner = profileLearnerId ? findLearner(profileLearnerId) : null;
 
   function switchPanel(next: Panel) {
@@ -1090,7 +1151,7 @@ export default function ParentPortalApp() {
                 onClick={() => switchPanel(item.key)}
               >
                 <span className={`nav-icon parent-portal-tile-icon parent-portal-tile-icon--${item.tile}`} aria-hidden>
-                  {item.icon}
+                  <PortalIcon name={item.tile} />
                 </span>
                 {item.label}
               </button>
@@ -1105,24 +1166,28 @@ export default function ParentPortalApp() {
         </aside>
 
         <div className="parent-portal-body">
-          <header className="parent-portal-app-header">
+          <header
+            className={`parent-portal-app-header${panel === "dashboard" ? " parent-portal-app-header--dash" : ""}`}
+          >
             <div style={{ minWidth: 0 }}>
               <h1 className="parent-portal-app-header-title">{panelTitle}</h1>
               <p className="parent-portal-app-header-sub">{schoolName}</p>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
-              <button
-                type="button"
-                aria-label="Notifications"
-                className="parent-portal-btn-ghost parent-portal-btn-ghost--header parent-portal-alerts-btn"
-                onClick={() => void openNotificationsPanel()}
-                style={{ padding: "8px 12px", borderRadius: 999 }}
-              >
-                Alerts
-                {unreadNotifCount > 0 ? (
-                  <span className="parent-portal-badge">{unreadNotifCount > 9 ? "9+" : unreadNotifCount}</span>
-                ) : null}
-              </button>
+              {panel !== "dashboard" ? (
+                <button
+                  type="button"
+                  aria-label="Notifications"
+                  className="parent-portal-btn-ghost parent-portal-btn-ghost--header parent-portal-alerts-btn"
+                  onClick={() => void openNotificationsPanel()}
+                  style={{ padding: "8px 12px", borderRadius: 999 }}
+                >
+                  Alerts
+                  {unreadNotifCount > 0 ? (
+                    <span className="parent-portal-badge">{unreadNotifCount > 9 ? "9+" : unreadNotifCount}</span>
+                  ) : null}
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="parent-portal-btn-ghost parent-portal-btn-ghost--header"
@@ -1138,15 +1203,15 @@ export default function ParentPortalApp() {
         {error && <div className="parent-portal-card parent-portal-card--error" style={{ marginBottom: 10, padding: 10, fontSize: 13 }}>{error}</div>}
 
         {panel === "dashboard" && (
-          <>
-            <WelcomeStrip
+          <div className="parent-portal-dash">
+            <CompactDashHeader
               parentName={parentDisplayName}
               schoolName={schoolName}
               logoUrl={schoolBranding.logoUrl}
-              learnerCount={learners.length}
               lastVisit={lastVisitShown}
               unreadCount={unreadNotifCount}
               onOpenNotifications={() => void openNotificationsPanel()}
+              onOpenSettings={() => switchPanel("settings")}
             />
 
             {learners.length > 0 ? (
@@ -1174,16 +1239,60 @@ export default function ParentPortalApp() {
                           </strong>
                           <small>
                             {[row.learner.grade, row.learner.className].filter(Boolean).join(" · ") || "Learner"}
-                            {row.relation ? ` · ${row.relation}` : ""}
                           </small>
                         </span>
                       </button>
                     );
                   })}
                 </div>
+                {activeLearner ? (
+                  <div className="parent-portal-child-actions" aria-label={`Actions for ${activeLearner.firstName}`}>
+                    <button
+                      type="button"
+                      className="parent-portal-child-action"
+                      onClick={() => {
+                        setProfileLearnerId(activeLearner.id);
+                        setPanel("profile");
+                      }}
+                    >
+                      <PortalIcon name="profile" />
+                      Profile
+                    </button>
+                    <button
+                      type="button"
+                      className="parent-portal-child-action"
+                      onClick={() => void openMessages(activeLearner.id)}
+                    >
+                      <PortalIcon name="messages" />
+                      Message
+                    </button>
+                    <button
+                      type="button"
+                      className="parent-portal-child-action"
+                      onClick={() => {
+                        setSelectedLearnerId(activeLearner.id);
+                        setPanel("homework");
+                      }}
+                    >
+                      <PortalIcon name="homework" />
+                      Homework
+                    </button>
+                    <button
+                      type="button"
+                      className="parent-portal-child-action"
+                      onClick={() => {
+                        setSelectedLearnerId(activeLearner.id);
+                        setPanel("notices");
+                      }}
+                    >
+                      <PortalIcon name="notices" />
+                      Notices
+                    </button>
+                  </div>
+                ) : null}
               </div>
             ) : (
-              <div className="parent-portal-card">
+              <div className="parent-portal-card parent-portal-card--compact">
                 <p className="parent-portal-muted" style={{ margin: 0 }}>
                   No linked learners are available for this parent account. Contact the school if this looks wrong.
                 </p>
@@ -1192,7 +1301,7 @@ export default function ParentPortalApp() {
 
             <button
               type="button"
-              className="parent-portal-finance-summary"
+              className="parent-portal-finance-summary parent-portal-finance-summary--compact"
               onClick={() => switchPanel("statements")}
               aria-label="Open Finance Hub"
             >
@@ -1214,377 +1323,362 @@ export default function ParentPortalApp() {
               </span>
             </button>
 
-            {homeworkDuePreview ? (
-              <button
-                type="button"
-                className="parent-portal-notice-strip parent-portal-notice-strip--homework"
-                onClick={() => switchPanel("homework")}
-              >
-                <span className="parent-portal-tile-icon parent-portal-tile-icon--homework" aria-hidden>
-                  📝
-                </span>
-                <span>
-                  <strong>Upcoming homework</strong>
-                  <small>
-                    {homeworkDuePreview.title} · {homeworkDuePreview.due}
-                  </small>
-                </span>
-              </button>
-            ) : null}
-
-            <div className="parent-portal-section-label">School notices</div>
-            <div className="parent-portal-notices-preview">
-              {noticePreview.length === 0 ? (
-                <p className="parent-portal-muted" style={{ margin: "0 0 12px" }}>
-                  No school notices right now.
-                </p>
+            <div className="parent-portal-updates">
+              <div className="parent-portal-updates-head">
+                <div className="parent-portal-section-label parent-portal-section-label--inline">Latest updates</div>
+                <button
+                  type="button"
+                  className="parent-portal-link-btn"
+                  onClick={() => switchPanel("notices")}
+                >
+                  View all
+                </button>
+              </div>
+              {latestUpdates.length === 0 ? (
+                <p className="parent-portal-muted parent-portal-updates-empty">No recent updates.</p>
               ) : (
-                noticePreview.map((n: any) => (
-                  <button
-                    key={String(n.id || n.title)}
-                    type="button"
-                    className="parent-portal-notice-strip"
-                    onClick={() => switchPanel("notices")}
-                  >
-                    <span className="parent-portal-tile-icon parent-portal-tile-icon--notices" aria-hidden>
-                      📌
-                    </span>
-                    <span>
-                      <strong>{String(n.title || "Notice")}</strong>
-                      <small>{String(n.body || "").slice(0, 120) || "Open notices"}</small>
-                    </span>
-                  </button>
-                ))
+                <ul className="parent-portal-updates-list">
+                  {latestUpdates.map((row) => (
+                    <li key={row.id}>
+                      <button
+                        type="button"
+                        className="parent-portal-update-row"
+                        onClick={() => switchPanel(row.panel)}
+                      >
+                        <span className={`parent-portal-tile-icon parent-portal-tile-icon--sm parent-portal-tile-icon--${row.tile}`} aria-hidden>
+                          <PortalIcon name={row.tile} />
+                        </span>
+                        <span className="parent-portal-update-row-text">
+                          <strong>
+                            <span className="parent-portal-update-kind">{row.kind}</span>
+                            {row.title}
+                          </strong>
+                          <small>{row.meta}</small>
+                        </span>
+                        <PortalIcon name="chevron" className="parent-portal-update-chevron" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
 
-            {Array.isArray(dashboard?.upcomingEvents) && dashboard.upcomingEvents.length > 0 ? (
-              <>
-                <div className="parent-portal-section-label">Upcoming events</div>
-                <div className="parent-portal-notices-preview">
-                  {dashboard.upcomingEvents.slice(0, 4).map((ev: any) => {
-                    const cancelled = String(ev.lifecycleStatus || "").toUpperCase() === "CANCELLED";
-                    return (
-                      <button
-                        key={String(ev.id || ev.title)}
-                        type="button"
-                        className="parent-portal-notice-strip"
-                        onClick={() => switchPanel("events")}
-                      >
-                        <span className="parent-portal-tile-icon parent-portal-tile-icon--events" aria-hidden>
-                          📅
-                        </span>
-                        <span>
-                          <strong>
-                            {cancelled ? "Cancelled · " : ""}
-                            {String(ev.title || "Event")}
-                          </strong>
-                          <small>
-                            {ev.startsAt
-                              ? new Date(ev.startsAt).toLocaleString(undefined, {
-                                  weekday: "short",
-                                  day: "numeric",
-                                  month: "short",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })
-                              : "Open events"}
-                            {ev.location ? ` · ${ev.location}` : ""}
-                          </small>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            ) : null}
-
             <div className="parent-portal-section-label">Quick access</div>
-            <div className="parent-portal-tile-grid" aria-label="Parent portal shortcuts">
+            <div className="parent-portal-tile-grid parent-portal-tile-grid--compact" aria-label="Parent portal shortcuts">
               {dashboardTiles.map((tile) => (
                 <button
                   key={tile.key}
                   type="button"
-                  className={`parent-portal-tile parent-portal-tile--${tile.tile}`}
+                  className={`parent-portal-tile parent-portal-tile--compact parent-portal-tile--${tile.tile}`}
                   onClick={() => {
                     if (tile.key === "notifications") void openNotificationsPanel();
                     else switchPanel(tile.key);
                   }}
                 >
-                  <span className={`parent-portal-tile-icon parent-portal-tile-icon--${tile.tile}`} aria-hidden>
-                    {tile.icon}
+                  <span className={`parent-portal-tile-icon parent-portal-tile-icon--sm parent-portal-tile-icon--${tile.tile}`} aria-hidden>
+                    <PortalIcon name={tile.tile} />
                   </span>
                   <strong>{tile.label}</strong>
-                  <small>{tile.hint}</small>
                 </button>
               ))}
             </div>
-
-            <div className="parent-portal-section-label">Children details</div>
-            {learners.map((row) => (
-              <LearnerPremiumCard
-                key={row.learner.id}
-                row={row}
-                selected={selectedLearnerId === row.learner.id}
-                billingHint={billingHintForLearner(row.learner.id, dashboard?.notifications)}
-                onSelect={() => setSelectedLearnerId(row.learner.id)}
-                onProfile={() => {
-                  setProfileLearnerId(row.learner.id);
-                  setPanel("profile");
-                }}
-                onMessage={() => void openMessages(row.learner.id)}
-                onHomework={() => {
-                  setSelectedLearnerId(row.learner.id);
-                  setPanel("homework");
-                }}
-                onNotices={() => {
-                  setSelectedLearnerId(row.learner.id);
-                  setPanel("notices");
-                }}
-              />
-            ))}
-          </>
+          </div>
         )}
 
         {panel === "notifications" && (
-          <div className="parent-portal-card">
-            <PanelHeader title="Notifications" onBack={() => setPanel("dashboard")} />
-            <p className="parent-portal-muted" style={{ fontSize: 12, marginTop: 0 }}>
-              Invoice ready, teacher replies, incidents, homework, and notices appear here.
-            </p>
-            {notifications.length === 0 && <p className="parent-portal-muted">No notifications yet.</p>}
-            {notifications.map((n) => (
-              <div
-                key={n.id}
-                className="parent-portal-list-divider"
-                style={{ opacity: n.isRead ? 0.72 : 1 }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
-                  <div>
-                    <div className="parent-portal-notif-type">{notificationCategoryLabel(n.type)}</div>
-                    <strong style={{ fontSize: 14 }}>{n.title}</strong>
-                  </div>
-                  <span className="parent-portal-muted" style={{ fontSize: 10, whiteSpace: "nowrap" }}>{new Date(n.createdAt).toLocaleDateString()}</span>
-                </div>
-                <p className="parent-portal-muted" style={{ margin: "6px 0 0", fontSize: 13 }}>{n.message}</p>
-                {!n.isRead ? (
-                  <button type="button" className="parent-portal-btn-ghost parent-portal-btn-ghost--gold-text" style={{ marginTop: 8, fontSize: 12, padding: "6px 10px" }} onClick={() => void markNotificationRead(n.id)}>
-                    Mark read
-                  </button>
-                ) : null}
-              </div>
-            ))}
+          <div className="parent-portal-card parent-portal-panel">
+            <PanelHeader title="Alerts" onBack={() => setPanel("dashboard")} />
+            {notifications.length === 0 ? (
+              <p className="parent-portal-empty">No alerts yet.</p>
+            ) : (
+              <ul className="parent-portal-panel-list">
+                {notifications.map((n) => (
+                  <li key={n.id} className={`parent-portal-panel-row${n.isRead ? " is-read" : ""}`}>
+                    <div className="parent-portal-panel-row-top">
+                      <span className={`parent-portal-tile-icon parent-portal-tile-icon--sm parent-portal-tile-icon--alerts`} aria-hidden>
+                        <PortalIcon name="alerts" />
+                      </span>
+                      <div className="parent-portal-panel-row-text">
+                        <div className="parent-portal-notif-type">{notificationCategoryLabel(n.type)}</div>
+                        <strong>{n.title}</strong>
+                        <small>{n.message}</small>
+                      </div>
+                      <span className="parent-portal-panel-row-meta">{new Date(n.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    {!n.isRead ? (
+                      <button
+                        type="button"
+                        className="parent-portal-btn-ghost parent-portal-btn-ghost--gold-text parent-portal-panel-inline-btn"
+                        onClick={() => void markNotificationRead(n.id)}
+                      >
+                        Mark read
+                      </button>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 
         {panel === "messages" && (
-          <div className="parent-portal-card">
+          <div className="parent-portal-card parent-portal-panel parent-portal-panel--messages">
             <PanelHeader title="Messages" onBack={() => setPanel("dashboard")} />
             <LearnerSwitchStrip learners={learners} selectedId={selectedLearnerId} onSelect={setSelectedLearnerId} />
-            {activeLearner ? (
-              <p className="parent-portal-muted" style={{ margin: "0 0 8px", fontSize: 12 }}>
-                {activeLearner.firstName} {activeLearner.lastName} · {activeLearner.grade}{" "}
-                {activeLearner.className ? `· ${activeLearner.className}` : ""}
-              </p>
-            ) : null}
-            <h3 className="parent-portal-page-heading" style={{ margin: "0 0 8px", fontSize: 16 }}>
-              <span>Class teacher:</span> {teacherInfo?.name || "Assigned teacher"}
-            </h3>
-            <div style={{ maxHeight: 340, overflowY: "auto", margin: "8px 0", display: "flex", flexDirection: "column", gap: 6 }}>
-              {threadMessages.map((m) => (
-                <div
-                  key={m.id}
-                  className={`parent-portal-msg-bubble ${m.sender === "PARENT" ? "parent-portal-msg-bubble--parent" : "parent-portal-msg-bubble--other"}`}
-                >
-                  <div className="parent-portal-notif-type" style={{ fontSize: 10 }}>{m.senderName || m.sender}</div>
-                  <div style={{ fontSize: 14, lineHeight: 1.45 }}>{m.body}</div>
-                  <ParentAttachmentList attachments={m.attachments} label="Message attachments" />
-                </div>
-              ))}
+            <div className="parent-portal-msg-meta">
+              {activeLearner ? (
+                <span>
+                  {activeLearner.firstName} {activeLearner.lastName}
+                  {activeLearner.grade ? ` · ${activeLearner.grade}` : ""}
+                  {activeLearner.className ? ` · ${activeLearner.className}` : ""}
+                </span>
+              ) : (
+                <span>Select a child</span>
+              )}
+              <span className="parent-portal-msg-teacher">Teacher · {teacherInfo?.name || "Assigned teacher"}</span>
             </div>
-            <textarea
-              className="parent-portal-textarea"
-              value={messageDraft}
-              onChange={(e) => setMessageDraft(e.target.value)}
-              rows={3}
-            />
-            <button type="button" className="parent-portal-btn-primary parent-portal-full-width" onClick={() => void sendMessage()} disabled={loading}>
-              Send
-            </button>
-            <p className="parent-portal-muted" style={{ fontSize: 11, marginTop: 8 }}>
-              Messages go to your child&apos;s class teacher for this learner. Switch learner from the dashboard if you have more than one child.
-            </p>
+            <div className="parent-portal-msg-thread" role="log" aria-live="polite">
+              {threadMessages.length === 0 ? (
+                <p className="parent-portal-empty">No messages yet. Send a note to the class teacher.</p>
+              ) : (
+                threadMessages.map((m) => (
+                  <div
+                    key={m.id}
+                    className={`parent-portal-msg-bubble ${m.sender === "PARENT" ? "parent-portal-msg-bubble--parent" : "parent-portal-msg-bubble--other"}`}
+                  >
+                    <div className="parent-portal-notif-type">{m.senderName || m.sender}</div>
+                    <div className="parent-portal-msg-body">{m.body}</div>
+                    <ParentAttachmentList attachments={m.attachments} label="Message attachments" />
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="parent-portal-msg-composer">
+              <textarea
+                className="parent-portal-textarea parent-portal-textarea--compact"
+                value={messageDraft}
+                onChange={(e) => setMessageDraft(e.target.value)}
+                rows={2}
+                placeholder="Write a message…"
+                aria-label="Message to class teacher"
+              />
+              <button
+                type="button"
+                className="parent-portal-btn-primary"
+                onClick={() => void sendMessage()}
+                disabled={loading || !messageDraft.trim()}
+              >
+                Send
+              </button>
+            </div>
           </div>
         )}
 
         {panel === "homework" && (
-          <div className="parent-portal-card">
+          <div className="parent-portal-card parent-portal-panel">
             <PanelHeader title="Homework" onBack={() => setPanel("dashboard")} />
             <LearnerSwitchStrip learners={learners} selectedId={selectedLearnerId} onSelect={setSelectedLearnerId} />
-            {contentListLoading && <p className="parent-portal-muted" style={{ fontSize: 13 }}>Loading…</p>}
-            {!contentListLoading && contentList.length === 0 && <p className="parent-portal-muted">No homework posted yet.</p>}
-            {contentList.map((h: any) => (
-              <div key={h.id} className="parent-portal-list-divider">
-                <strong style={{ fontSize: 14 }}>{h.title}</strong>
-                {h.dueDate ? (
-                  <div className="parent-portal-notif-type" style={{ fontSize: 12, marginTop: 4 }}>Due {new Date(h.dueDate).toLocaleDateString()}</div>
-                ) : (
-                  <div className="parent-portal-muted" style={{ fontSize: 12, marginTop: 4 }}>No due date</div>
-                )}
-                <ParentAttachmentList attachments={h.attachments} label="Homework attachments" />
-              </div>
-            ))}
+            {contentListLoading && <p className="parent-portal-muted parent-portal-panel-status">Loading…</p>}
+            {!contentListLoading && contentList.length === 0 && <p className="parent-portal-empty">No homework posted yet.</p>}
+            <ul className="parent-portal-panel-list">
+              {contentList.map((h: any) => (
+                <li key={h.id} className="parent-portal-panel-row">
+                  <div className="parent-portal-panel-row-top">
+                    <span className="parent-portal-tile-icon parent-portal-tile-icon--sm parent-portal-tile-icon--homework" aria-hidden>
+                      <PortalIcon name="homework" />
+                    </span>
+                    <div className="parent-portal-panel-row-text">
+                      <strong>{h.title}</strong>
+                      <small className={h.dueDate ? undefined : "is-muted"}>{homeworkDueLabel(h.dueDate)}</small>
+                    </div>
+                  </div>
+                  <ParentAttachmentList attachments={h.attachments} label="Homework attachments" />
+                </li>
+              ))}
+            </ul>
             {contentListHasMore ? (
-              <p className="parent-portal-muted" style={{ fontSize: 11, marginTop: 8 }}>Showing latest 50 items.</p>
+              <p className="parent-portal-muted parent-portal-panel-status">Showing latest 50 items.</p>
             ) : null}
           </div>
         )}
 
         {panel === "notices" && (
-          <div className="parent-portal-card">
+          <div className="parent-portal-card parent-portal-panel">
             <PanelHeader title="Notices" onBack={() => setPanel("dashboard")} />
             <LearnerSwitchStrip learners={learners} selectedId={selectedLearnerId} onSelect={setSelectedLearnerId} />
-            {contentListLoading && <p className="parent-portal-muted" style={{ fontSize: 13 }}>Loading…</p>}
-            {!contentListLoading && contentList.length === 0 && <p className="parent-portal-muted">No notices yet.</p>}
-            {contentList.map((n: any) => (
-              <div key={n.id} className="parent-portal-list-divider">
-                <strong style={{ fontSize: 14 }}>{n.title}</strong>
-                <div className="parent-portal-muted" style={{ fontSize: 13, marginTop: 4 }}>{String(n.body || "").slice(0, 220)}</div>
-                <ParentAttachmentList attachments={n.attachments} label="Notice attachments" />
-              </div>
-            ))}
+            {contentListLoading && <p className="parent-portal-muted parent-portal-panel-status">Loading…</p>}
+            {!contentListLoading && contentList.length === 0 && <p className="parent-portal-empty">No notices yet.</p>}
+            <ul className="parent-portal-panel-list">
+              {contentList.map((n: any) => (
+                <li key={n.id} className="parent-portal-panel-row">
+                  <div className="parent-portal-panel-row-top">
+                    <span className="parent-portal-tile-icon parent-portal-tile-icon--sm parent-portal-tile-icon--notices" aria-hidden>
+                      <PortalIcon name="notices" />
+                    </span>
+                    <div className="parent-portal-panel-row-text">
+                      <strong>{n.title}</strong>
+                      <small>{String(n.body || "").slice(0, 180) || "Open for details"}</small>
+                    </div>
+                  </div>
+                  <ParentAttachmentList attachments={n.attachments} label="Notice attachments" />
+                </li>
+              ))}
+            </ul>
             {contentListHasMore ? (
-              <p className="parent-portal-muted" style={{ fontSize: 11, marginTop: 8 }}>Showing latest 50 items.</p>
+              <p className="parent-portal-muted parent-portal-panel-status">Showing latest 50 items.</p>
             ) : null}
           </div>
         )}
 
         {panel === "events" && (
-          <div className="parent-portal-card">
+          <div className="parent-portal-card parent-portal-panel">
             <PanelHeader title="Events" onBack={() => setPanel("dashboard")} />
             <ParentEventsPanel />
           </div>
         )}
 
         {panel === "documents" && (
-          <div className="parent-portal-card">
+          <div className="parent-portal-card parent-portal-panel">
             <PanelHeader title="Documents" onBack={() => setPanel("dashboard")} />
             <LearnerSwitchStrip learners={learners} selectedId={selectedLearnerId} onSelect={setSelectedLearnerId} />
-            {contentListLoading && <p className="parent-portal-muted" style={{ fontSize: 13 }}>Loading…</p>}
-            {!contentListLoading && contentList.length === 0 && <p className="parent-portal-muted">No documents yet.</p>}
-            {contentList.map((d: any) => (
-              <div key={d.id} className="parent-portal-list-divider">
-                <button
-                  type="button"
-                  className="parent-portal-link"
-                  style={{ background: "none", border: 0, padding: 0, cursor: "pointer", textAlign: "left" }}
-                  onClick={() => {
-                    void downloadParentDocument(d).catch((e: unknown) => {
-                      window.alert(e instanceof Error ? e.message : "Download failed");
-                    });
-                  }}
-                >
-                  {d.title}
-                </button>
-                {d.description ? <div className="parent-portal-muted" style={{ fontSize: 12, marginTop: 4 }}>{d.description}</div> : null}
-              </div>
-            ))}
+            {contentListLoading && <p className="parent-portal-muted parent-portal-panel-status">Loading…</p>}
+            {!contentListLoading && contentList.length === 0 && <p className="parent-portal-empty">No documents yet.</p>}
+            <ul className="parent-portal-panel-list">
+              {contentList.map((d: any) => (
+                <li key={d.id} className="parent-portal-panel-row parent-portal-panel-row--doc">
+                  <div className="parent-portal-panel-row-top">
+                    <span className="parent-portal-tile-icon parent-portal-tile-icon--sm parent-portal-tile-icon--documents" aria-hidden>
+                      <PortalIcon name="documents" />
+                    </span>
+                    <div className="parent-portal-panel-row-text">
+                      <strong>{d.title}</strong>
+                      {d.description ? <small>{d.description}</small> : null}
+                    </div>
+                  </div>
+                  <div className="parent-portal-doc-actions">
+                    <button
+                      type="button"
+                      className="parent-portal-btn-ghost parent-portal-btn-ghost--gold-text parent-portal-attach-btn"
+                      onClick={() => {
+                        void downloadParentDocument(d).catch((e: unknown) => {
+                          window.alert(e instanceof Error ? e.message : "Download failed");
+                        });
+                      }}
+                    >
+                      Download
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
             {contentListHasMore ? (
-              <p className="parent-portal-muted" style={{ fontSize: 11, marginTop: 8 }}>Showing latest 50 items.</p>
+              <p className="parent-portal-muted parent-portal-panel-status">Showing latest 50 items.</p>
             ) : null}
           </div>
         )}
 
         {panel === "statements" && (
-          <ParentFinanceHub
-            billing={familyBilling}
-            loading={billingLoading}
-            policy={financePolicy}
-            accountLabel={parentAccountLabel}
-            parentName={parentDisplayName || "Parent"}
-            learnerName={parentFinanceLearnerLabel}
-            childrenOnAccount={familyBillingLearners}
-            statementNotice={statementNotice}
-            statementBusy={statementActionBusy}
-            onDownloadStatement={() => void handleDownloadStatement()}
-          />
+          <div className="parent-portal-panel parent-portal-panel--finance">
+            <PanelHeader title="Finance" onBack={() => setPanel("dashboard")} />
+            <ParentFinanceHub
+              billing={familyBilling}
+              loading={billingLoading}
+              policy={financePolicy}
+              accountLabel={parentAccountLabel}
+              parentName={parentDisplayName || "Parent"}
+              learnerName={parentFinanceLearnerLabel}
+              childrenOnAccount={familyBillingLearners}
+              statementNotice={statementNotice}
+              statementBusy={statementActionBusy}
+              onDownloadStatement={() => void handleDownloadStatement()}
+            />
+          </div>
         )}
 
         {panel === "incidents" && (
-          <div className="parent-portal-card">
+          <div className="parent-portal-card parent-portal-panel">
             <PanelHeader title="Incidents" onBack={() => setPanel("dashboard")} />
             <LearnerSwitchStrip learners={learners} selectedId={selectedLearnerId} onSelect={setSelectedLearnerId} />
-            {(incidentLoading || contentListLoading) && <p className="parent-portal-muted" style={{ fontSize: 13 }}>Loading…</p>}
-            {!contentListLoading && contentList.length === 0 && !incidentLoading && (
-              <p className="parent-portal-muted">No incidents to show.</p>
+            {(incidentLoading || contentListLoading) && (
+              <p className="parent-portal-muted parent-portal-panel-status">Loading…</p>
             )}
-            {contentList.map((inc: any) => (
-              <button key={inc.id} type="button" className="parent-portal-incident-btn" onClick={() => void openIncident(inc.id)}>
-                <strong style={{ fontSize: 14 }}>{inc.subject}</strong>
-                <div className="parent-portal-muted" style={{ fontSize: 12, marginTop: 4 }}>{String(inc.summary || "").slice(0, 160)}</div>
-              </button>
-            ))}
+            {!contentListLoading && contentList.length === 0 && !incidentLoading && (
+              <p className="parent-portal-empty">No incidents to show.</p>
+            )}
+            <ul className="parent-portal-panel-list">
+              {contentList.map((inc: any) => (
+                <li key={inc.id}>
+                  <button type="button" className="parent-portal-incident-btn" onClick={() => void openIncident(inc.id)}>
+                    <span className="parent-portal-tile-icon parent-portal-tile-icon--sm parent-portal-tile-icon--incidents" aria-hidden>
+                      <PortalIcon name="incidents" />
+                    </span>
+                    <span className="parent-portal-panel-row-text">
+                      <strong>{inc.subject}</strong>
+                      <small>{String(inc.summary || "").slice(0, 140)}</small>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
             {incidentDetail && (
               <div className="parent-portal-incident-detail">
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                  <strong className="parent-portal-notif-type" style={{ fontSize: 14 }}>{incidentDetail.subject}</strong>
-                  <button type="button" className="parent-portal-btn-ghost parent-portal-btn-ghost--gold-text" style={{ fontSize: 11, padding: "4px 8px" }} onClick={() => setIncidentDetail(null)}>
+                <div className="parent-portal-incident-detail-head">
+                  <strong>{incidentDetail.subject}</strong>
+                  <button
+                    type="button"
+                    className="parent-portal-btn-ghost parent-portal-btn-ghost--gold-text parent-portal-panel-inline-btn"
+                    onClick={() => setIncidentDetail(null)}
+                  >
                     Close
                   </button>
                 </div>
-                <div className="parent-portal-muted" style={{ fontSize: 12, marginTop: 4 }}>{formatShortDate(incidentDetail.incidentDate)}</div>
-                <p style={{ fontSize: 14, lineHeight: 1.5, marginTop: 8 }}>{incidentDetail.summary}</p>
+                <div className="parent-portal-muted" style={{ fontSize: 12 }}>{formatShortDate(incidentDetail.incidentDate)}</div>
+                <p className="parent-portal-incident-detail-body">{incidentDetail.summary}</p>
               </div>
             )}
           </div>
         )}
 
         {panel === "settings" && (
-          <div className="parent-portal-card">
+          <div className="parent-portal-card parent-portal-panel">
             <PanelHeader title="Settings" onBack={() => setPanel("dashboard")} />
-            <p className="parent-portal-muted" style={{ fontSize: 13 }}>Keep things simple: use the dashboard for day-to-day updates.</p>
             <button type="button" className="parent-portal-btn-primary parent-portal-full-width" onClick={() => setShellView("pwa")}>
               Install app instructions
             </button>
             <ParentPushSettings onPrefsChanged={() => void liveNotifs.refreshPrefs()} />
-            <button type="button" className="parent-portal-btn-ghost parent-portal-full-width" style={{ marginTop: 16 }} onClick={logout}>
+            <button type="button" className="parent-portal-btn-ghost parent-portal-full-width" style={{ marginTop: 12 }} onClick={logout}>
               Sign out
             </button>
           </div>
         )}
 
         {panel === "profile" && !profileLearner && (
-          <div className="parent-portal-card">
+          <div className="parent-portal-card parent-portal-panel">
             <PanelHeader title="Learner profile" onBack={() => setPanel("dashboard")} />
-            <p className="parent-portal-muted">Choose a learner from the dashboard.</p>
+            <p className="parent-portal-empty">Choose a learner from the dashboard.</p>
           </div>
         )}
 
         {panel === "profile" && profileLearner && (
-          <div className="parent-portal-card">
+          <div className="parent-portal-card parent-portal-panel">
             <PanelHeader title="Learner profile" onBack={() => setPanel("dashboard")} />
-            <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 4 }}>
+            <div className="parent-portal-profile-name">
               {profileLearner.firstName} {profileLearner.lastName}
             </div>
-            <div className="parent-portal-muted" style={{ fontSize: 13, lineHeight: 1.6 }}>
+            <div className="parent-portal-profile-meta">
               <div>
-                <span className="parent-portal-notif-type" style={{ fontSize: 13 }}>Grade / class:</span> {profileLearner.grade}
+                Grade / class: {profileLearner.grade}
                 {profileLearner.className ? ` · ${profileLearner.className}` : ""}
               </div>
-              {profileLearner.admissionNo ? (
-                <div>
-                  <span className="parent-portal-notif-type" style={{ fontSize: 13 }}>Admission no.:</span> {profileLearner.admissionNo}
-                </div>
-              ) : null}
+              {profileLearner.admissionNo ? <div>Admission no.: {profileLearner.admissionNo}</div> : null}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
-              <button type="button" className="parent-portal-btn-primary" style={{ width: "100%" }} onClick={() => void openMessages(profileLearner.id)}>
+            <div className="parent-portal-profile-actions">
+              <button type="button" className="parent-portal-btn-primary" onClick={() => void openMessages(profileLearner.id)}>
                 Message teacher
               </button>
               <button
                 type="button"
                 className="parent-portal-btn-ghost parent-portal-btn-ghost--gold-text"
-                style={{ width: "100%" }}
                 onClick={() => {
                   setSelectedLearnerId(profileLearner.id);
                   setPanel("homework");
@@ -1619,7 +1713,7 @@ export default function ParentPortalApp() {
                 }}
               >
                 <span className="parent-portal-bottom-nav-icon" aria-hidden>
-                  {item.icon}
+                  <PortalIcon name={item.tile} />
                 </span>
                 {item.label}
               </button>
@@ -1650,165 +1744,60 @@ export default function ParentPortalApp() {
   );
 }
 
-function billingHintForLearner(learnerId: string, notifications: Notification[] | undefined): { label: string; tone: "gold" | "slate" } {
-  const list = notifications || [];
-  const forLearner = (n: Notification) => !n.learnerId || n.learnerId === learnerId;
-  if (list.some((n) => forLearner(n) && n.type === "INVOICE_READY" && !n.isRead)) {
-    return { label: "New invoice available", tone: "gold" };
-  }
-  if (list.some((n) => forLearner(n) && n.type === "STATEMENT_READY" && !n.isRead)) {
-    return { label: "Statement ready to view", tone: "gold" };
-  }
-  if (list.some((n) => forLearner(n) && (n.type === "TEACHER_MESSAGE" || n.type === "HOMEWORK") && !n.isRead)) {
-    return { label: "Updates waiting", tone: "slate" };
-  }
-  return { label: "Billing: no new alerts", tone: "slate" };
-}
-
-function WelcomeStrip({
+function CompactDashHeader({
   parentName,
   schoolName,
   logoUrl,
-  learnerCount,
   lastVisit,
   unreadCount,
   onOpenNotifications,
+  onOpenSettings,
 }: {
   parentName: string;
   schoolName: string;
   logoUrl?: string | null;
-  learnerCount: number;
   lastVisit: string | null;
   unreadCount: number;
   onOpenNotifications: () => void;
+  onOpenSettings: () => void;
 }) {
   return (
-    <div className="parent-portal-card parent-portal-welcome">
-      <div className="parent-portal-welcome-logo">
-        {logoUrl ? (
-          <img
-            src={logoUrl}
-            alt={`${schoolName} logo`}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
-        ) : (
-          <span className="parent-portal-notif-type" style={{ fontSize: 11 }}>SCH</span>
-        )}
-      </div>
-      <div style={{ minWidth: 0 }}>
-        <div className="parent-portal-muted" style={{ fontSize: 11, fontWeight: 700 }}>Welcome back</div>
-        <div className="parent-portal-welcome-name">Hello, {parentName}</div>
-        <div className="parent-portal-muted" style={{ fontSize: 12, marginTop: 2, fontWeight: 600 }}>{schoolName}</div>
-        <div className="parent-portal-muted" style={{ fontSize: 11, marginTop: 4 }}>
-          {learnerCount} linked child{learnerCount === 1 ? "" : "ren"}
-          {lastVisit ? ` · Last visit: ${lastVisit}` : ""}
+    <div className="parent-portal-dash-header">
+      <div className="parent-portal-dash-header-brand">
+        <div className="parent-portal-welcome-logo parent-portal-welcome-logo--sm">
+          {logoUrl ? (
+            <img src={logoUrl} alt={`${schoolName} logo`} />
+          ) : (
+            <span className="parent-portal-notif-type" style={{ fontSize: 10 }}>
+              SCH
+            </span>
+          )}
+        </div>
+        <div className="parent-portal-dash-header-text">
+          <p className="parent-portal-dash-greeting">Hello, {parentName}</p>
+          <p className="parent-portal-dash-school">{schoolName}</p>
+          {lastVisit ? <p className="parent-portal-dash-visit">Last visit {lastVisit}</p> : null}
         </div>
       </div>
-      <button
-        type="button"
-        onClick={onOpenNotifications}
-        className="parent-portal-btn-ghost parent-portal-btn-ghost--gold-text parent-portal-alerts-btn"
-        style={{ width: 40, height: 40, borderRadius: 999, padding: 0 }}
-        aria-label="Open notifications"
-      >
-        <span style={{ fontSize: 10, fontWeight: 900 }}>Alerts</span>
-        {unreadCount > 0 ? <span className="parent-portal-badge">{unreadCount > 9 ? "9+" : unreadCount}</span> : null}
-      </button>
-    </div>
-  );
-}
-
-function SummaryCard({
-  title,
-  value,
-  subtitle,
-  onClick,
-}: {
-  title: string;
-  value: string;
-  subtitle: string;
-  onClick?: () => void;
-}) {
-  return (
-    <button type="button" onClick={onClick} disabled={!onClick} className="parent-portal-summary-card">
-      <div className="parent-portal-summary-card-title">{title}</div>
-      <div className="parent-portal-summary-card-value">{value}</div>
-      <div className="parent-portal-summary-card-sub">{subtitle}</div>
-    </button>
-  );
-}
-
-function LearnerPremiumCard({
-  row,
-  selected,
-  billingHint,
-  onSelect,
-  onProfile,
-  onMessage,
-  onHomework,
-  onNotices,
-}: {
-  row: LinkRow;
-  selected: boolean;
-  billingHint: { label: string; tone: "gold" | "slate" };
-  onSelect: () => void;
-  onProfile: () => void;
-  onMessage: () => void;
-  onHomework: () => void;
-  onNotices: () => void;
-}) {
-  const { learner, relation } = row;
-  const chipClass =
-    billingHint.tone === "gold" ? "parent-portal-chip parent-portal-chip--gold" : "parent-portal-chip parent-portal-chip--slate";
-
-  return (
-    <div className={`parent-portal-card parent-portal-learner-card${selected ? " selected" : ""}`}>
-      <button
-        type="button"
-        onClick={onSelect}
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: 8,
-          width: "100%",
-          background: "transparent",
-          border: "none",
-          padding: 0,
-          cursor: "pointer",
-          color: "#1d2736",
-          textAlign: "left",
-        }}
-      >
-        <div>
-          <div style={{ fontSize: 17, fontWeight: 900 }}>
-            {learner.firstName} {learner.lastName}
-          </div>
-          <div className="parent-portal-muted" style={{ fontSize: 12, marginTop: 2, fontWeight: 600 }}>
-            {learner.grade}
-            {learner.className ? ` · ${learner.className}` : ""}
-            {relation ? ` · ${relation}` : ""}
-          </div>
-        </div>
-        {selected ? (
-          <span className="parent-portal-selected-badge">SELECTED</span>
-        ) : (
-          <span className="parent-portal-muted" style={{ fontSize: 10, fontWeight: 800 }}>Tap to select</span>
-        )}
-      </button>
-      <div className={chipClass}>{billingHint.label}</div>
-      <div className="parent-portal-learner-actions">
-        <button type="button" className="parent-portal-btn-ghost parent-portal-btn-ghost--gold-text" style={{ fontSize: 12, padding: "8px 6px" }} onClick={onProfile}>
-          View profile
+      <div className="parent-portal-dash-header-actions">
+        <button
+          type="button"
+          className="parent-portal-icon-btn parent-portal-alerts-btn"
+          onClick={onOpenNotifications}
+          aria-label={unreadCount > 0 ? `Alerts, ${unreadCount} unread` : "Alerts"}
+        >
+          <PortalIcon name="alerts" />
+          {unreadCount > 0 ? (
+            <span className="parent-portal-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
+          ) : null}
         </button>
-        <button type="button" className="parent-portal-btn-primary" style={{ fontSize: 12, padding: "8px 6px" }} onClick={onMessage}>
-          Message teacher
-        </button>
-        <button type="button" className="parent-portal-btn-ghost parent-portal-btn-ghost--gold-text" style={{ fontSize: 12, padding: "8px 6px" }} onClick={onHomework}>
-          Homework
-        </button>
-        <button type="button" className="parent-portal-btn-ghost parent-portal-btn-ghost--gold-text" style={{ fontSize: 12, padding: "8px 6px" }} onClick={onNotices}>
-          Notices
+        <button
+          type="button"
+          className="parent-portal-icon-btn"
+          onClick={onOpenSettings}
+          aria-label="Settings"
+        >
+          <PortalIcon name="settings" />
         </button>
       </div>
     </div>
@@ -1843,11 +1832,11 @@ function LearnerSwitchStrip({
 
 function PanelHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8 }}>
-      <h3 className="parent-portal-page-heading" style={{ fontSize: 17 }}>
-        <span>{title}</span>
-      </h3>
-      <button type="button" className="parent-portal-btn-ghost parent-portal-btn-ghost--gold-text" style={{ fontSize: 12, padding: "6px 10px" }} onClick={onBack}>
+    <div className="parent-portal-panel-head">
+      <p className="parent-portal-panel-kicker" aria-hidden>
+        {title}
+      </p>
+      <button type="button" className="parent-portal-back-btn" onClick={onBack} aria-label={`Back to dashboard from ${title}`}>
         Back
       </button>
     </div>

@@ -1802,41 +1802,42 @@
   box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.12);
 }
 
+/* Quick Access / Latest Updates feature icon colours (solid, non-repeating). */
 .parent-portal-root .parent-portal-tile-icon--home,
 .parent-portal-root .parent-portal-tile-icon--finance {
-  background: linear-gradient(145deg, #2f80ed, #1b4f9c);
+  background: #315ead;
 }
 
 .parent-portal-root .parent-portal-tile-icon--messages {
-  background: linear-gradient(145deg, #27ae60, #1e8449);
+  background: #31886a;
 }
 
 .parent-portal-root .parent-portal-tile-icon--homework {
-  background: linear-gradient(145deg, #f39c12, #d68910);
+  background: #c58b32;
 }
 
 .parent-portal-root .parent-portal-tile-icon--notices {
-  background: linear-gradient(145deg, #9b59b6, #7d3c98);
-}
-
-.parent-portal-root .parent-portal-tile-icon--documents {
-  background: linear-gradient(145deg, #16a085, #117a65);
-}
-
-.parent-portal-root .parent-portal-tile-icon--incidents {
-  background: linear-gradient(145deg, #e74c3c, #c0392b);
-}
-
-.parent-portal-root .parent-portal-tile-icon--alerts {
-  background: linear-gradient(145deg, #e67e22, #ca6f1e);
-}
-
-.parent-portal-root .parent-portal-tile-icon--settings {
-  background: linear-gradient(145deg, #5d6d7e, #34495e);
+  background: #8053a2;
 }
 
 .parent-portal-root .parent-portal-tile-icon--events {
-  background: linear-gradient(145deg, #8e44ad, #6c3483);
+  background: #318d9e;
+}
+
+.parent-portal-root .parent-portal-tile-icon--documents {
+  background: #54718a;
+}
+
+.parent-portal-root .parent-portal-tile-icon--incidents {
+  background: #be594b;
+}
+
+.parent-portal-root .parent-portal-tile-icon--alerts {
+  background: #c07839;
+}
+
+.parent-portal-root .parent-portal-tile-icon--settings {
+  background: #596274;
 }
 
 .parent-portal-root .parent-portal-events-toolbar {
@@ -2019,3 +2020,804 @@
   border-radius: 14px;
   background: #fff;
 }
+
+/* ——— Parent Portal 2.0 premium compact dashboard ——— */
+
+.parent-portal-root .parent-portal-app-header--dash {
+  display: none;
+}
+
+.parent-portal-root .parent-portal-dash {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.parent-portal-root .parent-portal-dash-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0 2px;
+}
+
+.parent-portal-root .parent-portal-dash-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.parent-portal-root .parent-portal-welcome-logo--sm {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+
+.parent-portal-root .parent-portal-welcome-logo--sm img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  display: block;
+}
+
+.parent-portal-root .parent-portal-dash-header-text {
+  min-width: 0;
+}
+
+.parent-portal-root .parent-portal-dash-greeting {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--p-navy);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.parent-portal-root .parent-portal-dash-school {
+  margin: 2px 0 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--p-muted);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.parent-portal-root .parent-portal-dash-visit {
+  margin: 1px 0 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--p-muted);
+  opacity: 0.9;
+  line-height: 1.25;
+}
+
+.parent-portal-root .parent-portal-dash-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.parent-portal-root .parent-portal-icon-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--p-border);
+  background: #ffffff;
+  color: var(--p-navy);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.parent-portal-root .parent-portal-icon-btn:focus-visible {
+  outline: 2px solid rgba(47, 128, 237, 0.55);
+  outline-offset: 2px;
+}
+
+.parent-portal-root .parent-portal-section-label {
+  letter-spacing: 0.04em;
+  text-transform: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--p-muted);
+  margin: 2px 0 6px;
+}
+
+.parent-portal-root .parent-portal-section-label--inline {
+  margin: 0;
+}
+
+.parent-portal-root .parent-portal-child-selector {
+  margin-bottom: 0;
+}
+
+.parent-portal-root .parent-portal-child-chips {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 8px;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.parent-portal-root .parent-portal-child-chip {
+  flex: 0 1 220px;
+  width: auto;
+  min-width: 148px;
+  max-width: 200px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  box-shadow: none;
+  gap: 8px;
+}
+
+.parent-portal-root .parent-portal-child-chip:hover {
+  transform: none;
+}
+
+.parent-portal-root .parent-portal-child-chip.active {
+  border-color: var(--p-navy);
+  background: rgba(11, 31, 58, 0.04);
+  box-shadow: inset 0 0 0 1px var(--p-navy);
+}
+
+.parent-portal-root .parent-portal-child-chip-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+}
+
+.parent-portal-root .parent-portal-child-chip-text strong {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.parent-portal-root .parent-portal-child-chip-text small {
+  font-size: 0.7rem;
+}
+
+.parent-portal-root .parent-portal-child-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.parent-portal-root .parent-portal-child-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 44px;
+  padding: 5px 4px;
+  border-radius: 10px;
+  border: 1px solid var(--p-border);
+  background: #ffffff;
+  color: var(--p-navy);
+  font-size: 0.62rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.parent-portal-root .parent-portal-child-action svg {
+  width: 16px;
+  height: 16px;
+}
+
+.parent-portal-root .parent-portal-finance-summary--compact {
+  margin-bottom: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  box-shadow: 0 6px 16px rgba(11, 31, 58, 0.16);
+}
+
+.parent-portal-root .parent-portal-finance-summary--compact .parent-portal-finance-summary-value {
+  margin-top: 2px;
+  font-size: clamp(1.2rem, 3.6vw, 1.45rem);
+  font-weight: 800;
+}
+
+.parent-portal-root .parent-portal-finance-summary--compact .parent-portal-finance-summary-sub {
+  margin-top: 2px;
+  font-size: 0.72rem;
+}
+
+.parent-portal-root .parent-portal-finance-summary-label {
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+
+.parent-portal-root .parent-portal-updates {
+  margin: 0;
+}
+
+.parent-portal-root .parent-portal-updates-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.parent-portal-root .parent-portal-link-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--p-navy);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 0;
+  min-height: 32px;
+}
+
+.parent-portal-root .parent-portal-updates-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--p-border);
+  border-radius: 14px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.parent-portal-root .parent-portal-updates-list li + li {
+  border-top: 1px solid var(--p-border);
+}
+
+.parent-portal-root .parent-portal-update-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--p-ink);
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.parent-portal-root .parent-portal-update-row:active {
+  background: rgba(11, 31, 58, 0.04);
+}
+
+.parent-portal-root .parent-portal-update-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.parent-portal-root .parent-portal-update-row-text strong {
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.parent-portal-root .parent-portal-update-kind {
+  display: inline-block;
+  margin-right: 6px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--p-gold-dim, #b8860b);
+  text-transform: uppercase;
+}
+
+.parent-portal-root .parent-portal-update-row-text small {
+  font-size: 0.72rem;
+  color: var(--p-muted);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.parent-portal-root .parent-portal-update-chevron {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--p-muted);
+  opacity: 0.7;
+}
+
+.parent-portal-root .parent-portal-updates-empty {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 0.8rem;
+  border: 1px solid var(--p-border);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.parent-portal-root .parent-portal-tile-grid--compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.parent-portal-root .parent-portal-tile--compact {
+  min-height: 0;
+  padding: 8px 6px;
+  border-radius: 12px;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+  box-shadow: none;
+  border-color: var(--p-border);
+}
+
+.parent-portal-root .parent-portal-tile--compact:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: rgba(47, 128, 237, 0.35);
+}
+
+.parent-portal-root .parent-portal-tile--compact strong {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.parent-portal-root .parent-portal-tile-icon--sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  font-size: 0;
+  box-shadow: none;
+}
+
+.parent-portal-root .parent-portal-tile-icon--sm svg {
+  width: 16px;
+  height: 16px;
+}
+
+.parent-portal-root .parent-portal-bottom-nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+}
+
+.parent-portal-root .parent-portal-bottom-nav-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.parent-portal-root .parent-portal-card--compact {
+  padding: 12px;
+  margin-bottom: 0;
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+@media (max-width: 390px) {
+  .parent-portal-root .parent-portal-child-actions {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .parent-portal-root .parent-portal-child-action {
+    font-size: 0.6rem;
+    min-height: 48px;
+    padding: 5px 2px;
+  }
+
+  .parent-portal-root .parent-portal-tile-grid--compact {
+    gap: 6px;
+  }
+}
+
+@media (min-width: 768px) {
+  .parent-portal-root .parent-portal-tile-grid--compact {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .parent-portal-root .parent-portal-child-chips {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+}
+
+/* ——— Secondary screens: compact premium panels ——— */
+
+.parent-portal-root .parent-portal-panel {
+  padding: 12px 14px;
+  border-radius: 14px;
+  box-shadow: none;
+  margin-bottom: 8px;
+}
+
+.parent-portal-root .parent-portal-panel--finance {
+  padding: 0;
+  margin: 0;
+}
+
+.parent-portal-root .parent-portal-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.parent-portal-root .parent-portal-panel-kicker {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--p-muted);
+}
+
+.parent-portal-root .parent-portal-back-btn {
+  appearance: none;
+  border: 1px solid var(--p-border);
+  background: #fff;
+  color: var(--p-navy);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 8px 12px;
+  min-height: 40px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.parent-portal-root .parent-portal-empty {
+  margin: 0;
+  padding: 14px 4px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--p-muted);
+  text-align: center;
+}
+
+.parent-portal-root .parent-portal-panel-status {
+  margin: 6px 0 0;
+  font-size: 0.72rem;
+}
+
+.parent-portal-root .parent-portal-panel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.parent-portal-root .parent-portal-panel-row {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--p-border);
+}
+
+.parent-portal-root .parent-portal-panel-row:last-child {
+  border-bottom: none;
+}
+
+.parent-portal-root .parent-portal-panel-row.is-read {
+  opacity: 0.72;
+}
+
+.parent-portal-root .parent-portal-panel-row-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.parent-portal-root .parent-portal-panel-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.parent-portal-root .parent-portal-panel-row-text strong {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--p-ink);
+  line-height: 1.25;
+}
+
+.parent-portal-root .parent-portal-panel-row-text small {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--p-muted);
+  line-height: 1.35;
+}
+
+.parent-portal-root .parent-portal-panel-row-text small.is-muted {
+  font-style: italic;
+}
+
+.parent-portal-root .parent-portal-panel-row-meta {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--p-muted);
+  white-space: nowrap;
+}
+
+.parent-portal-root .parent-portal-panel-inline-btn {
+  margin-top: 8px;
+  font-size: 0.72rem;
+  padding: 6px 10px;
+  min-height: 36px;
+}
+
+.parent-portal-root .parent-portal-msg-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--p-muted);
+}
+
+.parent-portal-root .parent-portal-msg-teacher {
+  color: var(--p-navy);
+  font-weight: 700;
+}
+
+.parent-portal-root .parent-portal-msg-thread {
+  max-height: min(42vh, 320px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 4px 2px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.parent-portal-root .parent-portal-msg-body {
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.parent-portal-root .parent-portal-msg-composer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.parent-portal-root .parent-portal-textarea--compact {
+  min-height: 52px;
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 0.88rem;
+  border-radius: 12px;
+  resize: vertical;
+}
+
+.parent-portal-root .parent-portal-msg-composer .parent-portal-btn-primary {
+  min-height: 44px;
+  padding: 10px 16px;
+  white-space: nowrap;
+}
+
+.parent-portal-root .parent-portal-attach-list {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.parent-portal-root .parent-portal-attach-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.parent-portal-root .parent-portal-attach-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--p-muted);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.parent-portal-root .parent-portal-attach-btn {
+  appearance: none;
+  flex-shrink: 0;
+  border: 1px solid rgba(49, 94, 173, 0.35);
+  background: rgba(49, 94, 173, 0.08);
+  color: var(--p-navy);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 8px 12px;
+  min-height: 36px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.parent-portal-root .parent-portal-attach-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.parent-portal-root .parent-portal-attach-status {
+  margin: 0;
+  font-size: 0.72rem;
+}
+
+.parent-portal-root .parent-portal-doc-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+}
+
+.parent-portal-root .parent-portal-incident-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+.parent-portal-root .parent-portal-incident-detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.parent-portal-root .parent-portal-incident-detail-body {
+  margin: 8px 0 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.parent-portal-root .parent-portal-profile-name {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--p-navy);
+  margin-bottom: 6px;
+}
+
+.parent-portal-root .parent-portal-profile-meta {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--p-muted);
+  line-height: 1.5;
+}
+
+.parent-portal-root .parent-portal-profile-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.parent-portal-root .parent-portal-profile-actions > button {
+  width: 100%;
+  min-height: 44px;
+}
+
+.parent-portal-root .parent-portal-learner-switch {
+  margin-bottom: 8px;
+  gap: 6px;
+}
+
+.parent-portal-root .parent-portal-learner-switch-btn {
+  padding: 8px 12px;
+  min-height: 40px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+}
+
+/* Compact finance health (presentation only; same account-health data). */
+.parent-portal-root .parent-finance-health--compact,
+.parent-portal-root .parent-finance-health {
+  min-height: 0;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  box-shadow: 0 10px 24px rgba(15, 15, 15, 0.14);
+}
+
+.parent-portal-root .parent-finance-health::after {
+  display: none;
+}
+
+.parent-portal-root .parent-finance-health-main {
+  gap: 10px;
+  align-items: center;
+}
+
+.parent-portal-root .parent-finance-health-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.parent-portal-root .parent-finance-greeting {
+  margin: 0 0 2px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.parent-portal-root .parent-finance-health h2 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  font-weight: 800;
+}
+
+.parent-portal-root .parent-finance-health p {
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.parent-portal-root .parent-finance-health-amount {
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.parent-portal-root .parent-finance-health-amount strong {
+  margin-top: 2px;
+  font-size: clamp(1.25rem, 4vw, 1.55rem);
+  letter-spacing: -0.02em;
+}
+
+.parent-portal-root .parent-finance-section-head h3 {
+  margin: 2px 0 0;
+  font-size: 0.98rem;
+}
+
+.parent-portal-root .parent-finance-action-card {
+  min-height: 0;
+  padding: 12px;
+  border-radius: 12px;
+}
+
+.parent-portal-root .parent-finance-action-card span[aria-hidden] {
+  display: none;
+}
+
+.parent-portal-root .parent-portal-app-header {
+  padding: 10px 14px;
+}
+
+.parent-portal-root .parent-portal-app-header-title {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+@media (max-width: 390px) {
+  .parent-portal-root .parent-portal-msg-composer {
+    grid-template-columns: 1fr;
+  }
+
+  .parent-portal-root .parent-portal-msg-composer .parent-portal-btn-primary {
+    width: 100%;
+  }
+}
+

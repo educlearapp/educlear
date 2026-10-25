@@ -45,42 +45,36 @@ export default function ParentAttachmentList({ attachments, label = "Attachments
   }
 
   return (
-    <div style={{ marginTop: 6 }} aria-label={label}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
-        {items.map((a, i) => {
-          const key = `${a.downloadPath}:${i}`;
-          const busy = busyKey === key;
-          return (
+    <div className="parent-portal-attach-list" aria-label={label}>
+      {items.map((a, i) => {
+        const key = `${a.downloadPath}:${i}`;
+        const busy = busyKey === key;
+        const name = a.name || `Attachment ${i + 1}`;
+        return (
+          <div key={key} className="parent-portal-attach-row">
+            <span className="parent-portal-attach-name" title={name}>
+              {name}
+            </span>
             <button
-              key={key}
               type="button"
-              className="parent-portal-link"
-              style={{
-                display: "block",
-                background: "none",
-                border: 0,
-                padding: 0,
-                marginTop: 2,
-                cursor: busy || busyKey !== null ? "wait" : "pointer",
-                textAlign: "left",
-                fontSize: 12,
-              }}
+              className="parent-portal-attach-btn"
               disabled={busy || busyKey !== null}
               onClick={() => void onDownload(a, i)}
               aria-busy={busy}
+              aria-label={busy ? `Downloading ${name}` : `Download ${name}`}
             >
-              {busy ? "Downloading…" : a.name || `Attachment ${i + 1}`}
+              {busy ? "Downloading…" : "Download"}
             </button>
-          );
-        })}
-      </div>
+          </div>
+        );
+      })}
       {err ? (
-        <p className="parent-portal-muted" role="alert" style={{ marginTop: 4, fontSize: 12, color: "#b91c1c" }}>
+        <p className="parent-portal-muted parent-portal-attach-status" role="alert">
           {err}
         </p>
       ) : null}
       {status && !err ? (
-        <p className="parent-portal-muted" role="status" style={{ marginTop: 4, fontSize: 12 }}>
+        <p className="parent-portal-muted parent-portal-attach-status" role="status">
           {status}
         </p>
       ) : null}

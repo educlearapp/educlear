@@ -132,19 +132,23 @@ export default function ParentFinanceHub({
 
   return (
     <div className="parent-finance-hub">
-      <section className={healthClass} aria-label="Account Health">
+      <section className={`${healthClass} parent-finance-health--compact`} aria-label="Account Health">
         <div className="parent-finance-health-main">
           <div className="parent-finance-health-icon" aria-hidden>
             {healthIcon}
           </div>
-          <div>
-            <p className="parent-finance-greeting">{greetingForNow()}, {parentName} 👋</p>
-            <h2>{accountSubject} is currently {displayAccountHealth(summary.accountHealth)}.</h2>
+          <div className="parent-finance-health-copy">
+            <p className="parent-finance-greeting">
+              {greetingForNow()}, {parentName}
+            </p>
+            <h2>
+              {accountSubject} · {displayAccountHealth(summary.accountHealth)}
+            </h2>
             <p>{summary.nextAction}</p>
           </div>
         </div>
         <div className="parent-finance-health-amount">
-          <span>Amount You Owe</span>
+          <span>Amount you owe</span>
           <strong>{formatFinanceMoney(summary.amountYouOwe)}</strong>
         </div>
       </section>
@@ -167,8 +171,8 @@ export default function ParentFinanceHub({
       <section className="parent-portal-card">
         <div className="parent-finance-section-head">
           <div>
-            <div className="parent-finance-eyebrow">What you need to know</div>
-            <h3>Here&apos;s where your account stands</h3>
+            <div className="parent-finance-eyebrow">Account summary</div>
+            <h3>Fees &amp; payments</h3>
           </div>
           <span>{billing.accountRef ? `Ref ${billing.accountRef}` : accountLabel}</span>
         </div>
@@ -184,7 +188,6 @@ export default function ParentFinanceHub({
           </div>
         ) : null}
         <div className="parent-finance-summary-grid">
-          <FinanceMetric label="Amount You Owe" value={formatFinanceMoney(summary.amountYouOwe)} tone="strong" />
           <FinanceMetric label="Current Month Fees" value={formatFinanceMoney(summary.currentMonthFees)} />
           <FinanceMetric label="Amount Overdue" value={formatFinanceMoney(summary.amountOverdue)} tone="warning" />
           <FinanceMetric
@@ -262,15 +265,14 @@ export default function ParentFinanceHub({
       <section className="parent-portal-card">
         <div className="parent-finance-section-head">
           <div>
-            <div className="parent-finance-eyebrow">What to do next</div>
-            <h3>What would you like to do today?</h3>
+            <div className="parent-finance-eyebrow">Actions</div>
+            <h3>Statements &amp; payments</h3>
           </div>
         </div>
         <div className="parent-finance-actions">
           <button type="button" className="parent-finance-action-card parent-finance-action-card--primary" onClick={() => setNotice(comingSoonMessage)}>
-            <span aria-hidden>💳</span>
-            <strong>Pay Now</strong>
-            <small>Secure online payments coming soon</small>
+            <strong>Pay now</strong>
+            <small>Online payments coming soon</small>
           </button>
           <button
             type="button"
@@ -278,17 +280,15 @@ export default function ParentFinanceHub({
             disabled={statementBusy}
             onClick={onDownloadStatement}
           >
-            <span aria-hidden>📄</span>
-            <strong>{statementBusy ? "Preparing..." : "Statement"}</strong>
-            <small>Download your latest statement</small>
+            <strong>{statementBusy ? "Preparing…" : "Statement"}</strong>
+            <small>Download latest statement</small>
           </button>
           <button
             type="button"
             className="parent-finance-action-card"
             onClick={() => setActionModal("proof")}
           >
-            <span aria-hidden>📤</span>
-            <strong>Upload Proof</strong>
+            <strong>Upload proof</strong>
             <small>Share EFT confirmation</small>
           </button>
           <button
@@ -296,8 +296,7 @@ export default function ParentFinanceHub({
             className="parent-finance-action-card"
             onClick={() => setActionModal("history")}
           >
-            <span aria-hidden>📜</span>
-            <strong>Payment History</strong>
+            <strong>Payment history</strong>
             <small>View recent payments</small>
           </button>
         </div>
