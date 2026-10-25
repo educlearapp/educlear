@@ -62,16 +62,32 @@ export async function findParentByCredentials(opts: {
         : [],
   };
 
-  return prisma.parent.findFirst({
+  const parent = await prisma.parent.findFirst({
     where,
     include: {
       links: {
-        where: { schoolId },
+        // Match parentWithLearners: require BOTH link.schoolId and learner.schoolId
+        // so a forged link.schoolId cannot expose another school's learner via OTP verify.
+        where: {
+          schoolId,
+          learner: { schoolId },
+        },
         include: { learner: true },
       },
       school: { select: { id: true, name: true } },
     },
   });
+
+  if (!parent) return null;
+
+  parent.links = parent.links.filter(
+    (link) =>
+      String(link.schoolId || "") === schoolId &&
+      !!link.learner &&
+      String(link.learner.schoolId || "") === schoolId
+  );
+
+  return parent;
 }
 
 export function normalizeTeacherEmail(email: string) {
