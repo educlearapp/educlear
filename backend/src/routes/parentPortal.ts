@@ -18,6 +18,13 @@ import {
   parentPublishedIncidentWhere,
 } from "../utils/teacherVisibility";
 import { buildParentDocumentVisibilityWhere } from "../services/parentDocumentVisibility";
+import {
+  publicParentDocumentDto,
+  resolveTeacherAppAbsolutePath,
+  basenameFromTeacherAppFileUrl,
+  internalTeacherAppFileUrl,
+  SECURE_DOWNLOAD_HEADERS,
+} from "../services/teacherAppFileAccess";
 import { parentAuthMiddleware, signParentToken, verifyParentToken } from "../middleware/parentAuth";
 import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
 import { resolveAuthoritativeAccountBalance } from "../services/statementAccounts";
@@ -548,7 +555,7 @@ router.get("/dashboard", parentAuthMiddleware, async (req, res) => {
       incidents,
       homework,
       notices: filteredNotices.slice(0, 10),
-      documents: filteredDocs.slice(0, 10),
+      documents: filteredDocs.slice(0, 10).map((d) => publicParentDocumentDto(d, { audience: "parent" })),
       upcomingEvents: upcomingEventsPage.events,
     });
   } catch (e) {
@@ -1333,7 +1340,7 @@ router.get("/documents", parentAuthMiddleware, async (req, res) => {
 
     return res.json({
       success: true,
-      documents: page,
+      documents: page.map((d) => publicParentDocumentDto(d, { audience: "parent" })),
       limit,
       offset,
       total,
@@ -1342,6 +1349,50 @@ router.get("/documents", parentAuthMiddleware, async (req, res) => {
   } catch (e) {
     console.error("parent documents list", e);
     return res.status(500).json({ success: false, error: "Failed to load documents" });
+  }
+});
+
+/** Authenticated parent download — visibility enforced; no public static URL. */
+router.get("/documents/:id/file", parentAuthMiddleware, async (req, res) => {
+  try {
+    const auth = (req as any).parentAuth;
+    const id = String(req.params.id || "").trim();
+    if (!id) return res.status(400).json({ success: false, error: "id required" });
+
+    const parent = await parentWithLearners(auth.parentId, auth.schoolId);
+    if (!parent) return res.status(404).json({ success: false, error: "Parent not found" });
+    const learners = parent.links.map((l) => l.learner);
+    const membership = await loadSchoolClassMembership(auth.schoolId);
+    const where = buildParentDocumentVisibilityWhere({
+      schoolId: auth.schoolId,
+      learners,
+      spellingsFor: (cn) => membership.spellingsFor(cn),
+    });
+
+    const doc = await prisma.parentDocument.findFirst({
+      where: { ...where, id },
+    });
+    if (!doc) {
+      return res.status(404).json({ success: false, error: "Not found", code: "NOT_FOUND" });
+    }
+
+    const base = basenameFromTeacherAppFileUrl(doc.fileUrl);
+    const abs = resolveTeacherAppAbsolutePath(base);
+    if (!abs) {
+      return res.status(404).json({ success: false, error: "File missing" });
+    }
+
+    for (const [k, v] of Object.entries(SECURE_DOWNLOAD_HEADERS)) {
+      res.setHeader(k, v);
+    }
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${(doc.fileName || base || "document").replace(/"/g, "")}"`
+    );
+    return res.sendFile(abs);
+  } catch (e) {
+    console.error("parent document download", e);
+    return res.status(500).json({ success: false, error: "Failed to download document" });
   }
 });
 
@@ -1637,10 +1688,20 @@ router.post("/staff/documents", async (req, res) => {
     if (!allowSchool(gate, schoolId, res)) return;
 
     const title = String(req.body?.title || "").trim();
-    const fileUrl = String(req.body?.fileUrl || "").trim();
-    if (!schoolId || !title || !fileUrl) {
+    const rawFileUrl = String(req.body?.fileUrl || "").trim();
+    if (!schoolId || !title || !rawFileUrl) {
       return res.status(400).json({ success: false, error: "schoolId, title and fileUrl required" });
     }
+    // Accept legacy absolute URLs but store via internal relative path — never trust client paths.
+    const storedBase = basenameFromTeacherAppFileUrl(rawFileUrl);
+    if (!storedBase) {
+      return res.status(400).json({
+        success: false,
+        error: "fileUrl must reference a teacher-app upload",
+        code: "INVALID_FILE",
+      });
+    }
+    const fileUrl = internalTeacherAppFileUrl(storedBase);
 
     const grade = req.body?.grade ? String(req.body.grade).trim() : null;
     const className = req.body?.className ? String(req.body.className).trim() : null;
@@ -1728,11 +1789,14 @@ router.post("/staff/documents", async (req, res) => {
         type: "DOCUMENT",
         title: "New document",
         message: title,
-        metadata: { documentId: doc.id, fileUrl },
+        metadata: { documentId: doc.id },
       });
     }
 
-    return res.json({ success: true, document: doc });
+    return res.json({
+      success: true,
+      document: publicParentDocumentDto(doc, { audience: "staff", schoolId }),
+    });
   } catch (e) {
     return res.status(500).json({ success: false, error: "Failed to upload document" });
   }

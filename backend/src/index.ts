@@ -281,6 +281,21 @@ app.use("/api/public/admissions", publicAdmissionsJsonParser);
 app.use(express.json({ limit: "12mb" }));
 app.use("/uploads/school-logos", express.static(persistentSchoolLogoDir));
 app.use("/uploads/school-logos", express.static(legacySchoolLogoDir));
+/**
+ * P2: teacher-app attachments are private. Deny unauthenticated static access.
+ * Authenticated downloads: /api/parent-portal/documents/:id/file,
+ * /api/school-parent-documents/:id/file, /api/teacher-app/documents/:id/file.
+ * Other /uploads paths (school-logos already above; parent-messages, migration artefacts)
+ * remain on the catch-all — see P2 report for residual risk.
+ */
+app.use("/uploads/teacher-app", (_req, res) => {
+  res.setHeader("Cache-Control", "private, no-store");
+  return res.status(401).json({
+    success: false,
+    error: "Authentication required — use the document download API",
+    code: "AUTH_REQUIRED",
+  });
+});
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {

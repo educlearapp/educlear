@@ -101,7 +101,7 @@ export default function DocumentsPanel({ schoolId }: Props) {
   async function downloadDoc(d: DocRow) {
     if (!d.downloadPath) return;
     try {
-      const res = await authenticatedFetch(`${API_URL}${d.downloadPath}`);
+      const res = await authenticatedFetch(`${API_URL}${d.downloadPath}`, { cache: "no-store" });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error((body as { error?: string }).error || "Download failed");

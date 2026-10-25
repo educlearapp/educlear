@@ -32,7 +32,12 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
-  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/auth")) {
+  // Never cache authenticated APIs or private teacher-app attachments.
+  if (
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/auth") ||
+    url.pathname.startsWith("/uploads/teacher-app")
+  ) {
     return;
   }
   if (event.request.mode === "navigate") {

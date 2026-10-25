@@ -20,6 +20,14 @@ import {
   uniqueParentLearnerLinks,
 } from "../services/parentPortalService";
 import { loadSchoolClassMembership } from "../utils/classroomMembership";
+import {
+  internalTeacherAppFileUrl,
+  basenameFromTeacherAppFileUrl,
+  resolveTeacherAppAbsolutePath,
+  SECURE_DOWNLOAD_HEADERS,
+  staffDocumentDownloadPath,
+} from "../services/teacherAppFileAccess";
+
 const MAX_FILE_BYTES = 12 * 1024 * 1024;
 
 const router = Router();
@@ -124,10 +132,6 @@ async function resolveDocActor(
     }),
     assignedClassNames,
   };
-}
-
-function publicBase(req: { protocol: string; get: (h: string) => string | undefined }) {
-  return `${req.protocol}://${req.get("host")}`;
 }
 
 function learnerMatchesDoc(
@@ -245,8 +249,8 @@ router.get("/", async (req, res) => {
       createdBy: d.createdBy,
       createdAt: d.createdAt,
       visibility: d.visibility,
-      /** Authenticated download — do not rely on public static URL in staff UI. */
-      downloadPath: `/api/school-parent-documents/${d.id}/file?schoolId=${encodeURIComponent(schoolId)}`,
+      downloadPath: staffDocumentDownloadPath(d.id, schoolId),
+      fileUrl: null,
       targeting:
         d.className
           ? `Class · ${d.className}`
@@ -302,8 +306,7 @@ router.post("/", upload.single("file"), async (req, res) => {
     const file = req.file as Express.Multer.File | undefined;
     if (!file) return res.status(400).json({ success: false, error: "file required" });
 
-    const base = publicBase(req);
-    const fileUrl = `${base}/uploads/teacher-app/${file.filename}`;
+    const fileUrl = internalTeacherAppFileUrl(file.filename);
 
     const doc = await prisma.parentDocument.create({
       data: {
@@ -352,7 +355,8 @@ router.post("/", upload.single("file"), async (req, res) => {
       document: {
         id: doc.id,
         title: doc.title,
-        downloadPath: `/api/school-parent-documents/${doc.id}/file?schoolId=${encodeURIComponent(schoolId)}`,
+        downloadPath: staffDocumentDownloadPath(doc.id, schoolId),
+        fileUrl: null,
       },
     });
   } catch (e) {
@@ -379,18 +383,18 @@ router.get("/:id/file", async (req, res) => {
       return res.status(403).json({ success: false, error: "Access denied", code: "FORBIDDEN" });
     }
 
-    const marker = "/uploads/teacher-app/";
-    const idx = doc.fileUrl.indexOf(marker);
-    const relative = idx >= 0 ? doc.fileUrl.slice(idx + marker.length) : path.basename(doc.fileUrl);
-    const safeName = path.basename(relative);
-    const abs = path.join(uploadDir, safeName);
-    if (!abs.startsWith(uploadDir) || !fs.existsSync(abs)) {
+    const safeName = basenameFromTeacherAppFileUrl(doc.fileUrl);
+    const abs = resolveTeacherAppAbsolutePath(safeName);
+    if (!abs) {
       return res.status(404).json({ success: false, error: "File missing" });
     }
 
+    for (const [k, v] of Object.entries(SECURE_DOWNLOAD_HEADERS)) {
+      res.setHeader(k, v);
+    }
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="${(doc.fileName || safeName).replace(/"/g, "")}"`
+      `attachment; filename="${(doc.fileName || safeName || "document").replace(/"/g, "")}"`
     );
     return res.sendFile(abs);
   } catch (e) {

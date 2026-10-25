@@ -166,11 +166,34 @@ function notificationCategoryLabel(type: string): string {
   }
 }
 
-function documentHref(url: string) {
-  const u = String(url || "").trim();
-  if (!u) return "#";
-  if (u.startsWith("http://") || u.startsWith("https://")) return u;
-  return `${API_URL}${u.startsWith("/") ? "" : "/"}${u}`;
+async function downloadParentDocument(doc: {
+  id?: string;
+  title?: string;
+  downloadPath?: string | null;
+  fileName?: string;
+}) {
+  const path =
+    String(doc.downloadPath || "").trim() ||
+    (doc.id ? `/api/parent-portal/documents/${encodeURIComponent(doc.id)}/file` : "");
+  if (!path) throw new Error("Document download unavailable");
+  const { getParentToken } = await import("./parentApi");
+  const token = getParentToken();
+  const res = await fetch(`${API_URL}${path.startsWith("/") ? path : `/${path}`}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string }).error || "Download failed");
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = doc.fileName || doc.title || "document";
+  a.rel = "noopener";
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function formatMoney(value: unknown) {
@@ -1460,9 +1483,18 @@ export default function ParentPortalApp() {
             {!contentListLoading && contentList.length === 0 && <p className="parent-portal-muted">No documents yet.</p>}
             {contentList.map((d: any) => (
               <div key={d.id} className="parent-portal-list-divider">
-                <a href={documentHref(d.fileUrl)} target="_blank" rel="noreferrer" className="parent-portal-link">
+                <button
+                  type="button"
+                  className="parent-portal-link"
+                  style={{ background: "none", border: 0, padding: 0, cursor: "pointer", textAlign: "left" }}
+                  onClick={() => {
+                    void downloadParentDocument(d).catch((e: unknown) => {
+                      window.alert(e instanceof Error ? e.message : "Download failed");
+                    });
+                  }}
+                >
                   {d.title}
-                </a>
+                </button>
                 {d.description ? <div className="parent-portal-muted" style={{ fontSize: 12, marginTop: 4 }}>{d.description}</div> : null}
               </div>
             ))}

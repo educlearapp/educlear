@@ -31,6 +31,14 @@ import {
   periodLabel,
 } from "../utils/attendancePeriods";
 import {
+  publicParentDocumentDto,
+  internalTeacherAppFileUrl,
+  basenameFromTeacherAppFileUrl,
+  resolveTeacherAppAbsolutePath,
+  SECURE_DOWNLOAD_HEADERS,
+  redactTeacherAppAttachmentUrls,
+} from "../services/teacherAppFileAccess";
+import {
   normalizeAttendanceSessionKey,
   subjectSlotPeriodKey,
 } from "../utils/attendanceSessionKeys";
@@ -389,13 +397,22 @@ router.get("/homework", async (req, res) => {
       orderBy: { createdAt: "desc" },
       take: 120,
     });
-    const posts = rows.filter((p) => {
-      if (!teacherCanViewItem(p, vctx)) return false;
-      const mine = p.createdByTeacherId === vctx.userId || normalizeStaffEmail(p.createdBy) === normalizeStaffEmail(vctx.email);
-      if (scope === "mine") return mine;
-      if (scope === "shared") return !mine && p.visibility === "CLASS_TEACHERS";
-      return true;
-    });
+    const posts = rows
+      .filter((p) => {
+        if (!teacherCanViewItem(p, vctx)) return false;
+        const mine =
+          p.createdByTeacherId === vctx.userId ||
+          normalizeStaffEmail(p.createdBy) === normalizeStaffEmail(vctx.email);
+        if (scope === "mine") return mine;
+        if (scope === "shared") return !mine && p.visibility === "CLASS_TEACHERS";
+        return true;
+      })
+      .map((p) => ({
+        ...p,
+        attachments: redactTeacherAppAttachmentUrls(p.attachments, {
+          downloadBasePath: `/api/teacher-app/homework/${p.id}/attachments`,
+        }),
+      }));
     return res.json({ success: true, posts });
   } catch (e) {
     return res.status(500).json({ success: false, error: "Failed to load homework" });
@@ -417,10 +434,9 @@ router.post("/homework", upload.array("files", TEACHER_APP_MAX_FILES), async (re
     if (!assertClassAllowed(res, className, assignedClassrooms)) return;
 
     const files = (req.files as Express.Multer.File[]) || [];
-    const base = publicBase(req);
     const attachments = files.map((f) => ({
       name: f.originalname,
-      url: `${base}/uploads/teacher-app/${f.filename}`,
+      url: internalTeacherAppFileUrl(f.filename),
       mimeType: f.mimetype,
     }));
 
@@ -528,10 +544,9 @@ router.post("/notices", upload.array("files", TEACHER_APP_MAX_FILES), async (req
     const fullBody = `${dueLine}${body || title}`;
 
     const files = (req.files as Express.Multer.File[]) || [];
-    const base = publicBase(req);
     const attachments = files.map((f) => ({
       name: f.originalname,
-      url: `${base}/uploads/teacher-app/${f.filename}`,
+      url: internalTeacherAppFileUrl(f.filename),
       mimeType: f.mimetype,
     }));
 
@@ -622,18 +637,60 @@ router.get("/documents", async (req, res) => {
       orderBy: { createdAt: "desc" },
       take: 120,
     });
-    const documents = rows.filter((d) => {
-      if (!teacherCanViewItem(d, vctx)) return false;
-      const mine =
-        d.createdByTeacherId === vctx.userId ||
-        normalizeStaffEmail(d.createdBy) === normalizeStaffEmail(vctx.email);
-      if (scope === "mine") return mine;
-      if (scope === "shared") return !mine && d.visibility === "CLASS_TEACHERS";
-      return true;
-    });
+    const documents = rows
+      .filter((d) => {
+        if (!teacherCanViewItem(d, vctx)) return false;
+        const mine =
+          d.createdByTeacherId === vctx.userId ||
+          normalizeStaffEmail(d.createdBy) === normalizeStaffEmail(vctx.email);
+        if (scope === "mine") return mine;
+        if (scope === "shared") return !mine && d.visibility === "CLASS_TEACHERS";
+        return true;
+      })
+      .map((d) => publicParentDocumentDto(d, { audience: "staff" }));
     return res.json({ success: true, documents });
   } catch (e) {
     return res.status(500).json({ success: false, error: "Failed to load documents" });
+  }
+});
+
+router.get("/documents/:id/file", async (req, res) => {
+  try {
+    const teacherCtx = ctx(req);
+    const { schoolId, assignedClassrooms } = teacherCtx;
+    const vctx = visibilityCtx(req);
+    const id = String(req.params.id || "").trim();
+    if (!id) return res.status(400).json({ success: false, error: "id required" });
+
+    const doc = await prisma.parentDocument.findFirst({ where: { id, schoolId } });
+    if (!doc || !teacherCanViewItem(doc, vctx)) {
+      return res.status(404).json({ success: false, error: "Not found" });
+    }
+    const classVariants = allClassNameVariants(assignedClassrooms);
+    const allowed =
+      isSchoolAdminRole(vctx.role) ||
+      (!!doc.className && classVariants.includes(doc.className)) ||
+      doc.createdByTeacherId === vctx.userId ||
+      normalizeStaffEmail(doc.createdBy) === normalizeStaffEmail(vctx.email);
+    if (!allowed) {
+      return res.status(403).json({ success: false, error: "Access denied", code: "FORBIDDEN" });
+    }
+
+    const base = basenameFromTeacherAppFileUrl(doc.fileUrl);
+    const abs = resolveTeacherAppAbsolutePath(base);
+    if (!abs) return res.status(404).json({ success: false, error: "File missing" });
+
+    for (const [k, v] of Object.entries(SECURE_DOWNLOAD_HEADERS)) {
+      res.setHeader(k, v);
+    }
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${(doc.fileName || base || "document").replace(/"/g, "")}"`
+    );
+    return res.sendFile(abs);
+  } catch (e) {
+    console.error("teacher-app document download", e);
+    return res.status(500).json({ success: false, error: "Failed to download document" });
   }
 });
 
@@ -649,8 +706,7 @@ router.post("/documents", upload.single("file"), async (req, res) => {
     const file = req.file as Express.Multer.File | undefined;
     if (!file) return res.status(400).json({ success: false, error: "file required" });
 
-    const base = publicBase(req);
-    const fileUrl = `${base}/uploads/teacher-app/${file.filename}`;
+    const fileUrl = internalTeacherAppFileUrl(file.filename);
 
     const doc = await prisma.parentDocument.create({
       data: {
@@ -683,12 +739,15 @@ router.post("/documents", upload.single("file"), async (req, res) => {
           type: "DOCUMENT",
           title: "New document",
           message: title,
-          metadata: { documentId: doc.id, fileUrl },
+          metadata: { documentId: doc.id },
         });
       }
     }
 
-    return res.json({ success: true, document: doc });
+    return res.json({
+      success: true,
+      document: publicParentDocumentDto(doc, { audience: "staff" }),
+    });
   } catch (e) {
     console.error("teacher-app documents", e);
     return res.status(500).json({ success: false, error: "Failed to upload document" });

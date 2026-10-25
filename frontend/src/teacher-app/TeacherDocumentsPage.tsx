@@ -1,9 +1,19 @@
 import { useEffect, useState } from "react";
+import { API_URL, authenticatedFetch } from "../api";
 import { staffApiFetch, staffFormPost } from "../staffApi";
 import {
   NO_ASSIGNED_CLASSROOMS_MSG,
   useTeacherAssignedClassrooms,
 } from "./useTeacherAssignedClassrooms";
+
+type DocRow = {
+  id: string;
+  title: string;
+  fileName?: string;
+  createdAt: string;
+  downloadPath?: string | null;
+  fileUrl?: string | null;
+};
 
 export default function TeacherDocumentsPage() {
   const { classrooms, className, setClassName, loading, err: loadErr, noAssigned } =
@@ -11,14 +21,14 @@ export default function TeacherDocumentsPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  const [docs, setDocs] = useState<unknown[]>([]);
+  const [docs, setDocs] = useState<DocRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function loadDocs() {
     try {
-      const d = (await staffApiFetch("/api/teacher-app/documents")) as { documents?: unknown[] };
+      const d = (await staffApiFetch("/api/teacher-app/documents")) as { documents?: DocRow[] };
       setDocs(d.documents || []);
     } catch (e: unknown) {
       console.error("[teacher-app] Failed to load documents:", e instanceof Error ? e.message : e);
@@ -28,6 +38,28 @@ export default function TeacherDocumentsPage() {
   useEffect(() => {
     void loadDocs();
   }, []);
+
+  async function downloadDoc(d: DocRow) {
+    const path =
+      String(d.downloadPath || "").trim() ||
+      `/api/teacher-app/documents/${encodeURIComponent(d.id)}/file`;
+    try {
+      const res = await authenticatedFetch(`${API_URL}${path}`, { cache: "no-store" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { error?: string }).error || "Download failed");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = d.fileName || d.title || "document";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Download failed");
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -105,11 +137,11 @@ export default function TeacherDocumentsPage() {
       )}
       <h2 className="teacher-section-title">Uploaded</h2>
       <ul className="teacher-record-list">
-        {(docs as { id: string; title: string; fileUrl: string; createdAt: string }[]).map((d) => (
+        {docs.map((d) => (
           <li key={d.id} className="teacher-record-card">
-            <a href={d.fileUrl} target="_blank" rel="noreferrer">
+            <button type="button" className="teacher-touch-btn" onClick={() => void downloadDoc(d)}>
               {d.title}
-            </a>
+            </button>
             {new Date(d.createdAt).toLocaleString()}
           </li>
         ))}

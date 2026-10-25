@@ -27,8 +27,18 @@ assert.notEqual(manifest.scope, teacherManifest.scope, "parent and teacher PWA s
 
 assert.ok(parentSw.includes('pathname.startsWith("/api/")'), "parent SW must not cache API");
 assert.ok(
-  parentSw.includes("No authenticated API caching") || parentSw.includes("Never intercept API"),
+  parentSw.includes("/uploads/teacher-app"),
+  "parent SW must not cache private teacher-app attachments"
+);
+assert.ok(
+  parentSw.includes("No authenticated API caching") ||
+    parentSw.includes("Never intercept API") ||
+    parentSw.includes("Never cache authenticated"),
   "parent SW documents no API cache"
+);
+assert.ok(
+  teacherSw.includes("/uploads/teacher-app"),
+  "teacher SW must not cache private teacher-app attachments"
 );
 assert.equal(/caches\.open\(/.test(parentSw), false, "parent SW must not open caches for offline app shell");
 assert.ok(parentSw.includes("You are offline"));
