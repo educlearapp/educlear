@@ -11,7 +11,13 @@ import {
   notifyParentsForLearner,
   notifyParentsInvoiceRun,
   runMigrationParentOnboarding,
+  uniqueParentLearnerLinks,
 } from "../services/parentPortalService";
+import {
+  parentPublishedDocumentWhere,
+  parentPublishedHomeworkOrNoticeWhere,
+  parentPublishedIncidentWhere,
+} from "../utils/teacherVisibility";
 import { parentAuthMiddleware, signParentToken, verifyParentToken } from "../middleware/parentAuth";
 import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
 import { resolveAuthoritativeAccountBalance } from "../services/statementAccounts";
@@ -403,7 +409,7 @@ router.get("/dashboard", parentAuthMiddleware, async (req, res) => {
               where: {
                 schoolId: auth.schoolId,
                 learnerId: activeLearner.id,
-                parentVisible: true,
+                ...parentPublishedIncidentWhere(),
               },
               orderBy: { incidentDate: "desc" },
               take: 10,
@@ -413,6 +419,7 @@ router.get("/dashboard", parentAuthMiddleware, async (req, res) => {
           ? prisma.homeworkPost.findMany({
               where: {
                 schoolId: auth.schoolId,
+                ...parentPublishedHomeworkOrNoticeWhere(),
                 OR: [
                   { learnerId: activeLearner.id },
                   { grade: activeLearner.grade, learnerId: null },
@@ -431,12 +438,18 @@ router.get("/dashboard", parentAuthMiddleware, async (req, res) => {
             })
           : Promise.resolve([]),
         prisma.schoolNotice.findMany({
-          where: { schoolId: auth.schoolId },
+          where: {
+            schoolId: auth.schoolId,
+            ...parentPublishedHomeworkOrNoticeWhere(),
+          },
           orderBy: { publishedAt: "desc" },
           take: 50,
         }),
         prisma.parentDocument.findMany({
-          where: { schoolId: auth.schoolId },
+          where: {
+            schoolId: auth.schoolId,
+            ...parentPublishedDocumentWhere(),
+          },
           orderBy: { createdAt: "desc" },
           take: 30,
         }),
@@ -944,6 +957,190 @@ router.post("/send-message", async (req, res) => {
 
 // ——— Incidents ———
 
+function parseParentContentPaging(query: Record<string, unknown>) {
+  const rawLimit = Number(query.limit);
+  const rawOffset = Number(query.offset);
+  const limit = Math.min(Math.max(Number.isFinite(rawLimit) ? rawLimit : 50, 1), 100);
+  const offset = Math.min(Math.max(Number.isFinite(rawOffset) ? rawOffset : 0, 0), 2000);
+  return { limit, offset };
+}
+
+router.get("/homework", parentAuthMiddleware, async (req, res) => {
+  try {
+    const auth = (req as any).parentAuth;
+    const learnerId = String(req.query.learnerId || "").trim();
+    const { limit, offset } = parseParentContentPaging(req.query as Record<string, unknown>);
+    const parent = await parentWithLearners(auth.parentId, auth.schoolId);
+    if (!parent) return res.status(404).json({ success: false, error: "Parent not found" });
+    const learners = parent.links.map((l) => l.learner);
+    const active =
+      learners.find((l) => l.id === learnerId) || (learners.length === 1 ? learners[0] : null);
+    if (!active) return res.json({ success: true, homework: [], limit, offset, hasMore: false });
+
+    const membership = await loadSchoolClassMembership(auth.schoolId);
+    const rows = await prisma.homeworkPost.findMany({
+      where: {
+        schoolId: auth.schoolId,
+        ...parentPublishedHomeworkOrNoticeWhere(),
+        OR: [
+          { learnerId: active.id },
+          { grade: active.grade, learnerId: null },
+          {
+            className: {
+              in: active.className ? membership.spellingsFor(active.className) : [""],
+            },
+            learnerId: null,
+          },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+      skip: offset,
+      take: limit + 1,
+    });
+    const hasMore = rows.length > limit;
+    return res.json({
+      success: true,
+      homework: rows.slice(0, limit),
+      limit,
+      offset,
+      hasMore,
+    });
+  } catch (e) {
+    console.error("parent homework list", e);
+    return res.status(500).json({ success: false, error: "Failed to load homework" });
+  }
+});
+
+router.get("/notices", parentAuthMiddleware, async (req, res) => {
+  try {
+    const auth = (req as any).parentAuth;
+    const learnerId = String(req.query.learnerId || "").trim();
+    const { limit, offset } = parseParentContentPaging(req.query as Record<string, unknown>);
+    const parent = await parentWithLearners(auth.parentId, auth.schoolId);
+    if (!parent) return res.status(404).json({ success: false, error: "Parent not found" });
+    const learners = parent.links.map((l) => l.learner);
+    const active = learners.find((l) => l.id === learnerId) || null;
+    const membership = await loadSchoolClassMembership(auth.schoolId);
+
+    // Bounded scan then target-filter (grade/class/learner) — never unbounded.
+    const MAX_SCAN = 300;
+    const rows = await prisma.schoolNotice.findMany({
+      where: {
+        schoolId: auth.schoolId,
+        ...parentPublishedHomeworkOrNoticeWhere(),
+      },
+      orderBy: { publishedAt: "desc" },
+      take: MAX_SCAN,
+    });
+
+    const matched = rows.filter((n) =>
+      active
+        ? learnerMatchesNotice(membership, active, n)
+        : learners.some((l) => learnerMatchesNotice(membership, l, n))
+    );
+    const page = matched.slice(offset, offset + limit);
+    const hasMore = offset + limit < matched.length || rows.length >= MAX_SCAN;
+    return res.json({
+      success: true,
+      notices: page,
+      limit,
+      offset,
+      hasMore,
+    });
+  } catch (e) {
+    console.error("parent notices list", e);
+    return res.status(500).json({ success: false, error: "Failed to load notices" });
+  }
+});
+
+router.get("/documents", parentAuthMiddleware, async (req, res) => {
+  try {
+    const auth = (req as any).parentAuth;
+    const learnerId = String(req.query.learnerId || "").trim();
+    const { limit, offset } = parseParentContentPaging(req.query as Record<string, unknown>);
+    const parent = await parentWithLearners(auth.parentId, auth.schoolId);
+    if (!parent) return res.status(404).json({ success: false, error: "Parent not found" });
+    const learners = parent.links.map((l) => l.learner);
+    const active = learners.find((l) => l.id === learnerId) || null;
+    const membership = await loadSchoolClassMembership(auth.schoolId);
+
+    const MAX_SCAN = 300;
+    const rows = await prisma.parentDocument.findMany({
+      where: {
+        schoolId: auth.schoolId,
+        ...parentPublishedDocumentWhere(),
+      },
+      orderBy: { createdAt: "desc" },
+      take: MAX_SCAN,
+    });
+
+    const matched = rows.filter((d) => {
+      if (!active) {
+        return learners.some(
+          (l) =>
+            (!d.learnerId && !d.grade && !d.className) ||
+            d.learnerId === l.id ||
+            d.grade === l.grade ||
+            (!!d.className && membership.resolver.sameClassroom(d.className, l.className))
+        );
+      }
+      return (
+        (!d.learnerId && !d.grade && !d.className) ||
+        d.learnerId === active.id ||
+        d.grade === active.grade ||
+        (!!d.className && membership.resolver.sameClassroom(d.className, active.className))
+      );
+    });
+    const page = matched.slice(offset, offset + limit);
+    return res.json({
+      success: true,
+      documents: page,
+      limit,
+      offset,
+      hasMore: offset + limit < matched.length || rows.length >= MAX_SCAN,
+    });
+  } catch (e) {
+    console.error("parent documents list", e);
+    return res.status(500).json({ success: false, error: "Failed to load documents" });
+  }
+});
+
+router.get("/incidents", parentAuthMiddleware, async (req, res) => {
+  try {
+    const auth = (req as any).parentAuth;
+    const learnerId = String(req.query.learnerId || "").trim();
+    const { limit, offset } = parseParentContentPaging(req.query as Record<string, unknown>);
+    const parent = await parentWithLearners(auth.parentId, auth.schoolId);
+    if (!parent) return res.status(404).json({ success: false, error: "Parent not found" });
+    const learners = parent.links.map((l) => l.learner);
+    const active =
+      learners.find((l) => l.id === learnerId) || (learners.length === 1 ? learners[0] : null);
+    if (!active) return res.json({ success: true, incidents: [], limit, offset, hasMore: false });
+
+    const rows = await prisma.learnerIncident.findMany({
+      where: {
+        schoolId: auth.schoolId,
+        learnerId: active.id,
+        ...parentPublishedIncidentWhere(),
+      },
+      orderBy: { incidentDate: "desc" },
+      skip: offset,
+      take: limit + 1,
+    });
+    const hasMore = rows.length > limit;
+    return res.json({
+      success: true,
+      incidents: rows.slice(0, limit),
+      limit,
+      offset,
+      hasMore,
+    });
+  } catch (e) {
+    console.error("parent incidents list", e);
+    return res.status(500).json({ success: false, error: "Failed to load incidents" });
+  }
+});
+
 router.get("/incidents/:id", parentAuthMiddleware, async (req, res) => {
   try {
     const auth = (req as any).parentAuth;
@@ -951,7 +1148,7 @@ router.get("/incidents/:id", parentAuthMiddleware, async (req, res) => {
       where: {
         id: String(req.params.id),
         schoolId: auth.schoolId,
-        parentVisible: true,
+        ...parentPublishedIncidentWhere(),
       },
       include: { learner: true },
     });
@@ -1075,22 +1272,24 @@ router.post("/staff/homework", async (req, res) => {
         metadata: { homeworkId: post.id },
       });
     } else {
-      const links = await prisma.parentLearnerLink.findMany({
-        where: {
-          schoolId,
-          learner: {
-            ...(post.grade ? { grade: post.grade } : {}),
-            ...(post.className
-              ? {
-                  className: {
-                    in: (await loadSchoolClassMembership(schoolId)).spellingsFor(post.className),
-                  },
-                }
-              : {}),
+      const links = uniqueParentLearnerLinks(
+        await prisma.parentLearnerLink.findMany({
+          where: {
+            schoolId,
+            learner: {
+              ...(post.grade ? { grade: post.grade } : {}),
+              ...(post.className
+                ? {
+                    className: {
+                      in: (await loadSchoolClassMembership(schoolId)).spellingsFor(post.className),
+                    },
+                  }
+                : {}),
+            },
           },
-        },
-        select: { parentId: true, learnerId: true },
-      });
+          select: { parentId: true, learnerId: true },
+        })
+      );
       for (const link of links) {
         await createParentNotification({
           schoolId,
@@ -1147,8 +1346,10 @@ router.post("/staff/notices", async (req, res) => {
     });
 
     const membership = await loadSchoolClassMembership(schoolId);
-    for (const link of links) {
-      if (!learnerMatchesNotice(membership, link.learner, notice)) continue;
+    const matched = uniqueParentLearnerLinks(
+      links.filter((link) => learnerMatchesNotice(membership, link.learner, notice))
+    );
+    for (const link of matched) {
       await createParentNotification({
         schoolId,
         parentId: link.parentId,
@@ -1194,13 +1395,16 @@ router.post("/staff/documents", async (req, res) => {
       include: { learner: true },
     });
     const docMembership = await loadSchoolClassMembership(schoolId);
-    for (const link of links) {
-      if (!learnerMatchesNotice(docMembership, link.learner, {
-        learnerId: doc.learnerId,
-        grade: doc.grade,
-        className: doc.className,
-      }))
-        continue;
+    const matched = uniqueParentLearnerLinks(
+      links.filter((link) =>
+        learnerMatchesNotice(docMembership, link.learner, {
+          learnerId: doc.learnerId,
+          grade: doc.grade,
+          className: doc.className,
+        })
+      )
+    );
+    for (const link of matched) {
       await createParentNotification({
         schoolId,
         parentId: link.parentId,

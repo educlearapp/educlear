@@ -8,6 +8,7 @@ import { normalizeStaffEmail, verifyStaffJwt } from "../utils/staffJwt";
 import {
   createParentNotification,
   notifyParentsForLearner,
+  uniqueParentLearnerLinks,
 } from "../services/parentPortalService";
 import {
   assignedClassroomIdsForTeacher,
@@ -439,13 +440,15 @@ router.post("/homework", upload.array("files", TEACHER_APP_MAX_FILES), async (re
     });
 
     if (shouldNotifyParents(visibility, isDraft)) {
-      const links = await prisma.parentLearnerLink.findMany({
-        where: {
-          schoolId,
-          learner: { className: { in: classVariantsForAssigned(className, assignedClassrooms) } },
-        },
-        select: { parentId: true, learnerId: true },
-      });
+      const links = uniqueParentLearnerLinks(
+        await prisma.parentLearnerLink.findMany({
+          where: {
+            schoolId,
+            learner: { className: { in: classVariantsForAssigned(className, assignedClassrooms) } },
+          },
+          select: { parentId: true, learnerId: true },
+        })
+      );
       for (const link of links) {
         await createParentNotification({
           schoolId,
@@ -560,9 +563,10 @@ router.post("/notices", upload.array("files", TEACHER_APP_MAX_FILES), async (req
       });
       const noticeClassVariants = classVariantsForAssigned(className, teacherCtx.assignedClassrooms);
 
-      for (const link of links) {
-        if (!noticeClassVariants.includes(String(link.learner.className || "")))
-          continue;
+      const matched = uniqueParentLearnerLinks(
+        links.filter((link) => noticeClassVariants.includes(String(link.learner.className || "")))
+      );
+      for (const link of matched) {
         await createParentNotification({
           schoolId,
           parentId: link.parentId,
@@ -649,9 +653,10 @@ router.post("/documents", upload.single("file"), async (req, res) => {
         include: { learner: true },
       });
       const docClassVariants = classVariantsForAssigned(className, assignedClassrooms);
-      for (const link of links) {
-        if (!docClassVariants.includes(String(link.learner.className || "")))
-          continue;
+      const matched = uniqueParentLearnerLinks(
+        links.filter((link) => docClassVariants.includes(String(link.learner.className || "")))
+      );
+      for (const link of matched) {
         await createParentNotification({
           schoolId,
           parentId: link.parentId,

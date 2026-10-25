@@ -218,6 +218,9 @@ export default function ParentPortalApp() {
   const [profileLearnerId, setProfileLearnerId] = useState<string | null>(null);
   const [incidentDetail, setIncidentDetail] = useState<any>(null);
   const [incidentLoading, setIncidentLoading] = useState(false);
+  const [contentList, setContentList] = useState<any[]>([]);
+  const [contentListLoading, setContentListLoading] = useState(false);
+  const [contentListHasMore, setContentListHasMore] = useState(false);
   const [lastVisitShown, setLastVisitShown] = useState<string | null>(null);
   const [familyBilling, setFamilyBilling] = useState<ParentBillingSnapshot | null>(null);
   const [billingLoading, setBillingLoading] = useState(false);
@@ -422,6 +425,52 @@ export default function ParentPortalApp() {
       cancelled = true;
     };
   }, [shellView, panel, activeLearner?.id]);
+
+  // Bounded list endpoints for homework / notices / documents / incidents (beyond dashboard preview).
+  useEffect(() => {
+    const listPanels = ["homework", "notices", "documents", "incidents"] as const;
+    if (shellView !== "app" || !listPanels.includes(panel as (typeof listPanels)[number])) {
+      return;
+    }
+    let cancelled = false;
+    setContentListLoading(true);
+    const qs = new URLSearchParams({ limit: "50", offset: "0" });
+    if (selectedLearnerId) qs.set("learnerId", selectedLearnerId);
+    const path =
+      panel === "homework"
+        ? `/api/parent-portal/homework?${qs}`
+        : panel === "notices"
+          ? `/api/parent-portal/notices?${qs}`
+          : panel === "documents"
+            ? `/api/parent-portal/documents?${qs}`
+            : `/api/parent-portal/incidents?${qs}`;
+    void parentApiFetch(path)
+      .then((data) => {
+        if (cancelled) return;
+        const key =
+          panel === "homework"
+            ? "homework"
+            : panel === "notices"
+              ? "notices"
+              : panel === "documents"
+                ? "documents"
+                : "incidents";
+        setContentList(Array.isArray(data?.[key]) ? data[key] : []);
+        setContentListHasMore(Boolean(data?.hasMore));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setContentList([]);
+          setContentListHasMore(false);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setContentListLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [shellView, panel, selectedLearnerId]);
 
   async function loadDashboard() {
     setLoading(true);
@@ -1274,8 +1323,9 @@ export default function ParentPortalApp() {
           <div className="parent-portal-card">
             <PanelHeader title="Homework" onBack={() => setPanel("dashboard")} />
             <LearnerSwitchStrip learners={learners} selectedId={selectedLearnerId} onSelect={setSelectedLearnerId} />
-            {(!dashboard?.homework || dashboard.homework.length === 0) && <p className="parent-portal-muted">No homework posted yet.</p>}
-            {(dashboard?.homework || []).map((h: any) => (
+            {contentListLoading && <p className="parent-portal-muted" style={{ fontSize: 13 }}>Loading…</p>}
+            {!contentListLoading && contentList.length === 0 && <p className="parent-portal-muted">No homework posted yet.</p>}
+            {contentList.map((h: any) => (
               <div key={h.id} className="parent-portal-list-divider">
                 <strong style={{ fontSize: 14 }}>{h.title}</strong>
                 {h.dueDate ? (
@@ -1285,6 +1335,9 @@ export default function ParentPortalApp() {
                 )}
               </div>
             ))}
+            {contentListHasMore ? (
+              <p className="parent-portal-muted" style={{ fontSize: 11, marginTop: 8 }}>Showing latest 50 items.</p>
+            ) : null}
           </div>
         )}
 
@@ -1292,13 +1345,17 @@ export default function ParentPortalApp() {
           <div className="parent-portal-card">
             <PanelHeader title="Notices" onBack={() => setPanel("dashboard")} />
             <LearnerSwitchStrip learners={learners} selectedId={selectedLearnerId} onSelect={setSelectedLearnerId} />
-            {(!dashboard?.notices || dashboard.notices.length === 0) && <p className="parent-portal-muted">No notices yet.</p>}
-            {(dashboard?.notices || []).map((n: any) => (
+            {contentListLoading && <p className="parent-portal-muted" style={{ fontSize: 13 }}>Loading…</p>}
+            {!contentListLoading && contentList.length === 0 && <p className="parent-portal-muted">No notices yet.</p>}
+            {contentList.map((n: any) => (
               <div key={n.id} className="parent-portal-list-divider">
                 <strong style={{ fontSize: 14 }}>{n.title}</strong>
                 <div className="parent-portal-muted" style={{ fontSize: 13, marginTop: 4 }}>{String(n.body || "").slice(0, 220)}</div>
               </div>
             ))}
+            {contentListHasMore ? (
+              <p className="parent-portal-muted" style={{ fontSize: 11, marginTop: 8 }}>Showing latest 50 items.</p>
+            ) : null}
           </div>
         )}
 
@@ -1306,8 +1363,9 @@ export default function ParentPortalApp() {
           <div className="parent-portal-card">
             <PanelHeader title="Documents" onBack={() => setPanel("dashboard")} />
             <LearnerSwitchStrip learners={learners} selectedId={selectedLearnerId} onSelect={setSelectedLearnerId} />
-            {(!dashboard?.documents || dashboard.documents.length === 0) && <p className="parent-portal-muted">No documents yet.</p>}
-            {(dashboard?.documents || []).map((d: any) => (
+            {contentListLoading && <p className="parent-portal-muted" style={{ fontSize: 13 }}>Loading…</p>}
+            {!contentListLoading && contentList.length === 0 && <p className="parent-portal-muted">No documents yet.</p>}
+            {contentList.map((d: any) => (
               <div key={d.id} className="parent-portal-list-divider">
                 <a href={documentHref(d.fileUrl)} target="_blank" rel="noreferrer" className="parent-portal-link">
                   {d.title}
@@ -1315,6 +1373,9 @@ export default function ParentPortalApp() {
                 {d.description ? <div className="parent-portal-muted" style={{ fontSize: 12, marginTop: 4 }}>{d.description}</div> : null}
               </div>
             ))}
+            {contentListHasMore ? (
+              <p className="parent-portal-muted" style={{ fontSize: 11, marginTop: 8 }}>Showing latest 50 items.</p>
+            ) : null}
           </div>
         )}
 
@@ -1337,11 +1398,11 @@ export default function ParentPortalApp() {
           <div className="parent-portal-card">
             <PanelHeader title="Incidents" onBack={() => setPanel("dashboard")} />
             <LearnerSwitchStrip learners={learners} selectedId={selectedLearnerId} onSelect={setSelectedLearnerId} />
-            {incidentLoading && <p className="parent-portal-muted" style={{ fontSize: 13 }}>Loading…</p>}
-            {(!dashboard?.incidents || dashboard.incidents.length === 0) && !incidentLoading && (
+            {(incidentLoading || contentListLoading) && <p className="parent-portal-muted" style={{ fontSize: 13 }}>Loading…</p>}
+            {!contentListLoading && contentList.length === 0 && !incidentLoading && (
               <p className="parent-portal-muted">No incidents to show.</p>
             )}
-            {(dashboard?.incidents || []).map((inc: any) => (
+            {contentList.map((inc: any) => (
               <button key={inc.id} type="button" className="parent-portal-incident-btn" onClick={() => void openIncident(inc.id)}>
                 <strong style={{ fontSize: 14 }}>{inc.subject}</strong>
                 <div className="parent-portal-muted" style={{ fontSize: 12, marginTop: 4 }}>{String(inc.summary || "").slice(0, 160)}</div>

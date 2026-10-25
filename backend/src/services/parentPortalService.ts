@@ -372,6 +372,67 @@ function templateKeyForParentType(t: ParentNotificationType): string | null {
   }
 }
 
+/** Content types that should yield at most one alert per parent per published item. */
+const DEDUPE_METADATA_KEYS = [
+  "noticeId",
+  "homeworkId",
+  "documentId",
+  "incidentId",
+] as const;
+
+export type ParentNotificationContentRef = {
+  contentType: "notice" | "homework" | "document" | "incident";
+  contentId: string;
+};
+
+export function buildParentNotificationDedupeKey(opts: {
+  schoolId: string;
+  parentId: string;
+  contentType: string;
+  contentId: string;
+}) {
+  return [
+    String(opts.schoolId || "").trim(),
+    String(opts.parentId || "").trim(),
+    String(opts.contentType || "").trim(),
+    String(opts.contentId || "").trim(),
+  ].join("|");
+}
+
+export function resolveParentNotificationContentRef(
+  metadata?: Record<string, unknown> | null
+): ParentNotificationContentRef | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  if (metadata.noticeId) {
+    return { contentType: "notice", contentId: String(metadata.noticeId) };
+  }
+  if (metadata.homeworkId) {
+    return { contentType: "homework", contentId: String(metadata.homeworkId) };
+  }
+  if (metadata.documentId) {
+    return { contentType: "document", contentId: String(metadata.documentId) };
+  }
+  if (metadata.incidentId) {
+    return { contentType: "incident", contentId: String(metadata.incidentId) };
+  }
+  return null;
+}
+
+/** Collapse multi-child link rows to one entry per parent (first learner wins). */
+export function uniqueParentLearnerLinks<T extends { parentId: string; learnerId: string }>(
+  links: T[]
+): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const link of links) {
+    const parentId = String(link.parentId || "");
+    if (!parentId || seen.has(parentId)) continue;
+    seen.add(parentId);
+    out.push(link);
+  }
+  return out;
+}
+
 export async function createParentNotification(opts: {
   schoolId: string;
   parentId: string;
@@ -387,7 +448,50 @@ export async function createParentNotification(opts: {
     select: { name: true },
   });
   const schoolName = school?.name || "School";
-  const md = (opts.metadata || {}) as Record<string, unknown>;
+  const md = { ...(opts.metadata || {}) } as Record<string, unknown>;
+  const contentRef = resolveParentNotificationContentRef(md);
+
+  // Dedupe published content alerts only (not teacher replies / invoice runs).
+  if (contentRef) {
+    const dedupeKey = buildParentNotificationDedupeKey({
+      schoolId: opts.schoolId,
+      parentId: opts.parentId,
+      contentType: contentRef.contentType,
+      contentId: contentRef.contentId,
+    });
+    md.dedupeKey = dedupeKey;
+    md.contentType = contentRef.contentType;
+    md.contentId = contentRef.contentId;
+
+    const existing = await prisma.parentNotification.findFirst({
+      where: {
+        schoolId: opts.schoolId,
+        parentId: opts.parentId,
+        metadata: { path: ["dedupeKey"], equals: dedupeKey },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+    if (existing) {
+      // Preserve read status — do not rewrite or recreate.
+      return existing;
+    }
+
+    // Legacy rows (pre-dedupeKey): match by content id path when present.
+    for (const metaKey of DEDUPE_METADATA_KEYS) {
+      const rawId = md[metaKey];
+      if (!rawId) continue;
+      const legacy = await prisma.parentNotification.findFirst({
+        where: {
+          schoolId: opts.schoolId,
+          parentId: opts.parentId,
+          metadata: { path: [metaKey], equals: String(rawId) },
+        },
+        orderBy: { createdAt: "asc" },
+      });
+      if (legacy) return legacy;
+    }
+  }
+
   const templateKey = templateKeyForParentType(opts.type);
   const templateVariables: Record<string, string | undefined> = {
     schoolName,
@@ -408,7 +512,7 @@ export async function createParentNotification(opts: {
     parentNotificationType: opts.type,
     title: opts.title,
     message: opts.message,
-    metadata: opts.metadata,
+    metadata: md,
     templateKey: templateKey || undefined,
     templateVariables: templateKey ? templateVariables : undefined,
   });

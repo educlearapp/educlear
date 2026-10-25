@@ -73,3 +73,43 @@ export function shouldNotifyParents(visibility: TeacherContentVisibility, isDraf
   if (isDraft) return false;
   return visibility === "CLASS_TEACHERS";
 }
+
+/**
+ * Parent-facing publish gate — mirrors shouldNotifyParents.
+ * HomeworkPost / SchoolNotice: non-draft + CLASS_TEACHERS.
+ */
+export function parentPublishedHomeworkOrNoticeWhere() {
+  return {
+    isDraft: false,
+    visibility: "CLASS_TEACHERS" as const,
+  };
+}
+
+/** ParentDocument has visibility but no isDraft field. */
+export function parentPublishedDocumentWhere() {
+  return {
+    visibility: "CLASS_TEACHERS" as const,
+  };
+}
+
+/** LearnerIncident: parentVisible flag + CLASS_TEACHERS visibility. */
+export function parentPublishedIncidentWhere() {
+  return {
+    parentVisible: true,
+    visibility: "CLASS_TEACHERS" as const,
+  };
+}
+
+/** In-memory check when a row may predate visibility defaults. */
+export function isParentPublishedContent(item: {
+  isDraft?: boolean | null;
+  visibility?: TeacherContentVisibility | string | null;
+  parentVisible?: boolean | null;
+  hasDraftField?: boolean;
+  hasParentVisibleField?: boolean;
+}): boolean {
+  if (item.hasParentVisibleField && item.parentVisible === false) return false;
+  if (item.hasDraftField !== false && item.isDraft === true) return false;
+  const vis = String(item.visibility || "CLASS_TEACHERS").toUpperCase();
+  return vis === "CLASS_TEACHERS";
+}
