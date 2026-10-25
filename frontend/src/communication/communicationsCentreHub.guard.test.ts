@@ -21,8 +21,9 @@ assert.equal(parentCss.includes(".communications-centre-hub"), false, "parent po
 
 assert.ok(hubTsx.includes("TeacherInbox"), "Messages tab reuses TeacherInbox");
 assert.ok(hubTsx.includes("AnnouncementsPanel"), "Announcements tab present");
-assert.ok(hubTsx.includes("Events · soon"), "Events future tab labelled");
+assert.ok(hubTsx.includes("EventsPanel") || hubTsx.includes("<EventsPanel"), "Events tab wired");
 assert.ok(hubTsx.includes("Notifications · soon"), "Notifications future tab labelled");
+assert.equal(hubTsx.includes("Events · soon"), false, "Events placeholder removed");
 
 assert.ok(announceTsx.includes("/api/school-announcements"), "lifecycle API mounted in UI");
 assert.ok(announceTsx.includes("publish"), "publish control present");
@@ -34,6 +35,10 @@ assert.equal(
   false,
   "Phase 2 management uses school-announcements, not direct teacher-app publish form"
 );
+
+const eventsTsx = fs.readFileSync(path.join(here, "EventsPanel.tsx"), "utf8");
+assert.ok(eventsTsx.includes("/api/school-events"), "events API used");
+assert.ok(eventsTsx.includes("cancel"), "cancel control present");
 
 assert.ok(dashboard.includes("CommunicationsCentreHub"), "dashboard mounts hub");
 assert.ok(dashboard.includes('"communicationsHub"') || dashboard.includes("'communicationsHub'"), "page key wired");

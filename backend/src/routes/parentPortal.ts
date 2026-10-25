@@ -59,6 +59,7 @@ import {
   listParentVisibleNotices,
   parentVisibleNoticeWhere,
 } from "../services/schoolAnnouncementService";
+import { listParentVisibleEvents } from "../services/schoolEventService";
 
 async function requireSameSchoolStaff(
   req: { headers: { authorization?: string } },
@@ -434,7 +435,15 @@ router.get("/dashboard", parentAuthMiddleware, async (req, res) => {
     const learnerIds = learners.map((l) => l.id);
     const membership = await loadSchoolClassMembership(auth.schoolId);
 
-    const [notifications, unreadMessages, incidents, homework, notices, documents] =
+    const eventTargets = (activeLearner ? [activeLearner] : learners).map((l) => ({
+      id: l.id,
+      grade: String(l.grade || ""),
+      className: l.className ?? null,
+      firstName: l.firstName,
+      lastName: l.lastName,
+    }));
+
+    const [notifications, unreadMessages, incidents, homework, notices, documents, upcomingEventsPage] =
       await Promise.all([
         prisma.parentNotification.findMany({
           where: { parentId: auth.parentId, schoolId: auth.schoolId },
@@ -497,6 +506,13 @@ router.get("/dashboard", parentAuthMiddleware, async (req, res) => {
           orderBy: { createdAt: "desc" },
           take: 30,
         }),
+        listParentVisibleEvents({
+          schoolId: auth.schoolId,
+          learners: eventTargets,
+          spellingsFor: (cn) => membership.spellingsFor(cn),
+          limit: 8,
+          range: "upcoming",
+        }),
       ]);
 
     const latestInvoice = notifications.find((n) => n.type === "INVOICE_READY") || null;
@@ -528,6 +544,7 @@ router.get("/dashboard", parentAuthMiddleware, async (req, res) => {
       homework,
       notices: filteredNotices.slice(0, 10),
       documents: filteredDocs.slice(0, 10),
+      upcomingEvents: upcomingEventsPage.events,
     });
   } catch (e) {
     console.error("dashboard", e);
@@ -1093,6 +1110,49 @@ router.get("/notices", parentAuthMiddleware, async (req, res) => {
   } catch (e) {
     console.error("parent notices list", e);
     return res.status(500).json({ success: false, error: "Failed to load notices" });
+  }
+});
+
+router.get("/events", parentAuthMiddleware, async (req, res) => {
+  try {
+    const auth = (req as any).parentAuth;
+    const learnerId = String(req.query.learnerId || "").trim();
+    const cursor = String(req.query.cursor || "").trim() || null;
+    const rangeRaw = String(req.query.range || "upcoming").trim().toLowerCase();
+    const range =
+      rangeRaw === "past" || rangeRaw === "all" || rangeRaw === "upcoming" ? rangeRaw : "upcoming";
+    const { limit } = parseParentContentPaging(req.query as Record<string, unknown>);
+    const parent = await parentWithLearners(auth.parentId, auth.schoolId);
+    if (!parent) return res.status(404).json({ success: false, error: "Parent not found" });
+    const learners = parent.links.map((l) => l.learner);
+    // Combined calendar for all linked children unless a specific learner filter is requested.
+    const scope = learnerId ? learners.filter((l) => l.id === learnerId) : learners;
+    const membership = await loadSchoolClassMembership(auth.schoolId);
+    const page = await listParentVisibleEvents({
+      schoolId: auth.schoolId,
+      learners: scope.map((l) => ({
+        id: l.id,
+        grade: String(l.grade || ""),
+        className: l.className ?? null,
+        firstName: l.firstName,
+        lastName: l.lastName,
+      })),
+      spellingsFor: (cn) => membership.spellingsFor(cn),
+      limit,
+      cursor,
+      range,
+    });
+    return res.json({
+      success: true,
+      events: page.events,
+      limit: page.limit,
+      hasMore: page.hasMore,
+      nextCursor: page.nextCursor,
+      range,
+    });
+  } catch (e) {
+    console.error("parent events list", e);
+    return res.status(500).json({ success: false, error: "Failed to load events" });
   }
 });
 

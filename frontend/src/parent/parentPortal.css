@@ -1835,6 +1835,127 @@
   background: linear-gradient(145deg, #5d6d7e, #34495e);
 }
 
+.parent-portal-root .parent-portal-tile-icon--events {
+  background: linear-gradient(145deg, #8e44ad, #6c3483);
+}
+
+.parent-portal-root .parent-portal-events-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.parent-portal-root .parent-portal-events-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.parent-portal-root .parent-portal-events-filter {
+  appearance: none;
+  border: 1px solid rgba(15, 32, 51, 0.12);
+  background: #fff;
+  color: var(--p-navy);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.parent-portal-root .parent-portal-events-filter.is-active {
+  background: rgba(201, 162, 39, 0.16);
+  border-color: rgba(201, 162, 39, 0.55);
+}
+
+.parent-portal-root .parent-portal-events-month {
+  margin: 14px 0 8px;
+}
+
+.parent-portal-root .parent-portal-events-month-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--p-navy);
+}
+
+.parent-portal-root .parent-portal-events-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.parent-portal-root .parent-portal-event-card {
+  border: 1px solid rgba(15, 32, 51, 0.1);
+  border-radius: 14px;
+  padding: 12px;
+  background: #fff;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.parent-portal-root .parent-portal-event-card.is-cancelled {
+  border-color: rgba(180, 35, 24, 0.28);
+  background: rgba(180, 35, 24, 0.04);
+}
+
+.parent-portal-root .parent-portal-event-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.parent-portal-root .parent-portal-event-card-head strong {
+  font-size: 14px;
+  color: var(--p-navy);
+}
+
+.parent-portal-root .parent-portal-event-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #b42318;
+  border: 1px solid rgba(180, 35, 24, 0.35);
+  border-radius: 999px;
+  padding: 3px 8px;
+}
+
+.parent-portal-root .parent-portal-event-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--p-muted, #5b6b7c);
+}
+
+.parent-portal-root .parent-portal-event-body {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--p-navy);
+}
+
+.parent-portal-root .parent-portal-event-cancel-reason {
+  margin: 8px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #b42318;
+}
+
+.parent-portal-root .parent-portal-error {
+  color: #b42318;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .parent-portal-root .parent-portal-learner-card.selected {
   outline: 2px solid rgba(47, 128, 237, 0.55);
 }

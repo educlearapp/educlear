@@ -22,15 +22,18 @@ assert.ok(appSrc.includes('label: "Finance"'), "Finance tile");
 assert.ok(appSrc.includes('label: "Messages"'), "Messages tile");
 assert.ok(appSrc.includes('label: "Homework"'), "Homework tile");
 assert.ok(appSrc.includes('label: "Notices"'), "Notices tile");
+assert.ok(appSrc.includes('label: "Events"'), "Events tile backed by SchoolEvent API");
+assert.ok(appSrc.includes("ParentEventsPanel"), "Events panel mounted");
 assert.ok(appSrc.includes('label: "Documents"'), "Documents tile");
 assert.ok(appSrc.includes('label: "Incidents"'), "Incidents tile");
 assert.ok(appSrc.includes('label: "Alerts"'), "Alerts tile");
 assert.ok(appSrc.includes('label: "Settings"'), "Settings tile");
 
-assert.equal(/label:\s*"Calendar"/.test(appSrc), false, "no Calendar tile");
+assert.equal(/label:\s*"Calendar"/.test(appSrc), false, "no invented Calendar tile (Events is the live surface)");
 assert.equal(/label:\s*"Academic/.test(appSrc), false, "no Academic Progress tile");
 assert.equal(/title:\s*"Attendance"/.test(appSrc), false, "no Attendance KPI as live feature");
 assert.equal(/PayFast|payfast/.test(appSrc), false, "no PayFast integration in parent app");
+assert.ok(appSrc.includes("upcomingEvents"), "dashboard upcoming events from API");
 
 assert.ok(appSrc.includes("learners.map"), "renders all linked learners (map, not capped slice for children)");
 assert.equal(/learners\.slice\(0,\s*[123]\)/.test(appSrc), false, "does not slice children list to 1–3");

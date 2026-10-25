@@ -394,6 +394,12 @@
   background: rgba(71, 84, 103, 0.08);
 }
 
+.communications-centre-hub__pill.is-cancelled {
+  color: #b42318;
+  border-color: rgba(180, 35, 24, 0.35);
+  background: rgba(180, 35, 24, 0.08);
+}
+
 .communications-centre-hub__btn--danger {
   background: #fff;
   border-color: rgba(180, 35, 24, 0.45);

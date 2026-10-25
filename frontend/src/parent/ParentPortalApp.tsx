@@ -27,6 +27,7 @@ import {
   setParentSession,
 } from "./parentApi";
 import ParentFinanceHub from "./ParentFinanceHub";
+import ParentEventsPanel from "./ParentEventsPanel";
 import { useParentPortalPushPreparation } from "./useParentPortalPushPreparation";
 import { fetchBillingSettings } from "../billingSettings/billingSettingsApi";
 import type { FinancePolicySettings } from "../finance/financePolicy";
@@ -90,6 +91,7 @@ type Panel =
   | "messages"
   | "homework"
   | "notices"
+  | "events"
   | "documents"
   | "statements"
   | "incidents"
@@ -102,6 +104,7 @@ const navItems: { key: Panel; label: string; icon: string; tile: string }[] = [
   { key: "messages", label: "Messages", icon: "✉️", tile: "messages" },
   { key: "homework", label: "Homework", icon: "📝", tile: "homework" },
   { key: "notices", label: "Notices", icon: "📌", tile: "notices" },
+  { key: "events", label: "Events", icon: "📅", tile: "events" },
   { key: "documents", label: "Documents", icon: "📎", tile: "documents" },
   { key: "statements", label: "Finance Hub", icon: "💳", tile: "finance" },
   { key: "incidents", label: "Incidents", icon: "⚠️", tile: "incidents" },
@@ -121,6 +124,7 @@ const dashboardTiles: { key: Panel; label: string; icon: string; tile: string; h
   { key: "messages", label: "Messages", icon: "✉️", tile: "messages", hint: "Teacher chat" },
   { key: "homework", label: "Homework", icon: "📝", tile: "homework", hint: "Assignments" },
   { key: "notices", label: "Notices", icon: "📌", tile: "notices", hint: "School updates" },
+  { key: "events", label: "Events", icon: "📅", tile: "events", hint: "School calendar" },
   { key: "documents", label: "Documents", icon: "📎", tile: "documents", hint: "Files to download" },
   { key: "incidents", label: "Incidents", icon: "⚠️", tile: "incidents", hint: "Behaviour notes" },
   { key: "notifications", label: "Alerts", icon: "🔔", tile: "alerts", hint: "Notifications" },
@@ -147,6 +151,8 @@ function notificationCategoryLabel(type: string): string {
     case "ASSESSMENT":
     case "EXAM":
       return "Notice added";
+    case "SCHOOL_EVENT":
+      return "Event added";
     case "DOCUMENT":
       return "Document";
     case "ONBOARDING":
@@ -1202,6 +1208,47 @@ export default function ParentPortalApp() {
               )}
             </div>
 
+            {Array.isArray(dashboard?.upcomingEvents) && dashboard.upcomingEvents.length > 0 ? (
+              <>
+                <div className="parent-portal-section-label">Upcoming events</div>
+                <div className="parent-portal-notices-preview">
+                  {dashboard.upcomingEvents.slice(0, 4).map((ev: any) => {
+                    const cancelled = String(ev.lifecycleStatus || "").toUpperCase() === "CANCELLED";
+                    return (
+                      <button
+                        key={String(ev.id || ev.title)}
+                        type="button"
+                        className="parent-portal-notice-strip"
+                        onClick={() => switchPanel("events")}
+                      >
+                        <span className="parent-portal-tile-icon parent-portal-tile-icon--events" aria-hidden>
+                          📅
+                        </span>
+                        <span>
+                          <strong>
+                            {cancelled ? "Cancelled · " : ""}
+                            {String(ev.title || "Event")}
+                          </strong>
+                          <small>
+                            {ev.startsAt
+                              ? new Date(ev.startsAt).toLocaleString(undefined, {
+                                  weekday: "short",
+                                  day: "numeric",
+                                  month: "short",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : "Open events"}
+                            {ev.location ? ` · ${ev.location}` : ""}
+                          </small>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            ) : null}
+
             <div className="parent-portal-section-label">Quick access</div>
             <div className="parent-portal-tile-grid" aria-label="Parent portal shortcuts">
               {dashboardTiles.map((tile) => (
@@ -1356,6 +1403,13 @@ export default function ParentPortalApp() {
             {contentListHasMore ? (
               <p className="parent-portal-muted" style={{ fontSize: 11, marginTop: 8 }}>Showing latest 50 items.</p>
             ) : null}
+          </div>
+        )}
+
+        {panel === "events" && (
+          <div className="parent-portal-card">
+            <PanelHeader title="Events" onBack={() => setPanel("dashboard")} />
+            <ParentEventsPanel />
           </div>
         )}
 

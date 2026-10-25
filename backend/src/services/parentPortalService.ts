@@ -364,6 +364,7 @@ function templateKeyForParentType(t: ParentNotificationType): string | null {
     case "ASSESSMENT":
     case "EXAM":
     case "SCHOOL_NOTICE":
+    case "SCHOOL_EVENT":
       return "assessment_reminder";
     case "TEACHER_MESSAGE":
       return "teacher_reply";
@@ -378,10 +379,11 @@ const DEDUPE_METADATA_KEYS = [
   "homeworkId",
   "documentId",
   "incidentId",
+  "eventId",
 ] as const;
 
 export type ParentNotificationContentRef = {
-  contentType: "notice" | "homework" | "document" | "incident";
+  contentType: "notice" | "homework" | "document" | "incident" | "event";
   contentId: string;
 };
 
@@ -414,6 +416,9 @@ export function resolveParentNotificationContentRef(
   }
   if (metadata.incidentId) {
     return { contentType: "incident", contentId: String(metadata.incidentId) };
+  }
+  if (metadata.eventId) {
+    return { contentType: "event", contentId: String(metadata.eventId) };
   }
   return null;
 }

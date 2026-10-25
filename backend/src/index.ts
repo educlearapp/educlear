@@ -60,6 +60,7 @@ import attendanceRoutes from "./routes/attendance";
 import teacherInboxRoutes from "./routes/teacherInbox";
 import teacherAppRoutes, { teacherAppUploadErrorHandler } from "./routes/teacherApp";
 import schoolAnnouncementsRoutes from "./routes/schoolAnnouncements";
+import schoolEventsRoutes from "./routes/schoolEvents";
 import migrationRoutes, {
   migrationErrorHandler,
   migrationUploadErrorHandler,
@@ -375,6 +376,7 @@ app.use(
   requireSchoolModule("CORE"),
   schoolAnnouncementsRoutes
 );
+app.use("/api/school-events", requireSchoolModule("CORE"), schoolEventsRoutes);
 app.post(
   `/api/migration${KIDESYS_ADAPTER_READINESS_PATH}`,
   requireSuperAdmin,

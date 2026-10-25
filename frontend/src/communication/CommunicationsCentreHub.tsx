@@ -1,6 +1,7 @@
 import { useState } from "react";
 import TeacherInbox from "../teacher/TeacherInbox";
 import AnnouncementsPanel from "./AnnouncementsPanel";
+import EventsPanel from "./EventsPanel";
 import "./communicationsCentreHub.css";
 
 type Tab = "messages" | "announcements" | "events" | "notifications";
@@ -50,11 +51,10 @@ export default function CommunicationsCentreHub({ schoolId, schoolName = "" }: P
           type="button"
           role="tab"
           aria-selected={tab === "events"}
-          className={`communications-centre-hub__tab is-future${tab === "events" ? " is-active" : ""}`}
+          className={`communications-centre-hub__tab${tab === "events" ? " is-active" : ""}`}
           onClick={() => setTab("events")}
-          title="Placeholder — no event controls yet"
         >
-          Events · soon
+          Events
         </button>
         <button
           type="button"
@@ -91,14 +91,14 @@ export default function CommunicationsCentreHub({ schoolId, schoolName = "" }: P
         ) : null}
 
         {tab === "events" ? (
-          <div className="communications-centre-hub__future">
-            <span className="communications-centre-hub__badge">Future</span>
-            <h3>Events calendar</h3>
-            <p>
-              School events are not modelled yet. This tab is a placeholder only — there are no create, publish or
-              parent calendar controls here.
+          <>
+            <p className="communications-centre-hub__panel-note">
+              SchoolEvent lifecycle (draft → publish → edit → cancel → archive) with audit trail. Parents see published
+              and cancelled events for their children; drafts and archived stay staff-only. In-app notify on first
+              publish only.
             </p>
-          </div>
+            <EventsPanel schoolId={schoolId} />
+          </>
         ) : null}
 
         {tab === "notifications" ? (
