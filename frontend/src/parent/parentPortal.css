@@ -301,6 +301,18 @@
   cursor: not-allowed;
 }
 
+/* Parent Portal 2.0 — unmistakable disabled primary actions (login OTP, etc.) */
+.parent-portal-root .parent-portal-btn-primary:disabled,
+.parent-portal-root .parent-portal-btn-primary:disabled:hover {
+  background: #cbd5e1;
+  color: #64748b;
+  border-color: #94a3b8;
+  opacity: 1;
+  box-shadow: none;
+  cursor: not-allowed;
+  filter: none;
+}
+
 .parent-portal-btn-ghost {
   background: #ffffff;
   color: var(--p-ink);
@@ -1591,8 +1603,10 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  min-width: min(100%, 220px);
-  flex: 1 1 200px;
+  /* Do not grow to fill leftover desktop row width (odd child counts). */
+  flex: 0 1 220px;
+  width: min(100%, 220px);
+  max-width: 100%;
   text-align: left;
   padding: 12px 14px;
   border-radius: 18px;
@@ -1605,6 +1619,7 @@
     border-color 0.2s ease,
     transform 0.2s ease,
     box-shadow 0.2s ease;
+  box-sizing: border-box;
 }
 
 .parent-portal-root .parent-portal-child-chip:hover {

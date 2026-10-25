@@ -38,6 +38,14 @@ assert.equal(/learners\.slice\(0,\s*[123]\)/.test(appSrc), false, "does not slic
 assert.ok(cssSrc.includes(".parent-portal-root {"), "navy theme scoped under .parent-portal-root");
 assert.ok(cssSrc.includes("--p-navy:"), "navy token present");
 assert.ok(cssSrc.includes(".parent-portal-root .parent-portal-tile"), "tile styles scoped");
+assert.ok(
+  cssSrc.includes(".parent-portal-root .parent-portal-btn-primary:disabled"),
+  "disabled primary button scoped under parent-portal-root"
+);
+assert.ok(
+  cssSrc.includes("flex: 0 1 220px"),
+  "child chips do not flex-grow across leftover desktop row"
+);
 assert.ok(learnersSrc.includes("resolveFamilyBillingLearnerIds"), "family billing scope helper");
 
 console.log("parentPortalRedesign.guard.test: PASS");

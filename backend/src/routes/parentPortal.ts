@@ -100,11 +100,25 @@ router.use(async (req, res, next) => {
   }
 });
 
-async function parentWithLearners(parentId: string, schoolId: string) {
-  return prisma.parent.findFirst({
-    where: { id: parentId, schoolId },
+/**
+ * Load parent + linked learners for Parent Portal JWT school scope.
+ * Filters ParentLearnerLink by BOTH link.schoolId and learner.schoolId so a forged
+ * link.schoolId cannot expose another school's learner via /me, /dashboard, /billing,
+ * statement PDF, or statement email.
+ * Exported for focused local security regression tests only.
+ */
+export async function parentWithLearners(parentId: string, schoolId: string) {
+  const sid = String(schoolId || "").trim();
+  if (!sid || !parentId) return null;
+
+  const parent = await prisma.parent.findFirst({
+    where: { id: parentId, schoolId: sid },
     include: {
       links: {
+        where: {
+          schoolId: sid,
+          learner: { schoolId: sid },
+        },
         include: {
           learner: {
             include: {
@@ -117,6 +131,18 @@ async function parentWithLearners(parentId: string, schoolId: string) {
       onboarding: true,
     },
   });
+
+  if (!parent) return null;
+
+  // Defence in depth if relation filters ever diverge from include payload.
+  parent.links = parent.links.filter(
+    (link) =>
+      String(link.schoolId || "") === sid &&
+      !!link.learner &&
+      String(link.learner.schoolId || "") === sid
+  );
+
+  return parent;
 }
 
 type ParentPortalLearner = {
