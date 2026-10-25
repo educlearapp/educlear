@@ -16,6 +16,7 @@ import {
   loadSchoolClassMembership,
 } from "../utils/classroomMembership";
 import { enqueueParentPushDeliveriesForNotification } from "./parentPushDeliveryEngine";
+import { redactAttachmentUrls } from "./secureUploadAccess";
 
 export function normalizeSaPhone(phone: string) {
   const digits = String(phone || "").replace(/\D/g, "");
@@ -747,15 +748,23 @@ export async function runMigrationParentOnboarding(schoolId: string) {
   return { invited, schoolName: school.name, campaignId: campaign.id };
 }
 
-export function mapThreadMessage(msg: {
-  id: string;
-  senderType: ParentMessageSenderType;
-  senderName: string;
-  body: string;
-  attachments: unknown;
-  isRead: boolean;
-  createdAt: Date;
-}) {
+export function mapThreadMessage(
+  msg: {
+    id: string;
+    senderType: ParentMessageSenderType;
+    senderName: string;
+    body: string;
+    attachments: unknown;
+    isRead: boolean;
+    createdAt: Date;
+  },
+  opts?: { audience?: "parent" | "staff" }
+) {
+  const audience = opts?.audience || "staff";
+  const downloadBase =
+    audience === "parent"
+      ? `/api/parent-portal/messages/${msg.id}/attachments`
+      : `/api/teacher-inbox/messages/${msg.id}/attachments`;
   return {
     id: msg.id,
     sender:
@@ -767,7 +776,10 @@ export function mapThreadMessage(msg: {
     senderType: msg.senderType,
     senderName: msg.senderName,
     body: msg.body,
-    attachments: msg.attachments,
+    attachments: redactAttachmentUrls(msg.attachments, {
+      downloadBasePath: downloadBase,
+      publicPrefix: "/uploads/parent-messages/",
+    }),
     isRead: msg.isRead,
     createdAt: msg.createdAt.toISOString(),
   };

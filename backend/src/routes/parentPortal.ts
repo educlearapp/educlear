@@ -1,4 +1,5 @@
 import { Router } from "express";
+import path from "path";
 import type { ParentNotificationType } from "@prisma/client";
 import { prisma } from "../prisma";
 import {
@@ -25,6 +26,12 @@ import {
   internalTeacherAppFileUrl,
   SECURE_DOWNLOAD_HEADERS,
 } from "../services/teacherAppFileAccess";
+import {
+  attachmentAtIndex,
+  basenameFromPrefixedUrl,
+  resolveUnderUploadDir,
+  redactAttachmentUrls,
+} from "../services/secureUploadAccess";
 import { parentAuthMiddleware, signParentToken, verifyParentToken } from "../middleware/parentAuth";
 import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
 import { resolveAuthoritativeAccountBalance } from "../services/statementAccounts";
@@ -1003,7 +1010,7 @@ async function loadThreadForParent(opts: {
     thread: {
       id: thread.id,
       status: thread.status,
-      messages: thread.messages.map(mapThreadMessage),
+      messages: thread.messages.map((m) => mapThreadMessage(m, { audience: "parent" })),
     },
   };
 }
@@ -1113,7 +1120,7 @@ async function sendParentMessage(opts: {
     data: { updatedAt: new Date() },
   });
 
-  return { message: mapThreadMessage(msg), threadId: thread.id };
+  return { message: mapThreadMessage(msg, { audience: "parent" }), threadId: thread.id };
 }
 
 router.post("/send-message", async (req, res) => {
@@ -1170,6 +1177,46 @@ router.post("/send-message", async (req, res) => {
   }
 });
 
+/** Authenticated parent download for message attachments in their threads only. */
+router.get("/messages/:messageId/attachments/:index", parentAuthMiddleware, async (req, res) => {
+  try {
+    const auth = (req as any).parentAuth;
+    const messageId = String(req.params.messageId || "").trim();
+    const index = String(req.params.index || "").trim();
+    if (!messageId) return res.status(400).json({ success: false, error: "messageId required" });
+
+    const msg = await prisma.parentTeacherMessage.findFirst({
+      where: { id: messageId, schoolId: auth.schoolId },
+      include: { thread: true },
+    });
+    if (!msg?.thread || msg.thread.parentId !== auth.parentId) {
+      return res.status(404).json({ success: false, error: "Not found", code: "NOT_FOUND" });
+    }
+
+    const att = attachmentAtIndex(msg.attachments, index);
+    if (!att) return res.status(404).json({ success: false, error: "Attachment not found" });
+    const base = basenameFromPrefixedUrl(att.url, "/uploads/parent-messages/");
+    const abs = resolveUnderUploadDir(
+      path.join(process.cwd(), "uploads/parent-messages"),
+      base
+    );
+    if (!abs) return res.status(404).json({ success: false, error: "File missing" });
+
+    for (const [k, v] of Object.entries(SECURE_DOWNLOAD_HEADERS)) {
+      res.setHeader(k, v);
+    }
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${(att.name || base || "attachment").replace(/"/g, "")}"`
+    );
+    if (att.mimeType) res.setHeader("Content-Type", att.mimeType);
+    return res.sendFile(abs);
+  } catch (e) {
+    console.error("parent message attachment download", e);
+    return res.status(500).json({ success: false, error: "Failed to download attachment" });
+  }
+});
+
 // ——— Incidents ———
 
 function parseParentContentPaging(query: Record<string, unknown>) {
@@ -1215,7 +1262,13 @@ router.get("/homework", parentAuthMiddleware, async (req, res) => {
     const hasMore = rows.length > limit;
     return res.json({
       success: true,
-      homework: rows.slice(0, limit),
+      homework: rows.slice(0, limit).map((h) => ({
+        ...h,
+        attachments: redactAttachmentUrls(h.attachments, {
+          downloadBasePath: `/api/parent-portal/homework/${h.id}/attachments`,
+          publicPrefix: "/uploads/teacher-app/",
+        }),
+      })),
       limit,
       offset,
       hasMore,
@@ -1223,6 +1276,62 @@ router.get("/homework", parentAuthMiddleware, async (req, res) => {
   } catch (e) {
     console.error("parent homework list", e);
     return res.status(500).json({ success: false, error: "Failed to load homework" });
+  }
+});
+
+/** Parent homework attachment download — visibility matches homework list targeting. */
+router.get("/homework/:id/attachments/:index", parentAuthMiddleware, async (req, res) => {
+  try {
+    const auth = (req as any).parentAuth;
+    const id = String(req.params.id || "").trim();
+    const index = String(req.params.index || "").trim();
+    if (!id) return res.status(400).json({ success: false, error: "id required" });
+
+    const parent = await parentWithLearners(auth.parentId, auth.schoolId);
+    if (!parent) return res.status(404).json({ success: false, error: "Parent not found" });
+    const learners = parent.links.map((l) => l.learner);
+    const membership = await loadSchoolClassMembership(auth.schoolId);
+
+    const post = await prisma.homeworkPost.findFirst({
+      where: {
+        id,
+        schoolId: auth.schoolId,
+        ...parentPublishedHomeworkOrNoticeWhere(),
+      },
+    });
+    if (!post) return res.status(404).json({ success: false, error: "Not found" });
+
+    const visible = learners.some((l) => {
+      if (post.learnerId && post.learnerId === l.id) return true;
+      if (post.grade && post.grade === l.grade && !post.learnerId) return true;
+      if (
+        post.className &&
+        !post.learnerId &&
+        membership.resolver.sameClassroom(post.className, l.className)
+      ) {
+        return true;
+      }
+      return false;
+    });
+    if (!visible) return res.status(404).json({ success: false, error: "Not found" });
+
+    const att = attachmentAtIndex(post.attachments, index);
+    if (!att) return res.status(404).json({ success: false, error: "Attachment not found" });
+    const base = basenameFromPrefixedUrl(att.url, "/uploads/teacher-app/");
+    const abs = resolveUnderUploadDir(path.join(process.cwd(), "uploads/teacher-app"), base);
+    if (!abs) return res.status(404).json({ success: false, error: "File missing" });
+
+    for (const [k, v] of Object.entries(SECURE_DOWNLOAD_HEADERS)) {
+      res.setHeader(k, v);
+    }
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${(att.name || base || "attachment").replace(/"/g, "")}"`
+    );
+    return res.sendFile(abs);
+  } catch (e) {
+    console.error("parent homework attachment", e);
+    return res.status(500).json({ success: false, error: "Failed to download attachment" });
   }
 });
 
@@ -1255,7 +1364,13 @@ router.get("/notices", parentAuthMiddleware, async (req, res) => {
 
     return res.json({
       success: true,
-      notices: page.notices,
+      notices: page.notices.map((n) => ({
+        ...n,
+        attachments: redactAttachmentUrls((n as { attachments?: unknown }).attachments, {
+          downloadBasePath: `/api/parent-portal/notices/${n.id}/attachments`,
+          publicPrefix: "/uploads/teacher-app/",
+        }),
+      })),
       limit: page.limit,
       offset: cursor ? 0 : offset,
       hasMore: page.hasMore,
@@ -1264,6 +1379,56 @@ router.get("/notices", parentAuthMiddleware, async (req, res) => {
   } catch (e) {
     console.error("parent notices list", e);
     return res.status(500).json({ success: false, error: "Failed to load notices" });
+  }
+});
+
+router.get("/notices/:id/attachments/:index", parentAuthMiddleware, async (req, res) => {
+  try {
+    const auth = (req as any).parentAuth;
+    const id = String(req.params.id || "").trim();
+    const index = String(req.params.index || "").trim();
+    if (!id) return res.status(400).json({ success: false, error: "id required" });
+
+    const parent = await parentWithLearners(auth.parentId, auth.schoolId);
+    if (!parent) return res.status(404).json({ success: false, error: "Parent not found" });
+    const learners = parent.links.map((l) => l.learner);
+    const membership = await loadSchoolClassMembership(auth.schoolId);
+
+    const notice = await prisma.schoolNotice.findFirst({
+      where: {
+        id,
+        schoolId: auth.schoolId,
+        ...parentPublishedHomeworkOrNoticeWhere(),
+      },
+    });
+    if (!notice) return res.status(404).json({ success: false, error: "Not found" });
+
+    const visible = learners.some((l) =>
+      learnerMatchesNotice(membership, l, {
+        learnerId: notice.learnerId,
+        grade: notice.grade,
+        className: notice.className,
+      })
+    );
+    if (!visible) return res.status(404).json({ success: false, error: "Not found" });
+
+    const att = attachmentAtIndex(notice.attachments, index);
+    if (!att) return res.status(404).json({ success: false, error: "Attachment not found" });
+    const base = basenameFromPrefixedUrl(att.url, "/uploads/teacher-app/");
+    const abs = resolveUnderUploadDir(path.join(process.cwd(), "uploads/teacher-app"), base);
+    if (!abs) return res.status(404).json({ success: false, error: "File missing" });
+
+    for (const [k, v] of Object.entries(SECURE_DOWNLOAD_HEADERS)) {
+      res.setHeader(k, v);
+    }
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${(att.name || base || "attachment").replace(/"/g, "")}"`
+    );
+    return res.sendFile(abs);
+  } catch (e) {
+    console.error("parent notice attachment", e);
+    return res.status(500).json({ success: false, error: "Failed to download attachment" });
   }
 });
 

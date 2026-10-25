@@ -31,6 +31,14 @@ assert.ok(
   "parent SW must not cache private teacher-app attachments"
 );
 assert.ok(
+  parentSw.includes("/uploads/parent-messages"),
+  "parent SW must not cache private parent-message attachments"
+);
+assert.ok(
+  parentSw.includes("/uploads/reset-backups") || parentSw.includes("/uploads/migration-"),
+  "parent SW must not cache operational upload artefacts"
+);
+assert.ok(
   parentSw.includes("No authenticated API caching") ||
     parentSw.includes("Never intercept API") ||
     parentSw.includes("Never cache authenticated"),

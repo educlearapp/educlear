@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { API_URL, authenticatedFetch } from "../api";
 import { staffApiFetch, staffFormPost } from "../staffApi";
 
 const gold = "#d4af37";
@@ -19,7 +20,7 @@ type Message = {
   senderName?: string;
   body: string;
   createdAt: string;
-  attachments?: { name: string; url: string }[];
+  attachments?: { name: string; url?: string | null; downloadPath?: string | null }[];
 };
 
 type MeResponse = {
@@ -378,9 +379,47 @@ export default function TeacherInbox({ embedded }: Props) {
                     <div>{m.body}</div>
                     {Array.isArray(m.attachments) &&
                       m.attachments.map((a, i) => (
-                        <a key={i} href={a.url} target="_blank" rel="noreferrer" style={{ display: "block", fontSize: 12, color: gold }}>
+                        <button
+                          key={i}
+                          type="button"
+                          style={{
+                            display: "block",
+                            fontSize: 12,
+                            color: gold,
+                            background: "none",
+                            border: 0,
+                            padding: 0,
+                            cursor: "pointer",
+                            textAlign: "left",
+                          }}
+                          onClick={() => {
+                            void (async () => {
+                              const path = String(a.downloadPath || "").trim();
+                              if (!path || !schoolId) return;
+                              const qs = new URLSearchParams({
+                                schoolId,
+                                ...(adminView ? { adminView: "true" } : {}),
+                              });
+                              const res = await authenticatedFetch(
+                                `${API_URL}${path}?${qs.toString()}`,
+                                { cache: "no-store" }
+                              );
+                              if (!res.ok) {
+                                window.alert("Download failed");
+                                return;
+                              }
+                              const blob = await res.blob();
+                              const url = URL.createObjectURL(blob);
+                              const link = document.createElement("a");
+                              link.href = url;
+                              link.download = a.name || "attachment";
+                              link.click();
+                              URL.revokeObjectURL(url);
+                            })();
+                          }}
+                        >
                           {a.name}
-                        </a>
+                        </button>
                       ))}
                   </div>
                 ))}

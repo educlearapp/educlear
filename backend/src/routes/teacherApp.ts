@@ -37,7 +37,13 @@ import {
   resolveTeacherAppAbsolutePath,
   SECURE_DOWNLOAD_HEADERS,
   redactTeacherAppAttachmentUrls,
+  TEACHER_APP_UPLOAD_DIR,
 } from "../services/teacherAppFileAccess";
+import {
+  attachmentAtIndex,
+  basenameFromPrefixedUrl,
+  resolveUnderUploadDir,
+} from "../services/secureUploadAccess";
 import {
   normalizeAttendanceSessionKey,
   subjectSlotPeriodKey,
@@ -419,6 +425,48 @@ router.get("/homework", async (req, res) => {
   }
 });
 
+router.get("/homework/:id/attachments/:index", async (req, res) => {
+  try {
+    const teacherCtx = ctx(req);
+    const { schoolId, assignedClassrooms } = teacherCtx;
+    const vctx = visibilityCtx(req);
+    const id = String(req.params.id || "").trim();
+    const index = String(req.params.index || "").trim();
+    if (!id) return res.status(400).json({ success: false, error: "id required" });
+
+    const post = await prisma.homeworkPost.findFirst({ where: { id, schoolId } });
+    if (!post || !teacherCanViewItem(post, vctx)) {
+      return res.status(404).json({ success: false, error: "Not found" });
+    }
+    const classVariants = allClassNameVariants(assignedClassrooms);
+    if (
+      !isSchoolAdminRole(vctx.role) &&
+      post.className &&
+      !classVariants.includes(post.className)
+    ) {
+      return res.status(403).json({ success: false, error: "Access denied", code: "FORBIDDEN" });
+    }
+
+    const att = attachmentAtIndex(post.attachments, index);
+    if (!att) return res.status(404).json({ success: false, error: "Attachment not found" });
+    const base = basenameFromPrefixedUrl(att.url, "/uploads/teacher-app/");
+    const abs = resolveUnderUploadDir(TEACHER_APP_UPLOAD_DIR, base);
+    if (!abs) return res.status(404).json({ success: false, error: "File missing" });
+
+    for (const [k, v] of Object.entries(SECURE_DOWNLOAD_HEADERS)) {
+      res.setHeader(k, v);
+    }
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${(att.name || base || "attachment").replace(/"/g, "")}"`
+    );
+    return res.sendFile(abs);
+  } catch (e) {
+    console.error("teacher-app homework attachment", e);
+    return res.status(500).json({ success: false, error: "Failed to download attachment" });
+  }
+});
+
 router.post("/homework", upload.array("files", TEACHER_APP_MAX_FILES), async (req, res) => {
   try {
     const teacherCtx = ctx(req);
@@ -504,18 +552,67 @@ router.get("/notices", async (req, res) => {
       orderBy: { publishedAt: "desc" },
       take: 120,
     });
-    const notices = rows.filter((n) => {
-      if (!teacherCanViewItem(n, vctx)) return false;
-      const mine =
-        n.createdByTeacherId === vctx.userId ||
-        normalizeStaffEmail(n.createdBy) === normalizeStaffEmail(vctx.email);
-      if (scope === "mine") return mine;
-      if (scope === "shared") return !mine && n.visibility === "CLASS_TEACHERS";
-      return true;
-    });
+    const notices = rows
+      .filter((n) => {
+        if (!teacherCanViewItem(n, vctx)) return false;
+        const mine =
+          n.createdByTeacherId === vctx.userId ||
+          normalizeStaffEmail(n.createdBy) === normalizeStaffEmail(vctx.email);
+        if (scope === "mine") return mine;
+        if (scope === "shared") return !mine && n.visibility === "CLASS_TEACHERS";
+        return true;
+      })
+      .map((n) => ({
+        ...n,
+        attachments: redactTeacherAppAttachmentUrls(n.attachments, {
+          downloadBasePath: `/api/teacher-app/notices/${n.id}/attachments`,
+        }),
+      }));
     return res.json({ success: true, notices });
   } catch (e) {
     return res.status(500).json({ success: false, error: "Failed to load notices" });
+  }
+});
+
+router.get("/notices/:id/attachments/:index", async (req, res) => {
+  try {
+    const teacherCtx = ctx(req);
+    const { schoolId, assignedClassrooms } = teacherCtx;
+    const vctx = visibilityCtx(req);
+    const id = String(req.params.id || "").trim();
+    const index = String(req.params.index || "").trim();
+    if (!id) return res.status(400).json({ success: false, error: "id required" });
+
+    const notice = await prisma.schoolNotice.findFirst({ where: { id, schoolId } });
+    if (!notice || !teacherCanViewItem(notice, vctx)) {
+      return res.status(404).json({ success: false, error: "Not found" });
+    }
+    const classVariants = allClassNameVariants(assignedClassrooms);
+    if (
+      !isSchoolAdminRole(vctx.role) &&
+      notice.className &&
+      !classVariants.includes(notice.className)
+    ) {
+      return res.status(403).json({ success: false, error: "Access denied", code: "FORBIDDEN" });
+    }
+
+    const att = attachmentAtIndex(notice.attachments, index);
+    if (!att) return res.status(404).json({ success: false, error: "Attachment not found" });
+    const base = basenameFromPrefixedUrl(att.url, "/uploads/teacher-app/");
+    const abs = resolveUnderUploadDir(TEACHER_APP_UPLOAD_DIR, base);
+    if (!abs) return res.status(404).json({ success: false, error: "File missing" });
+
+    for (const [k, v] of Object.entries(SECURE_DOWNLOAD_HEADERS)) {
+      res.setHeader(k, v);
+    }
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${(att.name || base || "attachment").replace(/"/g, "")}"`
+    );
+    return res.sendFile(abs);
+  } catch (e) {
+    console.error("teacher-app notice attachment", e);
+    return res.status(500).json({ success: false, error: "Failed to download attachment" });
   }
 });
 

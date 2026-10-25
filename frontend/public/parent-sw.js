@@ -36,7 +36,10 @@ self.addEventListener("fetch", (event) => {
   if (
     url.pathname.startsWith("/api/") ||
     url.pathname.startsWith("/auth") ||
-    url.pathname.startsWith("/uploads/teacher-app")
+    url.pathname.startsWith("/uploads/teacher-app") ||
+    url.pathname.startsWith("/uploads/parent-messages") ||
+    url.pathname.startsWith("/uploads/migration-") ||
+    url.pathname.startsWith("/uploads/reset-backups")
   ) {
     return;
   }

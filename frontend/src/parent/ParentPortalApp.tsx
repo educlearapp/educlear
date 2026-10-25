@@ -65,7 +65,7 @@ type ThreadMessage = {
   senderName?: string;
   body: string;
   createdAt: string;
-  attachments?: unknown;
+  attachments?: { name?: string; downloadPath?: string | null; url?: string | null }[];
 };
 
 type ParentBillingTransaction = {
@@ -1410,6 +1410,49 @@ export default function ParentPortalApp() {
                 >
                   <div className="parent-portal-notif-type" style={{ fontSize: 10 }}>{m.senderName || m.sender}</div>
                   <div style={{ fontSize: 14, lineHeight: 1.45 }}>{m.body}</div>
+                  {Array.isArray(m.attachments) &&
+                    m.attachments.map((a, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        className="parent-portal-link"
+                        style={{
+                          display: "block",
+                          background: "none",
+                          border: 0,
+                          padding: 0,
+                          marginTop: 4,
+                          cursor: "pointer",
+                          textAlign: "left",
+                          fontSize: 12,
+                        }}
+                        onClick={() => {
+                          void (async () => {
+                            const path = String(a.downloadPath || "").trim();
+                            if (!path) return;
+                            const { getParentToken } = await import("./parentApi");
+                            const token = getParentToken();
+                            const res = await fetch(`${API_URL}${path}`, {
+                              headers: token ? { Authorization: `Bearer ${token}` } : {},
+                              cache: "no-store",
+                            });
+                            if (!res.ok) {
+                              window.alert("Download failed");
+                              return;
+                            }
+                            const blob = await res.blob();
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement("a");
+                            link.href = url;
+                            link.download = a.name || "attachment";
+                            link.click();
+                            URL.revokeObjectURL(url);
+                          })();
+                        }}
+                      >
+                        {a.name || "Attachment"}
+                      </button>
+                    ))}
                 </div>
               ))}
             </div>
@@ -1442,6 +1485,26 @@ export default function ParentPortalApp() {
                 ) : (
                   <div className="parent-portal-muted" style={{ fontSize: 12, marginTop: 4 }}>No due date</div>
                 )}
+                {Array.isArray(h.attachments) &&
+                  h.attachments.map((a: { name?: string; downloadPath?: string }, i: number) => (
+                    <button
+                      key={i}
+                      type="button"
+                      className="parent-portal-link"
+                      style={{ display: "block", background: "none", border: 0, padding: 0, marginTop: 4, cursor: "pointer", fontSize: 12 }}
+                      onClick={() => {
+                        void downloadParentDocument({
+                          title: a.name || "attachment",
+                          downloadPath: a.downloadPath,
+                          fileName: a.name,
+                        }).catch((e: unknown) =>
+                          window.alert(e instanceof Error ? e.message : "Download failed")
+                        );
+                      }}
+                    >
+                      {a.name || "Attachment"}
+                    </button>
+                  ))}
               </div>
             ))}
             {contentListHasMore ? (

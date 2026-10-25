@@ -13,8 +13,16 @@ import {
 import { normalizeStaffEmail, verifyStaffJwt } from "../utils/staffJwt";
 import type { StaffJwtPayload } from "../utils/staffJwt";
 import { assignedClassroomIdsForTeacher } from "../utils/classroomTeachers";
+import {
+  attachmentAtIndex,
+  basenameFromPrefixedUrl,
+  internalUploadUrl,
+  resolveUnderUploadDir,
+  SECURE_DOWNLOAD_HEADERS,
+} from "../services/secureUploadAccess";
 
 const uploadDir = path.join(process.cwd(), "uploads/parent-messages");
+const PARENT_MSG_PREFIX = "/uploads/parent-messages/";
 try {
   if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 } catch (e) {
@@ -291,7 +299,7 @@ router.get("/threads/:threadId", async (req, res) => {
       success: true,
       thread: {
         ...thread,
-        messages: thread.messages.map(mapThreadMessage),
+        messages: thread.messages.map((m) => mapThreadMessage(m)),
       },
     });
   } catch (e) {
@@ -323,12 +331,9 @@ router.post("/threads/:threadId/reply", upload.array("files", 5), async (req, re
     }
 
     const files = (req.files as Express.Multer.File[]) || [];
-    const base =
-      process.env.PUBLIC_API_URL?.replace(/\/$/, "") ||
-      `${req.protocol}://${req.get("host")}`;
     const attachments = files.map((f) => ({
       name: f.originalname,
-      url: `${base}/uploads/parent-messages/${f.filename}`,
+      url: internalUploadUrl(PARENT_MSG_PREFIX, f.filename),
       mimeType: f.mimetype,
     }));
 
@@ -396,6 +401,48 @@ router.patch("/threads/:threadId/read", async (req, res) => {
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ success: false, error: "Failed to mark read" });
+  }
+});
+
+/** Authenticated attachment download — thread ownership enforced. */
+router.get("/messages/:messageId/attachments/:index", async (req, res) => {
+  try {
+    const auth = await resolveInboxFromQuery(req);
+    if (!auth.ok) {
+      return res.status(auth.status).json({ success: false, error: auth.error });
+    }
+    const { schoolId, adminView, jwtUser } = auth;
+    const messageId = String(req.params.messageId || "").trim();
+    const index = String(req.params.index || "").trim();
+    if (!messageId) return res.status(400).json({ success: false, error: "messageId required" });
+
+    const msg = await prisma.parentTeacherMessage.findFirst({
+      where: { id: messageId, schoolId },
+      include: { thread: true },
+    });
+    if (!msg?.thread) return res.status(404).json({ success: false, error: "Not found" });
+    if (!adminView && !(await teacherCanAccessThread(jwtUser, msg.thread))) {
+      return res.status(403).json({ success: false, error: "Access denied", code: "FORBIDDEN" });
+    }
+
+    const att = attachmentAtIndex(msg.attachments, index);
+    if (!att) return res.status(404).json({ success: false, error: "Attachment not found" });
+    const base = basenameFromPrefixedUrl(att.url, PARENT_MSG_PREFIX);
+    const abs = resolveUnderUploadDir(uploadDir, base);
+    if (!abs) return res.status(404).json({ success: false, error: "File missing" });
+
+    for (const [k, v] of Object.entries(SECURE_DOWNLOAD_HEADERS)) {
+      res.setHeader(k, v);
+    }
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${(att.name || base || "attachment").replace(/"/g, "")}"`
+    );
+    if (att.mimeType) res.setHeader("Content-Type", att.mimeType);
+    return res.sendFile(abs);
+  } catch (e) {
+    console.error("teacher-inbox attachment download", e);
+    return res.status(500).json({ success: false, error: "Failed to download attachment" });
   }
 });
 

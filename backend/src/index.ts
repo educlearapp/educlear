@@ -282,21 +282,26 @@ app.use(express.json({ limit: "12mb" }));
 app.use("/uploads/school-logos", express.static(persistentSchoolLogoDir));
 app.use("/uploads/school-logos", express.static(legacySchoolLogoDir));
 /**
- * P2: teacher-app attachments are private. Deny unauthenticated static access.
- * Authenticated downloads: /api/parent-portal/documents/:id/file,
- * /api/school-parent-documents/:id/file, /api/teacher-app/documents/:id/file.
- * Other /uploads paths (school-logos already above; parent-messages, migration artefacts)
- * remain on the catch-all — see P2 report for residual risk.
+ * P2/P3: only school-logos are public under /uploads.
+ * Private dirs are denied here (no catch-all). Migration/reset artefacts use filesystem
+ * APIs only — never public HTTP download endpoints.
  */
-app.use("/uploads/teacher-app", (_req, res) => {
-  res.setHeader("Cache-Control", "private, no-store");
-  return res.status(401).json({
-    success: false,
-    error: "Authentication required — use the document download API",
-    code: "AUTH_REQUIRED",
-  });
-});
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+function denyPrivateUpload(label: string) {
+  return (_req: express.Request, res: express.Response) => {
+    res.setHeader("Cache-Control", "private, no-store");
+    return res.status(401).json({
+      success: false,
+      error: `Authentication required — ${label} are not publicly downloadable`,
+      code: "AUTH_REQUIRED",
+    });
+  };
+}
+app.use("/uploads/teacher-app", denyPrivateUpload("teacher-app attachments"));
+app.use("/uploads/parent-messages", denyPrivateUpload("parent-message attachments"));
+app.use("/uploads/migration-staging", denyPrivateUpload("migration staging artefacts"));
+app.use("/uploads/migration-centre", denyPrivateUpload("migration centre artefacts"));
+app.use("/uploads/reset-backups", denyPrivateUpload("reset backup artefacts"));
+// No broad /uploads catch-all — public branding is school-logos only (mounted above).
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
     const allowedOrigins = resolveCorsAllowedOrigins();
