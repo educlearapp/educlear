@@ -482,6 +482,7 @@ router.get("/notices", async (req, res) => {
         schoolId,
         className: { in: classVariants },
         isDraft: false,
+        lifecycleStatus: "PUBLISHED",
         ...teacherVisibilityWhere(vctx),
       },
       orderBy: { publishedAt: "desc" },
@@ -534,6 +535,7 @@ router.post("/notices", upload.array("files", TEACHER_APP_MAX_FILES), async (req
       mimeType: f.mimetype,
     }));
 
+    const lifecycleStatus = isDraft ? ("DRAFT" as const) : ("PUBLISHED" as const);
     const notice = await prisma.schoolNotice.create({
       data: {
         schoolId,
@@ -546,8 +548,25 @@ router.post("/notices", upload.array("files", TEACHER_APP_MAX_FILES), async (req
         createdByTeacherId: userId,
         visibility,
         isDraft,
+        lifecycleStatus,
+        publishedAt: new Date(),
       },
     });
+
+    await prisma.schoolNoticeAuditLog
+      .create({
+        data: {
+          schoolId,
+          noticeId: notice.id,
+          actorUserId: userId,
+          actorEmail: normalizeStaffEmail(email),
+          action: isDraft ? "CREATE_DRAFT" : "CREATE_AND_PUBLISH",
+          previousLifecycle: null,
+          newLifecycle: lifecycleStatus,
+          newTargeting: { grade: null, className, learnerId: null },
+        },
+      })
+      .catch((err) => console.warn("teacher-app notice audit", err));
 
     if (shouldNotifyParents(visibility, isDraft)) {
       const notifType =

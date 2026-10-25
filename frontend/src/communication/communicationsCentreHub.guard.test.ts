@@ -1,5 +1,5 @@
 /**
- * Communications Centre Phase 1 — structural guard.
+ * Communications Centre Phase 1/2 — structural guard.
  * Run: npx tsx src/communication/communicationsCentreHub.guard.test.ts
  */
 import assert from "assert";
@@ -19,14 +19,21 @@ assert.equal(hubCss.includes(".parent-portal-root"), false, "hub CSS must not ta
 assert.equal(hubCss.includes(".parent-finance-hub"), false, "hub CSS must not target finance hub");
 assert.equal(parentCss.includes(".communications-centre-hub"), false, "parent portal CSS untouched by hub");
 
-assert.ok(hubTsx.includes('TeacherInbox'), "Messages tab reuses TeacherInbox");
+assert.ok(hubTsx.includes("TeacherInbox"), "Messages tab reuses TeacherInbox");
 assert.ok(hubTsx.includes("AnnouncementsPanel"), "Announcements tab present");
 assert.ok(hubTsx.includes("Events · soon"), "Events future tab labelled");
 assert.ok(hubTsx.includes("Notifications · soon"), "Notifications future tab labelled");
 
-assert.ok(announceTsx.includes("/api/teacher-app/notices"), "class notices use teacher-app API");
-assert.ok(announceTsx.includes("/api/parent-portal/staff/notices"), "school-wide uses staff notices API");
+assert.ok(announceTsx.includes("/api/school-announcements"), "lifecycle API mounted in UI");
+assert.ok(announceTsx.includes("publish"), "publish control present");
+assert.ok(announceTsx.includes("unpublish"), "unpublish control present");
+assert.ok(announceTsx.includes("archive"), "archive control present");
 assert.ok(announceTsx.includes("SCHOOL_ADMIN"), "admin gate mentioned in UI");
+assert.equal(
+  announceTsx.includes("/api/teacher-app/notices"),
+  false,
+  "Phase 2 management uses school-announcements, not direct teacher-app publish form"
+);
 
 assert.ok(dashboard.includes("CommunicationsCentreHub"), "dashboard mounts hub");
 assert.ok(dashboard.includes('"communicationsHub"') || dashboard.includes("'communicationsHub'"), "page key wired");

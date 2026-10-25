@@ -1,58 +1,110 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { staffApiFetch, staffFormPost } from "../staffApi";
+import { staffApiFetch } from "../staffApi";
 
 type Classroom = { id: string; name: string };
+
+type Lifecycle = "DRAFT" | "PUBLISHED" | "UNPUBLISHED" | "ARCHIVED";
 
 type NoticeRow = {
   id: string;
   title: string;
+  body?: string;
   noticeType?: string;
   publishedAt?: string;
+  updatedAt?: string;
   className?: string | null;
+  grade?: string | null;
+  learnerId?: string | null;
   isDraft?: boolean;
   visibility?: string;
+  lifecycleStatus?: Lifecycle;
 };
 
 type MeResponse = {
-  user?: { role?: string | null; email?: string | null; fullName?: string | null };
+  user?: { role?: string | null; email?: string | null; fullName?: string | null; appRole?: string | null };
   school?: { id?: string };
   assignedClassrooms?: Classroom[];
   assignedClassNames?: string[];
+};
+
+type ListResponse = {
+  success?: boolean;
+  items?: NoticeRow[];
+  hasMore?: boolean;
+  nextCursor?: string | null;
+  error?: string;
 };
 
 type Props = {
   schoolId: string;
 };
 
-function canPublishSchoolWide(role: string, isOwner: boolean): boolean {
+type FilterLifecycle = "ALL" | Lifecycle;
+
+function canPublishSchoolWide(role: string, appRole: string, isOwner: boolean): boolean {
   const r = String(role || "").trim();
-  return isOwner || r === "SCHOOL_ADMIN" || r === "Owner" || r === "Admin";
+  const a = String(appRole || "").trim();
+  return isOwner || r === "SCHOOL_ADMIN" || a === "Owner" || a === "Admin" || r === "Owner" || r === "Admin";
 }
+
+function statusLabel(n: NoticeRow): Lifecycle {
+  if (n.lifecycleStatus) return n.lifecycleStatus;
+  return n.isDraft ? "DRAFT" : "PUBLISHED";
+}
+
+function targetingLabel(n: NoticeRow): string {
+  if (n.className) return `Class · ${n.className}`;
+  if (n.grade) return `Grade · ${n.grade}`;
+  if (n.learnerId) return "Learner-specific";
+  return "School-wide";
+}
+
+const EMPTY_FORM = {
+  title: "",
+  body: "",
+  noticeType: "SCHOOL",
+  grade: "",
+  className: "",
+  publishNow: false,
+};
 
 export default function AnnouncementsPanel({ schoolId }: Props) {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
-  const [className, setClassName] = useState("");
-  const [noticeType, setNoticeType] = useState("CLASS");
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [dueDate, setDueDate] = useState("");
-  const [files, setFiles] = useState<FileList | null>(null);
-  const [notices, setNotices] = useState<NoticeRow[]>([]);
+  const [items, setItems] = useState<NoticeRow[]>([]);
+  const [lifecycleFilter, setLifecycleFilter] = useState<FilterLifecycle>("ALL");
+  const [q, setQ] = useState("");
+  const [qApplied, setQApplied] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-
-  const [adminTitle, setAdminTitle] = useState("");
-  const [adminBody, setAdminBody] = useState("");
-  const [adminGrade, setAdminGrade] = useState("");
-  const [adminSubmitting, setAdminSubmitting] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [confirmAction, setConfirmAction] = useState<{
+    id: string;
+    action: "publish" | "unpublish" | "republish" | "archive";
+    title: string;
+  } | null>(null);
 
   const role = me?.user?.role ?? localStorage.getItem("userRole") ?? "";
+  const appRole = me?.user?.appRole ?? localStorage.getItem("appRole") ?? "";
   const isOwner = localStorage.getItem("isOwner") === "true";
-  const schoolWideAllowed = canPublishSchoolWide(role, isOwner);
+  const schoolWideAllowed = canPublishSchoolWide(role, appRole, isOwner);
   const hasAssignedClasses = classrooms.length > 0;
+  const canManage = schoolWideAllowed || hasAssignedClasses;
+
+  const loadList = useCallback(async () => {
+    if (!schoolId) return;
+    const params = new URLSearchParams({
+      schoolId,
+      lifecycle: lifecycleFilter,
+      limit: "60",
+    });
+    if (qApplied) params.set("q", qApplied);
+    const res = (await staffApiFetch(`/api/school-announcements?${params.toString()}`)) as ListResponse;
+    setItems(Array.isArray(res.items) ? res.items : []);
+  }, [schoolId, lifecycleFilter, qApplied]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -65,231 +117,423 @@ export default function AnnouncementsPanel({ schoolId }: Props) {
           ? profile.assignedClassrooms
           : (profile.assignedClassNames || []).map((name, i) => ({ id: `name-${i}`, name }));
       setClassrooms(rooms);
-      setClassName((prev) => prev || rooms[0]?.name || "");
-
-      try {
-        const n = (await staffApiFetch("/api/teacher-app/notices")) as { notices?: NoticeRow[] };
-        setNotices(Array.isArray(n.notices) ? n.notices : []);
-      } catch {
-        setNotices([]);
-      }
+      await loadList();
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "Failed to load announcement permissions");
+      setErr(e instanceof Error ? e.message : "Failed to load announcements");
       setMe(null);
       setClassrooms([]);
-      setNotices([]);
+      setItems([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadList]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (!editingId) {
+      setForm((f) => ({
+        ...f,
+        className: f.className || classrooms[0]?.name || "",
+        noticeType: f.noticeType || (schoolWideAllowed ? "SCHOOL" : "CLASS"),
+      }));
+    }
+  }, [classrooms, schoolWideAllowed, editingId]);
+
+  useEffect(() => {
+    if (!loading) {
+      void loadList().catch((e: unknown) => {
+        setErr(e instanceof Error ? e.message : "Failed to refresh list");
+      });
+    }
+  }, [lifecycleFilter, qApplied]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const permissionBlurb = useMemo(() => {
     if (schoolWideAllowed && hasAssignedClasses) {
-      return "School admins can publish school-wide announcements. Class notices use your assigned classrooms (teacher permissions).";
+      return "You can manage school-wide, grade and class announcements. Teachers without admin rights only see their assigned classes.";
     }
     if (schoolWideAllowed) {
-      return "School-wide announcements use admin permissions. Assign classrooms to also publish class-scoped notices.";
+      return "School-admin: manage school-wide and grade announcements. Assign classrooms to also manage class-scoped notices.";
     }
     if (hasAssignedClasses) {
-      return "You can publish class-scoped notices for your assigned classrooms. School-wide publish requires school admin.";
+      return "Class-scoped management only for your assigned classrooms. Drafts, unpublished and archived never reach parents.";
     }
-    return "No assigned classrooms and no school-admin role — announcement publish is locked. You can still read messages in the Messages tab when authorised.";
+    return "No assigned classrooms and no school-admin role — announcement management is locked.";
   }, [schoolWideAllowed, hasAssignedClasses]);
 
-  async function submitClassNotice(e: React.FormEvent) {
+  function resetForm() {
+    setEditingId(null);
+    setForm({
+      ...EMPTY_FORM,
+      className: classrooms[0]?.name || "",
+      noticeType: schoolWideAllowed ? "SCHOOL" : "CLASS",
+    });
+  }
+
+  function startEdit(n: NoticeRow) {
+    setEditingId(n.id);
+    setForm({
+      title: n.title || "",
+      body: n.body || "",
+      noticeType: n.noticeType || "SCHOOL",
+      grade: n.grade || "",
+      className: n.className || "",
+      publishNow: false,
+    });
+    setOk(null);
+    setErr(null);
+  }
+
+  async function submitForm(e: React.FormEvent) {
     e.preventDefault();
-    if (!hasAssignedClasses) return;
+    if (!canManage) return;
     setErr(null);
     setOk(null);
-    setSubmitting(true);
+    setBusy(true);
     try {
-      const form = new FormData();
-      form.append("className", className);
-      form.append("noticeType", noticeType);
-      form.append("title", title.trim());
-      form.append("body", body.trim());
-      if (dueDate) form.append("dueDate", dueDate);
-      if (files) Array.from(files).forEach((f) => form.append("files", f));
-      await staffFormPost("/api/teacher-app/notices", form);
-      setOk("Class notice published. Authorised parents were notified (in-app).");
-      setTitle("");
-      setBody("");
-      setDueDate("");
-      setFiles(null);
-      const n = (await staffApiFetch("/api/teacher-app/notices")) as { notices?: NoticeRow[] };
-      setNotices(Array.isArray(n.notices) ? n.notices : []);
+      const payload = {
+        schoolId,
+        title: form.title.trim(),
+        body: form.body.trim(),
+        noticeType: form.noticeType,
+        grade: form.grade.trim() || null,
+        className: form.className.trim() || null,
+        learnerId: null,
+        publishNow: form.publishNow,
+      };
+      if (editingId) {
+        await staffApiFetch(`/api/school-announcements/${encodeURIComponent(editingId)}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            schoolId,
+            title: payload.title,
+            body: payload.body,
+            noticeType: payload.noticeType,
+            grade: payload.grade,
+            className: payload.className,
+            learnerId: null,
+          }),
+        });
+        setOk("Announcement updated. Ordinary edits do not re-notify parents.");
+      } else {
+        await staffApiFetch("/api/school-announcements", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        setOk(
+          form.publishNow
+            ? "Announcement published. Authorised parents notified in-app (deduped)."
+            : "Draft saved. Parents cannot see drafts."
+        );
+      }
+      resetForm();
+      await loadList();
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "Publish failed");
+      setErr(e instanceof Error ? e.message : "Save failed");
     } finally {
-      setSubmitting(false);
+      setBusy(false);
     }
   }
 
-  async function submitSchoolWide(e: React.FormEvent) {
-    e.preventDefault();
-    if (!schoolWideAllowed) return;
+  async function runTransition(
+    id: string,
+    action: "publish" | "unpublish" | "republish" | "archive"
+  ) {
     setErr(null);
     setOk(null);
-    setAdminSubmitting(true);
+    setBusy(true);
+    setConfirmAction(null);
     try {
-      await staffApiFetch("/api/parent-portal/staff/notices", {
+      await staffApiFetch(`/api/school-announcements/${encodeURIComponent(id)}/${action}`, {
         method: "POST",
-        body: JSON.stringify({
-          schoolId,
-          title: adminTitle.trim(),
-          body: adminBody.trim(),
-          noticeType: "SCHOOL",
-          grade: adminGrade.trim() || null,
-          createdBy: me?.user?.email || localStorage.getItem("userEmail") || "admin",
-        }),
+        body: JSON.stringify({ schoolId }),
       });
-      setOk("School announcement published. Matching parents received one alert each (deduped for multi-child families).");
-      setAdminTitle("");
-      setAdminBody("");
-      setAdminGrade("");
+      const labels: Record<typeof action, string> = {
+        publish: "Published. Parents notified in-app when first published from draft.",
+        unpublish: "Unpublished. Hidden from parents.",
+        republish: "Republished. Deduped in-app notify attempted for restored content.",
+        archive: "Archived. Hidden from parents and locked from edit.",
+      };
+      setOk(labels[action]);
+      await loadList();
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "School-wide publish failed");
+      setErr(e instanceof Error ? e.message : `${action} failed`);
     } finally {
-      setAdminSubmitting(false);
+      setBusy(false);
     }
   }
 
   return (
-    <div>
+    <div className="communications-centre-hub__announce">
       <p className="communications-centre-hub__panel-note">{permissionBlurb}</p>
-      {loading ? <p className="communications-centre-hub__panel-note">Loading permissions…</p> : null}
+      {loading ? <p className="communications-centre-hub__panel-note">Loading announcements…</p> : null}
       {err ? <p className="communications-centre-hub__status is-error">{err}</p> : null}
       {ok ? <p className="communications-centre-hub__status is-ok">{ok}</p> : null}
 
-      <div className="communications-centre-hub__announce-grid">
-        <div className="communications-centre-hub__card">
-          <h3>Class announcement</h3>
-          <p className="lead">
-            Uses teacher-app notice APIs. Publish is blocked by the backend unless the class is assigned to you.
-            Drafts and private teacher visibility never reach parents.
-          </p>
-          {!hasAssignedClasses ? (
-            <div className="communications-centre-hub__locked">
-              No assigned classrooms on this staff account. Class publish is unavailable.
-            </div>
-          ) : (
-            <form onSubmit={submitClassNotice}>
+      {!canManage ? (
+        <div className="communications-centre-hub__locked">
+          Announcement management requires school admin or assigned classrooms. Messages remain available in the
+          Messages tab when authorised.
+        </div>
+      ) : (
+        <div className="communications-centre-hub__announce-grid">
+          <div className="communications-centre-hub__card">
+            <h3>{editingId ? "Edit announcement" : "Create announcement"}</h3>
+            <p className="lead">
+              Drafts stay staff-only. Publishing notifies authorised parents in-app once (Phase 0 dedupe). No SMS or
+              email from this panel.
+            </p>
+            <form onSubmit={submitForm}>
               <div className="communications-centre-hub__field">
                 <label>Type</label>
-                <select value={noticeType} onChange={(e) => setNoticeType(e.target.value)}>
-                  <option value="CLASS">Class notice</option>
-                  <option value="SCHOOL">School notice (still class-scoped)</option>
+                <select
+                  value={form.noticeType}
+                  onChange={(e) => setForm((f) => ({ ...f, noticeType: e.target.value }))}
+                >
+                  <option value="SCHOOL">School</option>
+                  <option value="GRADE">Grade</option>
+                  <option value="CLASS">Class</option>
                   <option value="ASSESSMENT">Assessment</option>
                   <option value="EXAM">Exam</option>
                 </select>
               </div>
+              {schoolWideAllowed ? (
+                <div className="communications-centre-hub__field">
+                  <label>Grade (optional — blank = not grade-scoped)</label>
+                  <input
+                    value={form.grade}
+                    onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))}
+                    placeholder="e.g. 3"
+                  />
+                </div>
+              ) : null}
               <div className="communications-centre-hub__field">
-                <label>Class</label>
-                <select value={className} onChange={(e) => setClassName(e.target.value)} required>
+                <label>
+                  {schoolWideAllowed
+                    ? "Class (optional — blank = school-wide / grade)"
+                    : "Class (required for teachers)"}
+                </label>
+                <select
+                  value={form.className}
+                  onChange={(e) => setForm((f) => ({ ...f, className: e.target.value }))}
+                  required={!schoolWideAllowed}
+                >
+                  {schoolWideAllowed ? <option value="">— School-wide / grade —</option> : null}
                   {classrooms.map((c) => (
                     <option key={c.id} value={c.name}>
                       {c.name}
                     </option>
                   ))}
                 </select>
+                {!schoolWideAllowed && !hasAssignedClasses ? (
+                  <span className="lead">No assigned classes available.</span>
+                ) : null}
               </div>
               <div className="communications-centre-hub__field">
                 <label>Title</label>
-                <input value={title} onChange={(e) => setTitle(e.target.value)} required />
-              </div>
-              <div className="communications-centre-hub__field">
-                <label>Details</label>
-                <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} />
-              </div>
-              <div className="communications-centre-hub__field">
-                <label>Due / event date (optional)</label>
-                <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-              </div>
-              <div className="communications-centre-hub__field">
-                <label>Attachments (optional)</label>
                 <input
-                  type="file"
-                  accept="application/pdf,image/*"
-                  multiple
-                  onChange={(e) => setFiles(e.target.files)}
+                  value={form.title}
+                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                  required
                 />
               </div>
+              <div className="communications-centre-hub__field">
+                <label>Body</label>
+                <textarea
+                  value={form.body}
+                  onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
+                  rows={5}
+                />
+              </div>
+              {!editingId ? (
+                <div className="communications-centre-hub__field communications-centre-hub__field--check">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={form.publishNow}
+                      onChange={(e) => setForm((f) => ({ ...f, publishNow: e.target.checked }))}
+                    />{" "}
+                    Publish immediately (otherwise save as draft)
+                  </label>
+                </div>
+              ) : null}
               <div className="communications-centre-hub__actions">
                 <button
                   type="submit"
                   className="communications-centre-hub__btn"
-                  disabled={submitting || !className || !title.trim()}
+                  disabled={busy || !form.title.trim()}
                 >
-                  {submitting ? "Publishing…" : "Publish class notice"}
+                  {busy ? "Saving…" : editingId ? "Save changes" : form.publishNow ? "Create & publish" : "Save draft"}
                 </button>
+                {editingId ? (
+                  <button
+                    type="button"
+                    className="communications-centre-hub__btn communications-centre-hub__btn--ghost"
+                    onClick={resetForm}
+                    disabled={busy}
+                  >
+                    Cancel edit
+                  </button>
+                ) : null}
               </div>
             </form>
-          )}
-        </div>
+          </div>
 
-        <div className="communications-centre-hub__card">
-          <h3>School-wide announcement</h3>
-          <p className="lead">
-            Admin-only. Optional grade target; leave blank for whole school. Backend rejects non-admin staff.
-          </p>
-          {!schoolWideAllowed ? (
-            <div className="communications-centre-hub__locked">
-              School-wide publish requires Owner / Admin / SCHOOL_ADMIN. Teachers use class announcements instead.
+          <div className="communications-centre-hub__card">
+            <h3>Announcement library</h3>
+            <p className="lead">Filter by lifecycle. Parents only ever see PUBLISHED items that match their learners.</p>
+            <div className="communications-centre-hub__toolbar">
+              <div className="communications-centre-hub__field">
+                <label>Status</label>
+                <select
+                  value={lifecycleFilter}
+                  onChange={(e) => setLifecycleFilter(e.target.value as FilterLifecycle)}
+                >
+                  <option value="ALL">All</option>
+                  <option value="DRAFT">Draft</option>
+                  <option value="PUBLISHED">Published</option>
+                  <option value="UNPUBLISHED">Unpublished</option>
+                  <option value="ARCHIVED">Archived</option>
+                </select>
+              </div>
+              <div className="communications-centre-hub__field communications-centre-hub__field--grow">
+                <label>Search</label>
+                <div className="communications-centre-hub__search-row">
+                  <input
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    placeholder="Title or body"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        setQApplied(q.trim());
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="communications-centre-hub__btn communications-centre-hub__btn--ghost"
+                    onClick={() => setQApplied(q.trim())}
+                  >
+                    Search
+                  </button>
+                </div>
+              </div>
             </div>
-          ) : (
-            <form onSubmit={submitSchoolWide}>
-              <div className="communications-centre-hub__field">
-                <label>Title</label>
-                <input value={adminTitle} onChange={(e) => setAdminTitle(e.target.value)} required />
-              </div>
-              <div className="communications-centre-hub__field">
-                <label>Message</label>
-                <textarea value={adminBody} onChange={(e) => setAdminBody(e.target.value)} rows={4} required />
-              </div>
-              <div className="communications-centre-hub__field">
-                <label>Grade (optional)</label>
-                <input
-                  value={adminGrade}
-                  onChange={(e) => setAdminGrade(e.target.value)}
-                  placeholder="e.g. 3 — blank = all grades"
-                />
-              </div>
-              <div className="communications-centre-hub__actions">
-                <button
-                  type="submit"
-                  className="communications-centre-hub__btn"
-                  disabled={adminSubmitting || !adminTitle.trim() || !adminBody.trim()}
-                >
-                  {adminSubmitting ? "Publishing…" : "Publish school announcement"}
-                </button>
-              </div>
-            </form>
-          )}
 
-          <h3 style={{ marginTop: 18 }}>Recent class notices</h3>
-          <p className="lead">From your teacher-app visibility scope (assigned classes / admin view).</p>
-          {notices.length === 0 ? (
-            <p className="lead">No recent notices in scope.</p>
-          ) : (
-            <ul className="communications-centre-hub__list">
-              {notices.slice(0, 40).map((n) => (
-                <li key={n.id}>
-                  <strong>{n.title}</strong>
-                  <span>
-                    {n.noticeType || "NOTICE"}
-                    {n.className ? ` · ${n.className}` : ""}
-                    {n.publishedAt ? ` · ${new Date(n.publishedAt).toLocaleString()}` : ""}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+            {items.length === 0 ? (
+              <p className="lead">No announcements in this filter.</p>
+            ) : (
+              <ul className="communications-centre-hub__list">
+                {items.map((n) => {
+                  const st = statusLabel(n);
+                  return (
+                    <li key={n.id} className="communications-centre-hub__announce-item">
+                      <div className="communications-centre-hub__announce-item-head">
+                        <strong>{n.title}</strong>
+                        <span className={`communications-centre-hub__pill is-${st.toLowerCase()}`}>{st}</span>
+                      </div>
+                      <span>
+                        {n.noticeType || "NOTICE"} · {targetingLabel(n)}
+                        {n.publishedAt ? ` · ${new Date(n.publishedAt).toLocaleString()}` : ""}
+                      </span>
+                      <div className="communications-centre-hub__actions">
+                        {st !== "ARCHIVED" ? (
+                          <button
+                            type="button"
+                            className="communications-centre-hub__btn communications-centre-hub__btn--ghost"
+                            disabled={busy}
+                            onClick={() => startEdit(n)}
+                          >
+                            Edit
+                          </button>
+                        ) : null}
+                        {st === "DRAFT" || st === "UNPUBLISHED" ? (
+                          <button
+                            type="button"
+                            className="communications-centre-hub__btn"
+                            disabled={busy}
+                            onClick={() =>
+                              setConfirmAction({
+                                id: n.id,
+                                action: st === "UNPUBLISHED" ? "republish" : "publish",
+                                title: n.title,
+                              })
+                            }
+                          >
+                            {st === "UNPUBLISHED" ? "Republish" : "Publish"}
+                          </button>
+                        ) : null}
+                        {st === "PUBLISHED" ? (
+                          <button
+                            type="button"
+                            className="communications-centre-hub__btn communications-centre-hub__btn--ghost"
+                            disabled={busy}
+                            onClick={() =>
+                              setConfirmAction({ id: n.id, action: "unpublish", title: n.title })
+                            }
+                          >
+                            Unpublish
+                          </button>
+                        ) : null}
+                        {st !== "ARCHIVED" ? (
+                          <button
+                            type="button"
+                            className="communications-centre-hub__btn communications-centre-hub__btn--danger"
+                            disabled={busy}
+                            onClick={() =>
+                              setConfirmAction({ id: n.id, action: "archive", title: n.title })
+                            }
+                          >
+                            Archive
+                          </button>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {confirmAction ? (
+        <div className="communications-centre-hub__modal" role="dialog" aria-modal="true">
+          <div className="communications-centre-hub__modal-card">
+            <h3>Confirm {confirmAction.action}</h3>
+            <p className="lead">
+              {confirmAction.action === "archive"
+                ? `Archive “${confirmAction.title}”? It will be hidden from parents and cannot be edited.`
+                : confirmAction.action === "unpublish"
+                  ? `Unpublish “${confirmAction.title}”? Parents will no longer see it.`
+                  : confirmAction.action === "republish"
+                    ? `Republish “${confirmAction.title}”? It becomes visible to authorised parents again.`
+                    : `Publish “${confirmAction.title}”? Authorised parents will be notified in-app.`}
+            </p>
+            <div className="communications-centre-hub__actions">
+              <button
+                type="button"
+                className="communications-centre-hub__btn"
+                disabled={busy}
+                onClick={() => void runTransition(confirmAction.id, confirmAction.action)}
+              >
+                Confirm
+              </button>
+              <button
+                type="button"
+                className="communications-centre-hub__btn communications-centre-hub__btn--ghost"
+                disabled={busy}
+                onClick={() => setConfirmAction(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

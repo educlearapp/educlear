@@ -59,6 +59,7 @@ import classesRoutes from "./routes/classes";
 import attendanceRoutes from "./routes/attendance";
 import teacherInboxRoutes from "./routes/teacherInbox";
 import teacherAppRoutes, { teacherAppUploadErrorHandler } from "./routes/teacherApp";
+import schoolAnnouncementsRoutes from "./routes/schoolAnnouncements";
 import migrationRoutes, {
   migrationErrorHandler,
   migrationUploadErrorHandler,
@@ -369,6 +370,11 @@ app.use("/api/attendance", requireSchoolModule("CORE"), attendanceRoutes);
 app.use("/api/school-subjects", requireSchoolModule("CORE"), schoolSubjectsRoutes);
 app.use("/api/teacher-inbox", requireSchoolModule("CORE"), teacherInboxRoutes);
 app.use("/api/teacher-app", requireSchoolModule("CORE"), teacherAppRoutes, teacherAppUploadErrorHandler);
+app.use(
+  "/api/school-announcements",
+  requireSchoolModule("CORE"),
+  schoolAnnouncementsRoutes
+);
 app.post(
   `/api/migration${KIDESYS_ADAPTER_READINESS_PATH}`,
   requireSuperAdmin,

@@ -82,8 +82,9 @@ export default function CommunicationsCentreHub({ schoolId, schoolName = "" }: P
         {tab === "announcements" ? (
           <>
             <p className="communications-centre-hub__panel-note">
-              Reuses SchoolNotice via teacher-app (class) and admin staff notice (school-wide). Phase 0 parent draft /
-              visibility rules and multi-child alert dedupe still apply. Edit/delete APIs are not part of this phase.
+              Manages SchoolNotice lifecycle (draft → publish → edit → unpublish → republish → archive) with audit trail.
+              Parents only see published notices. In-app notify on first publish / republish; ordinary edits do not
+              re-notify. No SMS or email from this panel.
             </p>
             <AnnouncementsPanel schoolId={schoolId} />
           </>

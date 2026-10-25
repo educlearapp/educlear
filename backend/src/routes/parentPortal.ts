@@ -55,6 +55,10 @@ import {
   resolveStaffSchoolGate,
   sendAuthRequired,
 } from "../middleware/staffSchoolGate";
+import {
+  listParentVisibleNotices,
+  parentVisibleNoticeWhere,
+} from "../services/schoolAnnouncementService";
 
 async function requireSameSchoolStaff(
   req: { headers: { authorization?: string } },
@@ -480,7 +484,7 @@ router.get("/dashboard", parentAuthMiddleware, async (req, res) => {
         prisma.schoolNotice.findMany({
           where: {
             schoolId: auth.schoolId,
-            ...parentPublishedHomeworkOrNoticeWhere(),
+            ...parentVisibleNoticeWhere(),
           },
           orderBy: { publishedAt: "desc" },
           take: 50,
@@ -1055,37 +1059,36 @@ router.get("/notices", parentAuthMiddleware, async (req, res) => {
   try {
     const auth = (req as any).parentAuth;
     const learnerId = String(req.query.learnerId || "").trim();
+    const cursor = String(req.query.cursor || "").trim() || null;
     const { limit, offset } = parseParentContentPaging(req.query as Record<string, unknown>);
     const parent = await parentWithLearners(auth.parentId, auth.schoolId);
     if (!parent) return res.status(404).json({ success: false, error: "Parent not found" });
     const learners = parent.links.map((l) => l.learner);
     const active = learners.find((l) => l.id === learnerId) || null;
     const membership = await loadSchoolClassMembership(auth.schoolId);
+    const targets = (active ? [active] : learners).map((l) => ({
+      id: l.id,
+      grade: String(l.grade || ""),
+      className: l.className ?? null,
+    }));
 
-    // Bounded scan then target-filter (grade/class/learner) — never unbounded.
-    const MAX_SCAN = 300;
-    const rows = await prisma.schoolNotice.findMany({
-      where: {
-        schoolId: auth.schoolId,
-        ...parentPublishedHomeworkOrNoticeWhere(),
-      },
-      orderBy: { publishedAt: "desc" },
-      take: MAX_SCAN,
+    // DB-level recipient targeting + bounded cursor/offset pagination (no 300-row scan).
+    const page = await listParentVisibleNotices({
+      schoolId: auth.schoolId,
+      learners: targets,
+      spellingsFor: (cn) => membership.spellingsFor(cn),
+      limit,
+      offset: cursor ? 0 : offset,
+      cursor,
     });
 
-    const matched = rows.filter((n) =>
-      active
-        ? learnerMatchesNotice(membership, active, n)
-        : learners.some((l) => learnerMatchesNotice(membership, l, n))
-    );
-    const page = matched.slice(offset, offset + limit);
-    const hasMore = offset + limit < matched.length || rows.length >= MAX_SCAN;
     return res.json({
       success: true,
-      notices: page,
-      limit,
-      offset,
-      hasMore,
+      notices: page.notices,
+      limit: page.limit,
+      offset: cursor ? 0 : offset,
+      hasMore: page.hasMore,
+      nextCursor: page.nextCursor,
     });
   } catch (e) {
     console.error("parent notices list", e);
@@ -1370,8 +1373,27 @@ router.post("/staff/notices", async (req, res) => {
         learnerId: req.body?.learnerId || null,
         attachments: req.body?.attachments || undefined,
         createdBy: String(req.body?.createdBy || ""),
+        lifecycleStatus: "PUBLISHED",
+        isDraft: false,
+        publishedAt: new Date(),
       },
     });
+
+    await prisma.schoolNoticeAuditLog.create({
+      data: {
+        schoolId,
+        noticeId: notice.id,
+        actorEmail: String(req.body?.createdBy || ""),
+        action: "CREATE_AND_PUBLISH",
+        previousLifecycle: null,
+        newLifecycle: "PUBLISHED",
+        newTargeting: {
+          grade: notice.grade,
+          className: notice.className,
+          learnerId: notice.learnerId,
+        },
+      },
+    }).catch((err) => console.warn("staff notice audit", err));
 
     const notifType: ParentNotificationType =
       noticeType === "ASSESSMENT"
