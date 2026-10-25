@@ -1,4 +1,4 @@
-/* EduClear Parent Portal — dark sidebar + light main (matches Teacher Portal) */
+/* EduClear Parent Portal — shared tokens (also used by staff FinanceHubPage) */
 
 :root {
   --p-gold: #d4af37;
@@ -17,16 +17,41 @@
   --p-card-shadow: 0 8px 24px rgba(15, 15, 15, 0.06);
 }
 
+/*
+ * Parent Portal 2.0 navy-and-white theme — scoped under .parent-portal-root only
+ * so FinanceHubPage (which imports this file) keeps the legacy gold tokens above.
+ */
 .parent-portal-root {
+  --p-navy: #0b1f3a;
+  --p-navy-deep: #071528;
+  --p-navy-mid: #143056;
+  --p-accent: #2f80ed;
+  --p-gold: #c9a227;
+  --p-gold-dim: #9a7b1a;
+  --p-gold-light: #f0d56a;
+  --p-sidebar-border: rgba(255, 255, 255, 0.14);
+  --p-sidebar-text: #f8fafc;
+  --p-sidebar-muted: #9eb2cc;
+  --p-content-bg: #f4f7fb;
+  --p-page-bg: #ffffff;
+  --p-ink: #0b1f3a;
+  --p-muted: #5b6b7c;
+  --p-border: #e2e8f0;
+  --p-border-gold: rgba(11, 31, 58, 0.12);
+  --p-card-shadow: 0 10px 28px rgba(11, 31, 58, 0.08);
   min-height: 100vh;
-  background: var(--p-content-bg);
+  background:
+    radial-gradient(1200px 420px at 10% -10%, rgba(47, 128, 237, 0.12), transparent 55%),
+    radial-gradient(900px 380px at 100% 0%, rgba(11, 31, 58, 0.08), transparent 50%),
+    var(--p-content-bg);
   color: var(--p-ink);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-family: "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 .parent-portal-root--login {
-  background: linear-gradient(180deg, #f8fafc 0%, #f3f4f6 45%, #eef2f7 100%);
+  background:
+    linear-gradient(160deg, #0b1f3a 0%, #143056 42%, #1b3f6b 100%);
 }
 
 .parent-portal-layout {
@@ -34,14 +59,14 @@
   min-height: 100vh;
 }
 
-/* Sidebar — dark only */
-.parent-portal-sidebar {
+/* Sidebar — navy (desktop) */
+.parent-portal-root .parent-portal-sidebar {
   display: none;
   flex-direction: column;
   width: var(--p-sidebar-w);
   flex-shrink: 0;
   border-right: 1px solid var(--p-sidebar-border);
-  background: linear-gradient(180deg, #0f0f0f 0%, #1a1a1a 100%);
+  background: linear-gradient(180deg, var(--p-navy-deep) 0%, var(--p-navy) 55%, var(--p-navy-mid) 100%);
   color: var(--p-sidebar-text);
   padding: 20px 14px;
   position: sticky;
@@ -70,12 +95,12 @@
   object-fit: cover;
 }
 
-.parent-portal-sidebar-brand {
+.parent-portal-root .parent-portal-sidebar-brand {
   margin: 0 0 4px;
   font-size: 1.05rem;
   font-weight: 800;
   letter-spacing: 0.04em;
-  color: var(--p-gold);
+  color: #ffffff;
 }
 
 .parent-portal-sidebar-tag {
@@ -116,17 +141,23 @@
   background: rgba(212, 175, 55, 0.08);
 }
 
-.parent-portal-sidebar-nav button.active {
-  color: var(--p-gold);
-  background: rgba(212, 175, 55, 0.12);
-  border-color: rgba(212, 175, 55, 0.25);
+.parent-portal-root .parent-portal-sidebar-nav button.active {
+  color: #ffffff;
+  background: rgba(47, 128, 237, 0.22);
+  border-color: rgba(47, 128, 237, 0.35);
 }
 
-.parent-portal-sidebar-nav .nav-icon {
-  font-size: 1.1rem;
+.parent-portal-root .parent-portal-sidebar-nav .nav-icon {
+  font-size: 0.95rem;
   line-height: 1;
-  width: 1.4rem;
+  width: 1.75rem;
+  height: 1.75rem;
   text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  flex-shrink: 0;
 }
 
 .parent-portal-sidebar-footer {
@@ -228,9 +259,14 @@
   cursor: pointer;
 }
 
-.parent-portal-bottom-nav button.active {
-  color: var(--p-gold-dim);
-  background: rgba(212, 175, 55, 0.12);
+.parent-portal-root .parent-portal-bottom-nav button.active {
+  color: var(--p-navy);
+  background: rgba(47, 128, 237, 0.12);
+}
+
+.parent-portal-root .parent-portal-bottom-nav-icon {
+  font-size: 1.05rem;
+  line-height: 1;
 }
 
 .parent-portal-card {
@@ -1319,17 +1355,23 @@
   position: relative;
 }
 
-.parent-portal-login-header {
-  background: #ffffff;
-  color: var(--p-ink);
-  padding: 14px 16px;
-  border-bottom: 2px solid var(--p-gold);
-  box-shadow: 0 2px 12px rgba(15, 15, 15, 0.04);
+.parent-portal-root--login .parent-portal-login-header {
+  background: transparent;
+  color: #ffffff;
+  padding: 18px 16px 8px;
+  border-bottom: none;
+  box-shadow: none;
 }
 
-.parent-portal-login-header strong {
-  color: var(--p-gold);
-  font-size: 17px;
+.parent-portal-root--login .parent-portal-login-header strong {
+  color: #ffffff;
+  font-size: 18px;
+  letter-spacing: 0.02em;
+}
+
+.parent-portal-root--login .parent-portal-login-card {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 18px 40px rgba(7, 21, 40, 0.28);
 }
 
 .parent-portal-login-main {
@@ -1494,20 +1536,20 @@
 }
 
 @media (min-width: 1024px) {
-  .parent-portal-sidebar {
+  .parent-portal-root .parent-portal-sidebar {
     display: flex;
   }
 
-  .parent-portal-main {
+  .parent-portal-root .parent-portal-main {
     max-width: none;
     padding: 24px 32px 32px;
   }
 
-  .parent-portal-bottom-nav {
+  .parent-portal-root .parent-portal-bottom-nav {
     display: none;
   }
 
-  .parent-portal-app-header {
+  .parent-portal-root .parent-portal-app-header {
     padding: 14px 24px;
   }
 }
@@ -1515,5 +1557,289 @@
 @media (max-width: 1023px) {
   .parent-portal-main {
     padding: 14px 14px calc(88px + env(safe-area-inset-bottom));
+  }
+}
+
+/* ——— Parent Portal 2.0 dashboard surfaces (scoped) ——— */
+
+.parent-portal-root .parent-portal-section-label {
+  color: var(--p-navy);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.parent-portal-root .parent-portal-selected-badge {
+  font-size: 10px;
+  font-weight: 900;
+  color: #ffffff;
+  background: var(--p-navy);
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.parent-portal-root .parent-portal-child-selector {
+  margin-bottom: 14px;
+}
+
+.parent-portal-root .parent-portal-child-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.parent-portal-root .parent-portal-child-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: min(100%, 220px);
+  flex: 1 1 200px;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid var(--p-border);
+  background: #ffffff;
+  color: var(--p-ink);
+  cursor: pointer;
+  box-shadow: var(--p-card-shadow);
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.parent-portal-root .parent-portal-child-chip:hover {
+  transform: translateY(-2px);
+  border-color: rgba(47, 128, 237, 0.35);
+}
+
+.parent-portal-root .parent-portal-child-chip.active {
+  border-color: rgba(47, 128, 237, 0.55);
+  box-shadow:
+    0 0 0 2px rgba(47, 128, 237, 0.18),
+    var(--p-card-shadow);
+}
+
+.parent-portal-root .parent-portal-child-chip-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  color: #ffffff;
+  background: linear-gradient(145deg, #2f80ed, #0b1f3a);
+  flex-shrink: 0;
+}
+
+.parent-portal-root .parent-portal-child-chip-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.parent-portal-root .parent-portal-child-chip-text strong {
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.parent-portal-root .parent-portal-child-chip-text small {
+  font-size: 0.75rem;
+  color: var(--p-muted);
+  font-weight: 600;
+}
+
+.parent-portal-root .parent-portal-finance-summary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  margin-bottom: 14px;
+  padding: 18px 18px;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0b1f3a 0%, #1a4b8c 55%, #2f80ed 120%);
+  box-shadow: 0 14px 32px rgba(11, 31, 58, 0.28);
+}
+
+.parent-portal-root .parent-portal-finance-summary-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.parent-portal-root .parent-portal-finance-summary-value {
+  margin-top: 6px;
+  font-size: clamp(1.45rem, 4vw, 1.85rem);
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.parent-portal-root .parent-portal-finance-summary-sub {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  opacity: 0.88;
+}
+
+.parent-portal-root .parent-portal-finance-summary-cta {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.parent-portal-root .parent-portal-notice-strip {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  text-align: left;
+  margin-bottom: 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--p-border);
+  background: #ffffff;
+  color: var(--p-ink);
+  cursor: pointer;
+  box-shadow: var(--p-card-shadow);
+}
+
+.parent-portal-root .parent-portal-notice-strip span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.parent-portal-root .parent-portal-notice-strip strong {
+  font-size: 0.92rem;
+}
+
+.parent-portal-root .parent-portal-notice-strip small {
+  font-size: 0.78rem;
+  color: var(--p-muted);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.parent-portal-root .parent-portal-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.parent-portal-root .parent-portal-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 118px;
+  padding: 14px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: #ffffff;
+  color: var(--p-ink);
+  cursor: pointer;
+  box-shadow: var(--p-card-shadow);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.parent-portal-root .parent-portal-tile:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 30px rgba(11, 31, 58, 0.12);
+}
+
+.parent-portal-root .parent-portal-tile strong {
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.parent-portal-root .parent-portal-tile small {
+  font-size: 0.75rem;
+  color: var(--p-muted);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.parent-portal-root .parent-portal-tile-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: #ffffff;
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.12);
+}
+
+.parent-portal-root .parent-portal-tile-icon--home,
+.parent-portal-root .parent-portal-tile-icon--finance {
+  background: linear-gradient(145deg, #2f80ed, #1b4f9c);
+}
+
+.parent-portal-root .parent-portal-tile-icon--messages {
+  background: linear-gradient(145deg, #27ae60, #1e8449);
+}
+
+.parent-portal-root .parent-portal-tile-icon--homework {
+  background: linear-gradient(145deg, #f39c12, #d68910);
+}
+
+.parent-portal-root .parent-portal-tile-icon--notices {
+  background: linear-gradient(145deg, #9b59b6, #7d3c98);
+}
+
+.parent-portal-root .parent-portal-tile-icon--documents {
+  background: linear-gradient(145deg, #16a085, #117a65);
+}
+
+.parent-portal-root .parent-portal-tile-icon--incidents {
+  background: linear-gradient(145deg, #e74c3c, #c0392b);
+}
+
+.parent-portal-root .parent-portal-tile-icon--alerts {
+  background: linear-gradient(145deg, #e67e22, #ca6f1e);
+}
+
+.parent-portal-root .parent-portal-tile-icon--settings {
+  background: linear-gradient(145deg, #5d6d7e, #34495e);
+}
+
+.parent-portal-root .parent-portal-learner-card.selected {
+  outline: 2px solid rgba(47, 128, 237, 0.55);
+}
+
+.parent-portal-root .parent-portal-btn-primary {
+  background: linear-gradient(135deg, #2f80ed, #1b4f9c);
+  color: #ffffff;
+  border: 1px solid rgba(27, 79, 156, 0.45);
+}
+
+.parent-portal-root .parent-portal-page-heading span {
+  color: var(--p-navy);
+}
+
+.parent-portal-root .parent-portal-app-header-title {
+  color: var(--p-navy);
+}
+
+@media (min-width: 768px) {
+  .parent-portal-root .parent-portal-tile-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }

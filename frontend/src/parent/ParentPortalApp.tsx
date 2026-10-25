@@ -30,25 +30,17 @@ import ParentFinanceHub from "./ParentFinanceHub";
 import { useParentPortalPushPreparation } from "./useParentPortalPushPreparation";
 import { fetchBillingSettings } from "../billingSettings/billingSettingsApi";
 import type { FinancePolicySettings } from "../finance/financePolicy";
+import {
+  formatOutstandingBalanceLabel,
+  normalizeLinkedLearners,
+  parseBillingBalance,
+  resolveFamilyBillingLearnerIds,
+  resolveSelectedLearnerId,
+  type ParentPortalLearner as Learner,
+  type ParentPortalLinkRow as LinkRow,
+} from "./parentPortalLearners";
 
 const LAST_VISIT_KEY = "parentPortalLastVisitAt";
-
-type Learner = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  grade: string;
-  className: string | null;
-  admissionNo: string | null;
-  familyAccountId?: string | null;
-  familyAccount?: { id: string; accountRef: string; familyName?: string | null } | null;
-};
-
-type LinkRow = {
-  linkId: string;
-  relation: string | null;
-  learner: Learner;
-};
 
 type Notification = {
   id: string;
@@ -105,24 +97,34 @@ type Panel =
   | "notifications"
   | "profile";
 
-const gold = "#d4af37";
-
-const navItems: { key: Panel; label: string; icon: string }[] = [
-  { key: "dashboard", label: "Dashboard", icon: "🏠" },
-  { key: "messages", label: "Messages", icon: "✉️" },
-  { key: "homework", label: "Homework", icon: "📝" },
-  { key: "notices", label: "Notices", icon: "📌" },
-  { key: "documents", label: "Documents", icon: "📎" },
-  { key: "statements", label: "Finance Hub", icon: "💳" },
-  { key: "incidents", label: "Incidents", icon: "⚠️" },
-  { key: "settings", label: "Settings", icon: "⚙️" },
+const navItems: { key: Panel; label: string; icon: string; tile: string }[] = [
+  { key: "dashboard", label: "Dashboard", icon: "🏠", tile: "home" },
+  { key: "messages", label: "Messages", icon: "✉️", tile: "messages" },
+  { key: "homework", label: "Homework", icon: "📝", tile: "homework" },
+  { key: "notices", label: "Notices", icon: "📌", tile: "notices" },
+  { key: "documents", label: "Documents", icon: "📎", tile: "documents" },
+  { key: "statements", label: "Finance Hub", icon: "💳", tile: "finance" },
+  { key: "incidents", label: "Incidents", icon: "⚠️", tile: "incidents" },
+  { key: "settings", label: "Settings", icon: "⚙️", tile: "settings" },
 ];
 
-const bottomNavItems: { key: Panel; label: string }[] = [
-  { key: "dashboard", label: "Home" },
-  { key: "messages", label: "Messages" },
-  { key: "statements", label: "Finance" },
-  { key: "notifications", label: "Alerts" },
+const bottomNavItems: { key: Panel; label: string; icon: string }[] = [
+  { key: "dashboard", label: "Home", icon: "🏠" },
+  { key: "messages", label: "Messages", icon: "✉️" },
+  { key: "statements", label: "Finance", icon: "💳" },
+  { key: "notifications", label: "Alerts", icon: "🔔" },
+];
+
+/** Dashboard shortcut tiles — only implemented parent-portal surfaces. */
+const dashboardTiles: { key: Panel; label: string; icon: string; tile: string; hint: string }[] = [
+  { key: "statements", label: "Finance", icon: "💳", tile: "finance", hint: "Balance & statements" },
+  { key: "messages", label: "Messages", icon: "✉️", tile: "messages", hint: "Teacher chat" },
+  { key: "homework", label: "Homework", icon: "📝", tile: "homework", hint: "Assignments" },
+  { key: "notices", label: "Notices", icon: "📌", tile: "notices", hint: "School updates" },
+  { key: "documents", label: "Documents", icon: "📎", tile: "documents", hint: "Files to download" },
+  { key: "incidents", label: "Incidents", icon: "⚠️", tile: "incidents", hint: "Behaviour notes" },
+  { key: "notifications", label: "Alerts", icon: "🔔", tile: "alerts", hint: "Notifications" },
+  { key: "settings", label: "Settings", icon: "⚙️", tile: "settings", hint: "App & sign out" },
 ];
 
 function isMobile() {
@@ -227,14 +229,14 @@ export default function ParentPortalApp() {
   const [inactivityNotice, setInactivityNotice] = useState<string | null>(null);
   const [financePolicy, setFinancePolicy] = useState<FinancePolicySettings | null>(null);
 
-  const learners: LinkRow[] = useMemo(() => {
-    const rows = (session?.learners || dashboard?.learners || []) as any[];
-    return rows.map((r: any) => ({
-      linkId: r.linkId || r.id,
-      relation: r.relation ?? null,
-      learner: r.learner || r,
-    }));
-  }, [session, dashboard]);
+  const learners: LinkRow[] = useMemo(
+    () =>
+      normalizeLinkedLearners(
+        session?.learners as any[] | undefined,
+        dashboard?.learners as any[] | undefined
+      ),
+    [session, dashboard]
+  );
 
   const findLearner = useCallback(
     (id: string): Learner | null => {
@@ -254,24 +256,11 @@ export default function ParentPortalApp() {
 
   const familyBillingLearners = useMemo(() => {
     const anchorId = selectedLearnerId || activeLearner?.id || learners[0]?.learner?.id || "";
-    const anchor = learners.find((row) => row.learner.id === anchorId)?.learner;
-    if (!anchor) return [];
-
-    const familyId = String(anchor.familyAccountId || anchor.familyAccount?.id || "").trim();
-    const accountRef = String(anchor.familyAccount?.accountRef || "").trim();
-
-    if (familyId) {
-      return learners
-        .filter((row) => String(row.learner.familyAccountId || row.learner.familyAccount?.id || "") === familyId)
-        .map((row) => row.learner);
-    }
-    if (accountRef) {
-      return learners
-        .filter((row) => String(row.learner.familyAccount?.accountRef || "") === accountRef)
-        .map((row) => row.learner);
-    }
-    return anchorId ? [anchor] : [];
-  }, [learners, selectedLearnerId, activeLearner?.id]);
+    const schoolId = String(session?.parent?.school?.id || "").trim();
+    return resolveFamilyBillingLearnerIds(learners, anchorId, {
+      expectedSchoolId: schoolId || null,
+    }).learners;
+  }, [learners, selectedLearnerId, activeLearner?.id, session?.parent?.school?.id]);
 
   const schoolName =
     schoolBranding?.name || session?.parent?.school?.name || dashboard?.activeLearner?.school?.name || "Your school";
@@ -387,8 +376,14 @@ export default function ParentPortalApp() {
     void parentApiFetch(`/api/parent-portal/billing?${qs}`)
       .then((data) => {
         if (cancelled) return;
+        const balance = parseBillingBalance(data?.balance);
+        if (balance === null) {
+          // Failed/invalid balance must not render as R0.00
+          setFamilyBilling(null);
+          return;
+        }
         setFamilyBilling({
-          balance: Number(data.balance) || 0,
+          balance,
           accountRef: String(data.accountRef || ""),
           isFamilyAccount: Boolean(data.isFamilyAccount),
           learners: Array.isArray(data.learners) ? data.learners : [],
@@ -435,12 +430,12 @@ export default function ParentPortalApp() {
       const qs = selectedLearnerId ? `?learnerId=${encodeURIComponent(selectedLearnerId)}` : "";
       const data = await parentApiFetch(`/api/parent-portal/dashboard${qs}`);
       setDashboard(data);
-      if (!selectedLearnerId) {
-        const pick = data?.autoSelectLearner?.id || (Array.isArray(data.learners) && data.learners[0]?.id);
-        if (pick) setSelectedLearnerId(pick);
-      }
       const me = await parentApiFetch("/api/parent-portal/me");
       setSession({ parent: me.parent, learners: me.learners });
+      const linked = normalizeLinkedLearners(me.learners, data?.learners);
+      setSelectedLearnerId((current) =>
+        resolveSelectedLearnerId(current, linked, data?.autoSelectLearner?.id || null)
+      );
       try {
         const prev = localStorage.getItem(LAST_VISIT_KEY);
         if (prev) {
@@ -811,17 +806,15 @@ export default function ParentPortalApp() {
 
   const homeworkDuePreview = useMemo(() => nextDueHomework(dashboard?.homework || []), [dashboard?.homework]);
 
-  const attendancePreview = useMemo(() => {
-    if (!activeLearner) return "Select a learner";
-    const parts = [activeLearner.grade, activeLearner.className].filter(Boolean);
-    return parts.length ? parts.join(" · ") : "Class details on profile";
-  }, [activeLearner]);
+  const outstandingBalanceLabel = useMemo(
+    () => formatOutstandingBalanceLabel(familyBilling, billingLoading),
+    [familyBilling, billingLoading]
+  );
 
-  const outstandingBalanceLabel = useMemo(() => {
-    if (billingLoading && panel === "dashboard") return "Loading…";
-    if (familyBilling) return formatMoney(familyBilling.balance);
-    return "—";
-  }, [familyBilling, billingLoading, panel]);
+  const noticePreview = useMemo(() => {
+    const list = Array.isArray(dashboard?.notices) ? dashboard.notices : [];
+    return list.slice(0, 3);
+  }, [dashboard?.notices]);
 
   const profileLearner = profileLearnerId ? findLearner(profileLearnerId) : null;
 
@@ -971,29 +964,33 @@ export default function ParentPortalApp() {
         <aside className="parent-portal-sidebar" aria-label="Parent Portal navigation">
           <div className="parent-portal-sidebar-logo">
             {schoolBranding.logoUrl ? (
-              <img src={schoolBranding.logoUrl} alt="" />
+              <img src={schoolBranding.logoUrl} alt={`${schoolName} logo`} />
             ) : (
               <span className="parent-portal-notif-type" style={{ fontSize: 11 }}>
                 SCH
               </span>
             )}
           </div>
-          <p className="parent-portal-sidebar-brand">Parent Portal</p>
+          <p className="parent-portal-sidebar-brand">EduClear</p>
           <p className="parent-portal-sidebar-tag">{schoolName}</p>
           <nav className="parent-portal-sidebar-nav">
-            {navItems.map((item) => (
+            {navItems.map((item) => {
+              const active = panel === item.key;
+              return (
               <button
                 key={item.key}
                 type="button"
-                className={panel === item.key ? "active" : ""}
+                className={active ? "active" : ""}
+                aria-current={active ? "page" : undefined}
                 onClick={() => switchPanel(item.key)}
               >
-                <span className="nav-icon" aria-hidden>
+                <span className={`nav-icon parent-portal-tile-icon parent-portal-tile-icon--${item.tile}`} aria-hidden>
                   {item.icon}
                 </span>
                 {item.label}
               </button>
-            ))}
+              );
+            })}
           </nav>
           <div className="parent-portal-sidebar-footer">
             <button type="button" className="parent-portal-btn-ghost" onClick={logout}>
@@ -1047,39 +1044,137 @@ export default function ParentPortalApp() {
               onOpenNotifications={() => void openNotificationsPanel()}
             />
 
-            <div className="parent-portal-kpi-grid" aria-label="Dashboard summary">
-              <SummaryCard
-                title="Outstanding Balance"
-                value={outstandingBalanceLabel}
-                subtitle={familyBilling?.accountRef ? `Ref ${familyBilling.accountRef}` : "Family billing account"}
-                onClick={() => switchPanel("statements")}
-              />
-              <SummaryCard
-                title="Upcoming Homework"
-                value={homeworkDuePreview?.title?.slice(0, 28) || "None"}
-                subtitle={homeworkDuePreview ? homeworkDuePreview.due : "No due dates yet"}
+            {learners.length > 0 ? (
+              <div className="parent-portal-child-selector" aria-label="Select a child">
+                <div className="parent-portal-section-label">My children</div>
+                <div className="parent-portal-child-chips" role="list">
+                  {learners.map((row) => {
+                    const selected = selectedLearnerId === row.learner.id;
+                    return (
+                      <button
+                        key={row.learner.id}
+                        type="button"
+                        role="listitem"
+                        className={`parent-portal-child-chip${selected ? " active" : ""}`}
+                        aria-pressed={selected}
+                        aria-current={selected ? "true" : undefined}
+                        onClick={() => setSelectedLearnerId(row.learner.id)}
+                      >
+                        <span className="parent-portal-child-chip-avatar" aria-hidden>
+                          {(row.learner.firstName || "?").charAt(0).toUpperCase()}
+                        </span>
+                        <span className="parent-portal-child-chip-text">
+                          <strong>
+                            {row.learner.firstName} {row.learner.lastName}
+                          </strong>
+                          <small>
+                            {[row.learner.grade, row.learner.className].filter(Boolean).join(" · ") || "Learner"}
+                            {row.relation ? ` · ${row.relation}` : ""}
+                          </small>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="parent-portal-card">
+                <p className="parent-portal-muted" style={{ margin: 0 }}>
+                  No linked learners are available for this parent account. Contact the school if this looks wrong.
+                </p>
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="parent-portal-finance-summary"
+              onClick={() => switchPanel("statements")}
+              aria-label="Open Finance Hub"
+            >
+              <div>
+                <div className="parent-portal-finance-summary-label">Account balance</div>
+                <div className="parent-portal-finance-summary-value">{outstandingBalanceLabel}</div>
+                <div className="parent-portal-finance-summary-sub">
+                  {billingLoading
+                    ? "Updating billing…"
+                    : familyBilling?.accountRef
+                      ? `Ref ${familyBilling.accountRef}`
+                      : familyBilling
+                        ? "Family billing account"
+                        : "Balance unavailable — try again shortly"}
+                </div>
+              </div>
+              <span className="parent-portal-finance-summary-cta" aria-hidden>
+                View
+              </span>
+            </button>
+
+            {homeworkDuePreview ? (
+              <button
+                type="button"
+                className="parent-portal-notice-strip parent-portal-notice-strip--homework"
                 onClick={() => switchPanel("homework")}
-              />
-              <SummaryCard
-                title="Notifications"
-                value={String(unreadNotifCount)}
-                subtitle={unreadNotifCount ? "Unread alerts" : "Up to date"}
-                onClick={() => void openNotificationsPanel()}
-              />
-              <SummaryCard
-                title="Attendance"
-                value={attendancePreview}
-                subtitle="Class · contact school for records"
-                onClick={() => {
-                  if (activeLearner) {
-                    setProfileLearnerId(activeLearner.id);
-                    switchPanel("profile");
-                  }
-                }}
-              />
+              >
+                <span className="parent-portal-tile-icon parent-portal-tile-icon--homework" aria-hidden>
+                  📝
+                </span>
+                <span>
+                  <strong>Upcoming homework</strong>
+                  <small>
+                    {homeworkDuePreview.title} · {homeworkDuePreview.due}
+                  </small>
+                </span>
+              </button>
+            ) : null}
+
+            <div className="parent-portal-section-label">School notices</div>
+            <div className="parent-portal-notices-preview">
+              {noticePreview.length === 0 ? (
+                <p className="parent-portal-muted" style={{ margin: "0 0 12px" }}>
+                  No school notices right now.
+                </p>
+              ) : (
+                noticePreview.map((n: any) => (
+                  <button
+                    key={String(n.id || n.title)}
+                    type="button"
+                    className="parent-portal-notice-strip"
+                    onClick={() => switchPanel("notices")}
+                  >
+                    <span className="parent-portal-tile-icon parent-portal-tile-icon--notices" aria-hidden>
+                      📌
+                    </span>
+                    <span>
+                      <strong>{String(n.title || "Notice")}</strong>
+                      <small>{String(n.body || "").slice(0, 120) || "Open notices"}</small>
+                    </span>
+                  </button>
+                ))
+              )}
             </div>
 
-            <div className="parent-portal-section-label">YOUR CHILDREN</div>
+            <div className="parent-portal-section-label">Quick access</div>
+            <div className="parent-portal-tile-grid" aria-label="Parent portal shortcuts">
+              {dashboardTiles.map((tile) => (
+                <button
+                  key={tile.key}
+                  type="button"
+                  className={`parent-portal-tile parent-portal-tile--${tile.tile}`}
+                  onClick={() => {
+                    if (tile.key === "notifications") void openNotificationsPanel();
+                    else switchPanel(tile.key);
+                  }}
+                >
+                  <span className={`parent-portal-tile-icon parent-portal-tile-icon--${tile.tile}`} aria-hidden>
+                    {tile.icon}
+                  </span>
+                  <strong>{tile.label}</strong>
+                  <small>{tile.hint}</small>
+                </button>
+              ))}
+            </div>
+
+            <div className="parent-portal-section-label">Children details</div>
             {learners.map((row) => (
               <LearnerPremiumCard
                 key={row.learner.id}
@@ -1331,11 +1426,14 @@ export default function ParentPortalApp() {
           </main>
 
           <nav className="parent-portal-bottom-nav" aria-label="Parent navigation">
-            {bottomNavItems.map((item) => (
+            {bottomNavItems.map((item) => {
+              const active = panel === item.key;
+              return (
               <button
                 key={item.key}
                 type="button"
-                className={panel === item.key ? "active" : ""}
+                className={active ? "active" : ""}
+                aria-current={active ? "page" : undefined}
                 onClick={() => {
                   if (item.key === "notifications") {
                     void openNotificationsPanel();
@@ -1344,9 +1442,13 @@ export default function ParentPortalApp() {
                   }
                 }}
               >
+                <span className="parent-portal-bottom-nav-icon" aria-hidden>
+                  {item.icon}
+                </span>
                 {item.label}
               </button>
-            ))}
+              );
+            })}
           </nav>
         </div>
       </div>
@@ -1408,17 +1510,21 @@ function WelcomeStrip({
     <div className="parent-portal-card parent-portal-welcome">
       <div className="parent-portal-welcome-logo">
         {logoUrl ? (
-          <img src={logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <img
+            src={logoUrl}
+            alt={`${schoolName} logo`}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
         ) : (
           <span className="parent-portal-notif-type" style={{ fontSize: 11 }}>SCH</span>
         )}
       </div>
       <div style={{ minWidth: 0 }}>
         <div className="parent-portal-muted" style={{ fontSize: 11, fontWeight: 700 }}>Welcome back</div>
-        <div className="parent-portal-welcome-name">{parentName}</div>
+        <div className="parent-portal-welcome-name">Hello, {parentName}</div>
         <div className="parent-portal-muted" style={{ fontSize: 12, marginTop: 2, fontWeight: 600 }}>{schoolName}</div>
         <div className="parent-portal-muted" style={{ fontSize: 11, marginTop: 4 }}>
-          {learnerCount} learner{learnerCount === 1 ? "" : "s"}
+          {learnerCount} linked child{learnerCount === 1 ? "" : "ren"}
           {lastVisit ? ` · Last visit: ${lastVisit}` : ""}
         </div>
       </div>
@@ -1509,7 +1615,7 @@ function LearnerPremiumCard({
           </div>
         </div>
         {selected ? (
-          <span style={{ fontSize: 10, fontWeight: 900, color: "#0f0f0f", background: gold, padding: "3px 8px", borderRadius: 999 }}>SELECTED</span>
+          <span className="parent-portal-selected-badge">SELECTED</span>
         ) : (
           <span className="parent-portal-muted" style={{ fontSize: 10, fontWeight: 800 }}>Tap to select</span>
         )}
