@@ -45,10 +45,11 @@ import type { PermissionAction } from "../utils/userPermissions";
 const router = Router();
 const DATA_FILE = path.join(process.cwd(), "data", "communication-store.json");
 
-/** Map HTTP verb + path to Communications RBAC action. */
+/** Map HTTP verb + path to Communications RBAC action. View never authorises send. */
 function communicationsActionForRequest(req: { method?: string; path?: string }): PermissionAction {
   const method = String(req.method || "GET").toUpperCase();
   const p = String(req.path || "");
+  if (/\/print|\/export/.test(p)) return "print";
   if (method === "GET") return "view";
   if (method === "DELETE") return "delete";
   if (method === "PUT" || method === "PATCH") return "edit";

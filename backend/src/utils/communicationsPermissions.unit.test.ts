@@ -13,7 +13,10 @@ import {
   permissionsForRole,
   resolveStoredPermissions,
 } from "./userPermissions";
-import { allowCommunicationsCentreActor } from "./communicationsCentreAccess";
+import {
+  allowCommunicationsCentreActor,
+  communicationsActionForLifecycle,
+} from "./communicationsCentreAccess";
 
 function main() {
   assert.ok(PERMISSION_MODULES.some((m) => m.key === "communications"));
@@ -59,30 +62,21 @@ function main() {
     false
   );
 
-  // Teacher class-scoped centre surfaces
+  // Teachers do NOT get Communications Centre via teachers.view
   assert.equal(
-    allowCommunicationsCentreActor(
-      { auth: { appRole: "Teacher", permissions: teacher } },
-      "view"
-    ),
-    true
+    allowCommunicationsCentreActor({ auth: { appRole: "Teacher", permissions: teacher } }, "view"),
+    false
   );
   assert.equal(
-    allowCommunicationsCentreActor(
-      { auth: { appRole: "Teacher", permissions: teacher } },
-      "create"
-    ),
-    true
+    allowCommunicationsCentreActor({ auth: { appRole: "Teacher", permissions: teacher } }, "create"),
+    false
   );
   assert.equal(
-    allowCommunicationsCentreActor(
-      { auth: { appRole: "Teacher", permissions: teacher } },
-      "delete"
-    ),
+    allowCommunicationsCentreActor({ auth: { appRole: "Teacher", permissions: teacher } }, "delete"),
     false
   );
 
-  // Custom with no communications — denied for staff centre
+  // Custom with no communications — denied
   const empty = emptyPermissionMap();
   assert.equal(
     allowCommunicationsCentreActor({ auth: { appRole: "Custom", permissions: empty } }, "view"),
@@ -92,6 +86,39 @@ function main() {
     hasCommunicationsPermission({ appRole: "Custom", isActive: true, permissions: empty }, "send"),
     false
   );
+
+  // View alone does not authorise send
+  const viewOnly = mergePermissions({
+    ...emptyPermissionMap(),
+    communications: { view: true },
+  });
+  assert.equal(
+    hasCommunicationsPermission({ appRole: "Custom", isActive: true, permissions: viewOnly }, "view"),
+    true
+  );
+  assert.equal(
+    hasCommunicationsPermission({ appRole: "Custom", isActive: true, permissions: viewOnly }, "send"),
+    false
+  );
+  assert.equal(
+    allowCommunicationsCentreActor({ auth: { appRole: "Custom", permissions: viewOnly } }, "send"),
+    false
+  );
+  assert.equal(
+    allowCommunicationsCentreActor({ auth: { appRole: "Custom", permissions: viewOnly } }, "create"),
+    false
+  );
+  assert.equal(
+    allowCommunicationsCentreActor({ auth: { appRole: "Custom", permissions: viewOnly } }, "print"),
+    false
+  );
+
+  // Lifecycle mapping
+  assert.equal(communicationsActionForLifecycle("publish"), "send");
+  assert.equal(communicationsActionForLifecycle("republish"), "send");
+  assert.equal(communicationsActionForLifecycle("unpublish"), "edit");
+  assert.equal(communicationsActionForLifecycle("cancel"), "edit");
+  assert.equal(communicationsActionForLifecycle("archive"), "delete");
 
   // Owner always
   assert.equal(

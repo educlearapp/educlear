@@ -20,6 +20,7 @@ import {
 import {
   actionFromHttpMethod,
   allowCommunicationsCentreActor,
+  communicationsActionForLifecycle,
 } from "../utils/communicationsCentreAccess";
 import type { PermissionAction } from "../utils/userPermissions";
 
@@ -132,7 +133,9 @@ router.post("/", async (req, res) => {
   try {
     const schoolId = String(req.body?.schoolId || "").trim();
     if (!schoolId) return res.status(400).json({ success: false, error: "schoolId required" });
-    const actor = await resolveAnnouncementActor(req, res, schoolId);
+    const publishNow = Boolean(req.body?.publishNow);
+    // Draft create → create; publish-on-create → send (view alone must not publish).
+    const actor = await resolveAnnouncementActor(req, res, schoolId, publishNow ? "send" : "create");
     if (!actor) return;
 
     const notice = await createAnnouncementDraft({
@@ -147,7 +150,7 @@ router.post("/", async (req, res) => {
         learnerId: req.body?.learnerId ?? null,
       },
       visibility: req.body?.visibility,
-      publishNow: Boolean(req.body?.publishNow),
+      publishNow,
     });
     return res.json({ success: true, notice });
   } catch (e) {
@@ -211,7 +214,12 @@ function transitionHandler(action: "publish" | "unpublish" | "republish" | "arch
       if (!schoolId || !id) {
         return res.status(400).json({ success: false, error: "schoolId and id required" });
       }
-      const actor = await resolveAnnouncementActor(req, res, schoolId, "send");
+      const actor = await resolveAnnouncementActor(
+        req,
+        res,
+        schoolId,
+        communicationsActionForLifecycle(action)
+      );
       if (!actor) return;
       const notice = await transitionAnnouncement({ schoolId, noticeId: id, actor, action });
       return res.json({ success: true, notice });

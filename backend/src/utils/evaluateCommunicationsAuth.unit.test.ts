@@ -3,7 +3,7 @@
  */
 import assert from "node:assert/strict";
 import { evaluateCommunicationsAuth } from "./evaluateCommunicationsAuth";
-import { emptyPermissionMap, permissionsForRole } from "./userPermissions";
+import { emptyPermissionMap, mergePermissions, permissionsForRole } from "./userPermissions";
 
 function main() {
   const admin = permissionsForRole("Admin");
@@ -39,6 +39,7 @@ function main() {
     true
   );
 
+  // Teacher template has teachers.view but no communications — denied for Centre APIs
   assert.equal(
     evaluateCommunicationsAuth({
       auth: { appRole: "Teacher", authorizedSchoolId: "s1", permissions: teacher },
@@ -48,14 +49,26 @@ function main() {
     false
   );
 
+  // View does not authorise send
+  const viewOnly = mergePermissions({
+    ...emptyPermissionMap(),
+    communications: { view: true },
+  });
   assert.equal(
     evaluateCommunicationsAuth({
-      auth: { appRole: "Teacher", authorizedSchoolId: "s1", permissions: teacher },
+      auth: { appRole: "Custom", authorizedSchoolId: "s1", permissions: viewOnly },
       requireAction: "view",
       requestSchoolId: "s1",
-      allowTeacherViewFallback: true,
     }).allowed,
     true
+  );
+  assert.equal(
+    evaluateCommunicationsAuth({
+      auth: { appRole: "Custom", authorizedSchoolId: "s1", permissions: viewOnly },
+      requireAction: "send",
+      requestSchoolId: "s1",
+    }).allowed,
+    false
   );
 
   console.log("✓ evaluateCommunicationsAuth unit tests passed");

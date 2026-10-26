@@ -24,12 +24,8 @@ type Props = {
 
 function canAccessDeliveryQueue(): boolean {
   const user = getSchoolSessionUser();
-  if (hasCommunicationsPermission(user, "view") || hasCommunicationsPermission(user, "manage")) {
-    return true;
-  }
-  // Owner always; keep Admin role continuity when soft-filled communications.view applies via session.
-  const appRole = String(user?.appRole || localStorage.getItem("appRole") || "").trim();
-  return appRole === "Owner" || appRole === "Admin";
+  // Delivery Queue is part of Communications Centre — communications.view (Owner always true).
+  return hasCommunicationsPermission(user, "view");
 }
 
 const TABS: { id: Tab; label: string; adminOnly?: boolean }[] = [
