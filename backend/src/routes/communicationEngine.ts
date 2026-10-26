@@ -12,7 +12,11 @@ import {
   loadStaffSchoolAuth,
   type StaffSchoolAuth,
 } from "../middleware/requireOwnerSchoolAccess";
-import { isSchoolOwnerOrAdminRole } from "../utils/userPermissions";
+import {
+  hasCommunicationsPermission,
+  isSchoolOwnerOrAdminRole,
+  resolveStoredPermissions,
+} from "../utils/userPermissions";
 
 const router = Router();
 
@@ -25,7 +29,7 @@ type AuthOk = { auth: StaffSchoolAuth; schoolId: string };
 async function requireEngineSchoolAccess(
   req: { headers: { authorization?: string }; query?: unknown; body?: unknown; params?: unknown },
   res: { status: (n: number) => { json: (b: unknown) => unknown } },
-  opts?: { requireOwnerOrAdmin?: boolean }
+  opts?: { requireOwnerOrAdmin?: boolean; requireCommunicationsAction?: "view" | "edit" | "send" | "manage" }
 ): Promise<AuthOk | null> {
   const auth = await loadStaffSchoolAuth(req.headers.authorization);
   if (!auth) {
@@ -46,16 +50,31 @@ async function requireEngineSchoolAccess(
     return null;
   }
 
-  if (opts?.requireOwnerOrAdmin && !isSchoolOwnerOrAdminRole(auth.appRole)) {
+  const permissions = resolveStoredPermissions(auth.appRole, auth.permissions);
+  const permUser = { appRole: auth.appRole, isActive: true, permissions };
+  const action = opts?.requireCommunicationsAction || "view";
+  if (!hasCommunicationsPermission(permUser, action)) {
     res.status(403).json({
       success: false,
-      error: "Owner or Admin access required",
-      code: "ROLE_DENIED",
+      error: `Permission denied: communications.${action}`,
+      code: "COMMUNICATIONS_FORBIDDEN",
     });
     return null;
   }
 
-  return { auth, schoolId: auth.authorizedSchoolId };
+  if (opts?.requireOwnerOrAdmin && !isSchoolOwnerOrAdminRole(auth.appRole)) {
+    // Queue process/retry: Owner/Admin role OR communications.manage
+    if (!hasCommunicationsPermission(permUser, "manage")) {
+      res.status(403).json({
+        success: false,
+        error: "Owner or Admin access required",
+        code: "ROLE_DENIED",
+      });
+      return null;
+    }
+  }
+
+  return { auth: { ...auth, permissions }, schoolId: auth.authorizedSchoolId };
 }
 
 router.get("/messages", async (req, res) => {

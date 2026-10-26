@@ -1,5 +1,6 @@
 import { isSuperAdmin } from "./roles";
 import {
+  hasCommunicationsPermission,
   hasPermission,
   type ModuleKey,
   type PermissionAction,
@@ -30,9 +31,13 @@ const PAGE_RULES: Record<string, PageRule> = {
   registrations: { module: "registrations", action: "view" },
   sasamsReportUpload: { module: "registrations", action: "view" },
   parentPortal: { module: "parents", action: "view" },
+  /** Parent–teacher messaging — keep on teachers.view so teachers retain inbox access. */
   teacherInbox: { module: "teachers", action: "view" },
-  /** Parent messaging + announcements hub (reuses Teacher Inbox / SchoolNotice). */
-  communicationsHub: { module: "teachers", action: "view" },
+  /**
+   * Communications Centre hub. Primary gate is communications.view; teachers with
+   * teachers.view still reach the Messages tab (see canAccessSchoolPageByPermission).
+   */
+  communicationsHub: { module: "communications", action: "view" },
   learnerProfile: { module: "learners", action: "view" },
   addLearner: { module: "learners", action: "create" },
   classrooms: { module: "classrooms", action: "view" },
@@ -73,10 +78,10 @@ const PAGE_RULES: Record<string, PageRule> = {
   "billing-more": { module: "billing", action: "view" },
   billingDeposits: { module: "billing", action: "view" },
   billingSettings: { module: "billing", action: "manage" },
-  communicationEmail: { module: "settings", action: "view" },
-  communicationSms: { module: "settings", action: "view" },
-  communicationSettings: { module: "settings", action: "view" },
-  communicationCentre: { module: "settings", action: "view" },
+  communicationEmail: { module: "communications", action: "view" },
+  communicationSms: { module: "communications", action: "view" },
+  communicationSettings: { module: "communications", action: "edit" },
+  communicationCentre: { module: "communications", action: "view" },
   /** Banking — CORE || ACCOUNTING (module gate); fee vs expense UI is field-policy. */
   bankStatementImport: { module: "payments", action: "view" },
   accountingOverview: { module: "reports", action: "view" },
@@ -152,6 +157,15 @@ export function canAccessSchoolPageByPermission(
   // Accounting product area is Owner-only. reports.view still powers Billing Reports / Lists.
   if (String(page).startsWith("accounting")) {
     return false;
+  }
+
+  // Teachers keep Communications Centre hub (Messages) via teachers.view without a
+  // Communications grant; staff email/SMS/settings/queue require communications.*.
+  if (page === "communicationsHub") {
+    return (
+      hasCommunicationsPermission(user, "view") ||
+      hasPermission(user, "teachers", "view")
+    );
   }
 
   const rule = PAGE_RULES[page];

@@ -9,6 +9,7 @@ import {
   resolveStaffSchoolGate,
   sendAuthRequired,
 } from "../middleware/staffSchoolGate";
+import { allowCommunicationsCentreActor } from "../utils/communicationsCentreAccess";
 
 const router = Router();
 
@@ -23,6 +24,13 @@ router.get("/", async (req, res) => {
       return;
     }
     if (!allowSchool(gate, schoolId, res)) return;
+    if (!allowCommunicationsCentreActor(gate, "view")) {
+      return res.status(403).json({
+        success: false,
+        error: "Permission denied: communications.view",
+        code: "COMMUNICATIONS_FORBIDDEN",
+      });
+    }
 
     const [
       inAppTotal,

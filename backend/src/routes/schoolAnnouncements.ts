@@ -17,13 +17,19 @@ import {
   updateAnnouncement,
   type AnnouncementActor,
 } from "../services/schoolAnnouncementService";
+import {
+  actionFromHttpMethod,
+  allowCommunicationsCentreActor,
+} from "../utils/communicationsCentreAccess";
+import type { PermissionAction } from "../utils/userPermissions";
 
 const router = Router();
 
 async function resolveAnnouncementActor(
-  req: { headers: { authorization?: string }; body?: any; query?: any },
+  req: { headers: { authorization?: string }; body?: any; query?: any; method?: string },
   res: any,
-  schoolId: string
+  schoolId: string,
+  requireAction?: PermissionAction
 ): Promise<AnnouncementActor | null> {
   const gate = await resolveStaffSchoolGate(req.headers.authorization);
   if (!gate) {
@@ -31,6 +37,16 @@ async function resolveAnnouncementActor(
     return null;
   }
   if (!allowSchool(gate, schoolId, res)) return null;
+
+  const action = requireAction || actionFromHttpMethod(req.method || "GET");
+  if (!allowCommunicationsCentreActor(gate, action)) {
+    res.status(403).json({
+      success: false,
+      error: `Permission denied: communications.${action}`,
+      code: "COMMUNICATIONS_FORBIDDEN",
+    });
+    return null;
+  }
 
   const classrooms = await prisma.classroom.findMany({
     where: {
@@ -195,7 +211,7 @@ function transitionHandler(action: "publish" | "unpublish" | "republish" | "arch
       if (!schoolId || !id) {
         return res.status(400).json({ success: false, error: "schoolId and id required" });
       }
-      const actor = await resolveAnnouncementActor(req, res, schoolId);
+      const actor = await resolveAnnouncementActor(req, res, schoolId, "send");
       if (!actor) return;
       const notice = await transitionAnnouncement({ schoolId, noticeId: id, actor, action });
       return res.json({ success: true, notice });

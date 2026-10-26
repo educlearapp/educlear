@@ -36,6 +36,7 @@ export const PERMISSION_MODULES = [
   { key: "payroll", label: "Payroll" },
   { key: "educlock", label: "EduClock" },
   { key: "admissions", label: "Admissions" },
+  { key: "communications", label: "Communications" },
   { key: "settings", label: "Settings" },
 ] as const;
 
@@ -128,6 +129,15 @@ export const roleTemplates: Record<Exclude<AppRole, "Custom">, PermissionMap> = 
     // Full operational admissions (settings + payment + decisions).
     // Accept/decline must ALSO enforce Owner/Admin at route level (Finance must not decide).
     admissions: { view: true, edit: true, delete: true, manage: true, send: true, export: true, print: true },
+    // Communication Centre. Not auto-granted to Teacher / Finance / Viewer templates.
+    communications: {
+      view: true,
+      create: true,
+      edit: true,
+      delete: true,
+      print: true,
+      send: true,
+    },
   }),
   Finance: withPermissions({
     dashboard: { view: true },
@@ -174,14 +184,35 @@ export function permissionsForRole(appRole: string, custom?: PermissionMap | nul
   return template ? mergePermissions(template) : emptyPermissionMap();
 }
 
-/** Return persisted permissions when present; role templates only for users without saved data. */
+/**
+ * Return persisted permissions when present; role templates only for users without saved data.
+ * Modules absent from a legacy stored map are soft-filled from the role template so newly
+ * added modules do not lock out existing Admins until the matrix is re-saved.
+ */
 export function resolveStoredPermissions(
   appRole: string,
   stored: PermissionMap | null | undefined
 ): PermissionMap {
   if (appRole === "Owner") return allPermissionsTrue();
-  if (stored) return mergePermissions(stored);
+  if (stored) {
+    const merged = mergePermissions(stored);
+    const template = permissionsForRole(appRole);
+    for (const mod of PERMISSION_MODULES) {
+      if (!Object.prototype.hasOwnProperty.call(stored, mod.key)) {
+        merged[mod.key] = { ...template[mod.key] };
+      }
+    }
+    return merged;
+  }
   return permissionsForRole(appRole);
+}
+
+/** Communication Centre RBAC helper. */
+export function hasCommunicationsPermission(
+  user: { appRole?: string; isActive?: boolean; permissions?: PermissionMap | null },
+  action: PermissionAction
+): boolean {
+  return hasPermission(user, "communications", action);
 }
 
 export function mergePermissions(input: PermissionMap): PermissionMap {
