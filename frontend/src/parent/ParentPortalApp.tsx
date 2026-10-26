@@ -46,6 +46,7 @@ import {
   type ParentPortalLearner as Learner,
   type ParentPortalLinkRow as LinkRow,
 } from "./parentPortalLearners";
+import { formatParentMessageDateTime } from "./parentMessageTime";
 import { PortalIcon } from "./ParentPortalIcons";
 
 const LAST_VISIT_KEY = "parentPortalLastVisitAt";
@@ -468,7 +469,9 @@ export default function ParentPortalApp() {
     let cancelled = false;
     setContentListLoading(true);
     const qs = new URLSearchParams({ limit: "50", offset: "0" });
-    if (selectedLearnerId) qs.set("learnerId", selectedLearnerId);
+    const effectiveLearnerId =
+      selectedLearnerId || activeLearner?.id || learners[0]?.learner?.id || "";
+    if (effectiveLearnerId) qs.set("learnerId", effectiveLearnerId);
     const path =
       panel === "homework"
         ? `/api/parent-portal/homework?${qs}`
@@ -503,7 +506,7 @@ export default function ParentPortalApp() {
     return () => {
       cancelled = true;
     };
-  }, [shellView, panel, selectedLearnerId]);
+  }, [shellView, panel, selectedLearnerId, activeLearner?.id, learners]);
 
   async function loadDashboard() {
     setLoading(true);
@@ -1448,6 +1451,11 @@ export default function ParentPortalApp() {
                   >
                     <div className="parent-portal-notif-type">{m.senderName || m.sender}</div>
                     <div className="parent-portal-msg-body">{m.body}</div>
+                    {formatParentMessageDateTime(m.createdAt) ? (
+                      <div className="parent-portal-muted" style={{ fontSize: 11, marginTop: 4 }}>
+                        {formatParentMessageDateTime(m.createdAt)}
+                      </div>
+                    ) : null}
                     <ParentAttachmentList attachments={m.attachments} label="Message attachments" />
                   </div>
                 ))

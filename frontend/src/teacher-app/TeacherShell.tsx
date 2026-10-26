@@ -17,6 +17,8 @@ const SIDEBAR_LINKS = [
   { to: "/teacher/homesafe", label: "HomeSafe", icon: "🏡" },
 ] as const;
 
+const INBOX_POLL_MS = 45_000;
+
 export default function TeacherShell() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -24,6 +26,8 @@ export default function TeacherShell() {
   const schoolId = localStorage.getItem("schoolId");
   const [schoolLogoUrl, setSchoolLogoUrl] = useState(() => resolveSchoolLogoUrl());
   const [schoolName, setSchoolName] = useState(() => localStorage.getItem("schoolName") || "");
+  const [unreadInbox, setUnreadInbox] = useState(0);
+  const [inboxNotice, setInboxNotice] = useState<string | null>(null);
 
   const path = location.pathname;
   const onLogin = path.endsWith("/login");
@@ -32,9 +36,18 @@ export default function TeacherShell() {
   usePortalPwaHead(teacherPortalPwaHead);
 
   useEffect(() => {
-    if (!token || !schoolId) return;
-    void staffApiFetch("/api/teacher-app/me")
-      .then((data: { school?: { name?: string | null; logoUrl?: string | null } }) => {
+    if (!token || !schoolId || onLogin) return;
+    let cancelled = false;
+    let lastUnread = 0;
+    let primed = false;
+
+    async function refreshUnread() {
+      try {
+        const data = (await staffApiFetch("/api/teacher-app/me")) as {
+          school?: { name?: string | null; logoUrl?: string | null };
+          unreadInbox?: number;
+        };
+        if (cancelled) return;
         if (data?.school?.name) {
           setSchoolName(String(data.school.name));
           localStorage.setItem("schoolName", String(data.school.name));
@@ -44,9 +57,45 @@ export default function TeacherShell() {
           setSchoolLogoUrl(logo);
           localStorage.setItem("schoolLogoUrl", logo);
         }
-      })
-      .catch(() => {});
-  }, [token, schoolId]);
+        const next = Math.max(0, Number(data?.unreadInbox) || 0);
+        setUnreadInbox(next);
+        if (primed && next > lastUnread) {
+          const added = next - lastUnread;
+          const msg =
+            added === 1
+              ? "New parent message in your Inbox"
+              : `${added} new parent messages in your Inbox`;
+          setInboxNotice(msg);
+          // In-app / foreground only — teacher device push is not configured.
+          try {
+            if (
+              typeof Notification !== "undefined" &&
+              Notification.permission === "granted" &&
+              document.visibilityState !== "visible"
+            ) {
+              new Notification("EduClear Teacher Portal", { body: msg });
+            }
+          } catch {
+            /* ignore */
+          }
+        }
+        lastUnread = next;
+        primed = true;
+      } catch {
+        /* ignore transient poll errors */
+      }
+    }
+
+    void refreshUnread();
+    const id = window.setInterval(() => void refreshUnread(), INBOX_POLL_MS);
+    const onFocus = () => void refreshUnread();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [token, schoolId, onLogin]);
 
   function logout() {
     localStorage.removeItem("token");
@@ -96,6 +145,9 @@ export default function TeacherShell() {
                 {item.icon}
               </span>
               {item.label}
+              {item.to === "/teacher/inbox" && unreadInbox > 0
+                ? ` (${unreadInbox > 9 ? "9+" : unreadInbox})`
+                : ""}
             </NavLink>
           ))}
         </nav>
@@ -126,6 +178,40 @@ export default function TeacherShell() {
           </button>
         </header>
         <main className="teacher-app-main">
+          {inboxNotice && (
+            <div
+              role="status"
+              style={{
+                margin: "0 0 12px",
+                padding: "10px 12px",
+                borderRadius: 10,
+                background: "rgba(212,175,55,0.18)",
+                border: "1px solid rgba(212,175,55,0.45)",
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 8,
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <span style={{ fontSize: 14, fontWeight: 600 }}>{inboxNotice}</span>
+              <span style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  className="teacher-touch-btn primary"
+                  onClick={() => {
+                    setInboxNotice(null);
+                    navigate("/teacher/inbox");
+                  }}
+                >
+                  Open Inbox
+                </button>
+                <button type="button" className="teacher-touch-btn" onClick={() => setInboxNotice(null)}>
+                  Dismiss
+                </button>
+              </span>
+            </div>
+          )}
           <Outlet />
         </main>
         <nav className="teacher-bottom-nav" aria-label="Teacher navigation">
@@ -133,7 +219,7 @@ export default function TeacherShell() {
             Home
           </NavLink>
           <NavLink to="/teacher/inbox" className={({ isActive }) => (isActive ? "active" : "")}>
-            Inbox
+            Inbox{unreadInbox > 0 ? ` (${unreadInbox > 9 ? "9+" : unreadInbox})` : ""}
           </NavLink>
           <NavLink to="/teacher/homework" className={({ isActive }) => (isActive ? "active" : "")}>
             Homework

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { API_URL, authenticatedFetch } from "../api";
 import { staffApiFetch, staffFormPost } from "../staffApi";
+import { formatParentMessageDateTime } from "../parent/parentMessageTime";
 
 const gold = "#d4af37";
 const dark = "#0f172a";
@@ -377,6 +378,11 @@ export default function TeacherInbox({ embedded }: Props) {
                   >
                     <div style={{ fontSize: 11, fontWeight: 700 }}>{m.senderName || m.sender}</div>
                     <div>{m.body}</div>
+                    {formatParentMessageDateTime(m.createdAt) ? (
+                      <div style={{ fontSize: 11, color: textMuted, marginTop: 4 }}>
+                        {formatParentMessageDateTime(m.createdAt)}
+                      </div>
+                    ) : null}
                     {Array.isArray(m.attachments) &&
                       m.attachments.map((a, i) => (
                         <button

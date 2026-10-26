@@ -18,6 +18,7 @@ import {
   parentPublishedHomeworkOrNoticeWhere,
   parentPublishedIncidentWhere,
 } from "../utils/teacherVisibility";
+import { parentHomeworkVisibilityWhere } from "../utils/parentHomeworkVisibility";
 import { buildParentDocumentVisibilityWhere } from "../services/parentDocumentVisibility";
 import {
   publicParentDocumentDto,
@@ -494,28 +495,15 @@ router.get("/dashboard", parentAuthMiddleware, async (req, res) => {
               take: 10,
             })
           : Promise.resolve([]),
-        activeLearner
-          ? prisma.homeworkPost.findMany({
-              where: {
-                schoolId: auth.schoolId,
-                ...parentPublishedHomeworkOrNoticeWhere(),
-                OR: [
-                  { learnerId: activeLearner.id },
-                  { grade: activeLearner.grade, learnerId: null },
-                  {
-                    className: {
-                      in: activeLearner.className
-                        ? membership.spellingsFor(activeLearner.className)
-                        : [""],
-                    },
-                    learnerId: null,
-                  },
-                ],
-              },
-              orderBy: { createdAt: "desc" },
-              take: 10,
-            })
-          : Promise.resolve([]),
+        prisma.homeworkPost.findMany({
+          where: parentHomeworkVisibilityWhere(
+            auth.schoolId,
+            activeLearner ? [activeLearner] : learners,
+            membership
+          ),
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        }),
         prisma.schoolNotice.findMany({
           where: {
             schoolId: auth.schoolId,
@@ -1235,26 +1223,18 @@ router.get("/homework", parentAuthMiddleware, async (req, res) => {
     const parent = await parentWithLearners(auth.parentId, auth.schoolId);
     if (!parent) return res.status(404).json({ success: false, error: "Parent not found" });
     const learners = parent.links.map((l) => l.learner);
-    const active =
-      learners.find((l) => l.id === learnerId) || (learners.length === 1 ? learners[0] : null);
-    if (!active) return res.json({ success: true, homework: [], limit, offset, hasMore: false });
+    // Explicit learnerId scopes to that child; otherwise include all linked children
+    // (multi-child parents previously got [] when learnerId was omitted).
+    const targets = learnerId
+      ? learners.filter((l) => l.id === learnerId)
+      : learners;
+    if (!targets.length) {
+      return res.json({ success: true, homework: [], limit, offset, hasMore: false });
+    }
 
     const membership = await loadSchoolClassMembership(auth.schoolId);
     const rows = await prisma.homeworkPost.findMany({
-      where: {
-        schoolId: auth.schoolId,
-        ...parentPublishedHomeworkOrNoticeWhere(),
-        OR: [
-          { learnerId: active.id },
-          { grade: active.grade, learnerId: null },
-          {
-            className: {
-              in: active.className ? membership.spellingsFor(active.className) : [""],
-            },
-            learnerId: null,
-          },
-        ],
-      },
+      where: parentHomeworkVisibilityWhere(auth.schoolId, targets, membership),
       orderBy: { createdAt: "desc" },
       skip: offset,
       take: limit + 1,

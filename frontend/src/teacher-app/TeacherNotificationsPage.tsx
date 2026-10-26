@@ -6,9 +6,14 @@ export default function TeacherNotificationsPage() {
         Parent-facing alerts (homework, notices, incidents, documents, and teacher replies) are recorded in the
         Communication Engine as in-app messages. Parents see them in the Parent Portal.
       </p>
+      <p className="teacher-muted">
+        While you are signed in to the Teacher Portal, new parent messages update your Inbox badge and show an
+        in-app notice (polled while the app is open). Open Inbox to read and reply.
+      </p>
       <p className="teacher-pwa-hint">
-        <strong>Teacher device push:</strong> not wired yet. To reach parents today, the engine records in-app
-        notifications; SMS, email, and WhatsApp sends depend on school communication profiles and queue workers.
+        <strong>Teacher device push:</strong> not wired yet — background/OS notifications when the Teacher Portal
+        is closed are not supported. Parent Web Push (installed Parent Portal PWA) is separate and does not notify
+        teachers.
       </p>
     </div>
   );
