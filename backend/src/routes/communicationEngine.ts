@@ -172,7 +172,10 @@ router.get("/campaigns", async (req, res) => {
 
 router.post("/messages/:id/retry", async (req, res) => {
   try {
-    const gate = await requireEngineSchoolAccess(req, res, { requireOwnerOrAdmin: true });
+    const gate = await requireEngineSchoolAccess(req, res, {
+      requireOwnerOrAdmin: true,
+      requireCommunicationsAction: "send",
+    });
     if (!gate) return;
     const id = String(req.params.id || "").trim();
     if (!id) return res.status(400).json({ success: false, error: "id required" });
@@ -218,7 +221,10 @@ router.get("/queue/preview", async (req, res) => {
  */
 router.post("/queue/process", async (req, res) => {
   try {
-    const gate = await requireEngineSchoolAccess(req, res, { requireOwnerOrAdmin: true });
+    const gate = await requireEngineSchoolAccess(req, res, {
+      requireOwnerOrAdmin: true,
+      requireCommunicationsAction: "send",
+    });
     if (!gate) return;
 
     const dryRun =
@@ -270,7 +276,10 @@ router.get("/provider-settings", async (req, res) => {
 
 router.put("/provider-settings", async (req, res) => {
   try {
-    const gate = await requireEngineSchoolAccess(req, res, { requireOwnerOrAdmin: true });
+    const gate = await requireEngineSchoolAccess(req, res, {
+      requireOwnerOrAdmin: true,
+      requireCommunicationsAction: "edit",
+    });
     if (!gate) return;
     const schoolId = gate.schoolId;
     const smtp = req.body?.smtp;

@@ -110,13 +110,13 @@ function main() {
     "explicit deny wins"
   );
 
-  // Teacher messaging pages preserved
+  // Teacher Inbox preserved; Communications Centre requires communications.view
   const teacherUser = user("Teacher", teacher);
   assert.equal(canAccessSchoolPageByPermission("teacherInbox", teacherUser), true);
   assert.equal(
     canAccessSchoolPageByPermission("communicationsHub", teacherUser),
-    true,
-    "teachers reach hub via teachers.view"
+    false,
+    "teachers do not reach Centre without communications.view"
   );
   assert.equal(
     canAccessSchoolPageByPermission("communicationSms", teacherUser),
@@ -133,13 +133,31 @@ function main() {
   staffMap.communications = { view: true, send: true };
   const staff = user("Custom", staffMap);
   assert.equal(canAccessSchoolPageByPermission("communicationSms", staff), true);
+  assert.equal(canAccessSchoolPageByPermission("communicationsHub", staff), true);
   assert.equal(hasPermission(staff, "communications", "send"), true);
+  assert.equal(hasPermission(staff, "communications", "view"), true);
   assert.equal(hasPermission(staff, "billing", "view"), false);
 
-  // Unauthorised Custom user
+  // View alone does not imply send
+  const viewOnlyMap = emptyPermissionMap();
+  viewOnlyMap.communications = { view: true };
+  const viewOnly = user("Custom", viewOnlyMap);
+  assert.equal(hasPermission(viewOnly, "communications", "view"), true);
+  assert.equal(hasPermission(viewOnly, "communications", "send"), false);
+
+  // Unauthorised Custom user — nav and direct page keys denied
   const none = user("Custom", emptyPermissionMap());
   assert.equal(canAccessSchoolPageByPermission("communicationsHub", none), false);
   assert.equal(canAccessSchoolPageByPermission("communicationCentre", none), false);
+  assert.equal(canAccessSchoolPageByPermission("communicationEmail", none), false);
+  assert.equal(canAccessSchoolPageByPermission("communicationSms", none), false);
+  assert.equal(canAccessSchoolPageByPermission("communicationSettings", none), false);
+
+  // Owner always
+  assert.equal(
+    canAccessSchoolPageByPermission("communicationsHub", user("Owner", emptyPermissionMap())),
+    true
+  );
 
   console.log("✓ communications permissions unit tests passed");
 }

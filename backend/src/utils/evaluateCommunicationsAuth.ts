@@ -1,9 +1,9 @@
 /**
  * Pure Communications Centre auth decision (no Prisma / Express).
+ * View never implies send/create/edit/delete/print — callers pass the exact action.
  */
 import {
   hasCommunicationsPermission,
-  hasPermission,
   resolveStoredPermissions,
   type PermissionAction,
   type PermissionMap,
@@ -19,7 +19,6 @@ export function evaluateCommunicationsAuth(input: {
   auth: CommunicationsAuthLike | null;
   requireAction: PermissionAction;
   requestSchoolId?: string;
-  allowTeacherViewFallback?: boolean;
 }):
   | { allowed: true; auth: CommunicationsAuthLike & { permissions: PermissionMap } }
   | { allowed: false; status: 401 | 403; error: string; code?: string } {
@@ -45,14 +44,6 @@ export function evaluateCommunicationsAuth(input: {
   };
 
   if (hasCommunicationsPermission(permUser, input.requireAction)) {
-    return { allowed: true, auth: { ...input.auth, permissions } };
-  }
-
-  if (
-    input.allowTeacherViewFallback &&
-    input.requireAction === "view" &&
-    hasPermission(permUser, "teachers", "view")
-  ) {
     return { allowed: true, auth: { ...input.auth, permissions } };
   }
 

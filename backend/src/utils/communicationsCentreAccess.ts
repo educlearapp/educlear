@@ -1,10 +1,9 @@
 /**
  * Shared Communications Centre access helper for announcements / events / documents.
- * Staff with communications.* are allowed; teachers keep class-scoped workflows via teachers.view.
+ * Requires communications.* — Teacher Inbox / teacher-app messaging stay on teachers.view.
  */
 import {
   hasCommunicationsPermission,
-  hasPermission,
   resolveStoredPermissions,
   type PermissionAction,
   type PermissionMap,
@@ -19,11 +18,7 @@ export function allowCommunicationsCentreActor(
     (gate.auth.permissions || null) as PermissionMap | null
   );
   const user = { appRole: gate.auth.appRole, isActive: true, permissions };
-  if (hasCommunicationsPermission(user, action)) return true;
-  if (action === "view" || action === "create" || action === "edit" || action === "send") {
-    return hasPermission(user, "teachers", "view");
-  }
-  return false;
+  return hasCommunicationsPermission(user, action);
 }
 
 export function actionFromHttpMethod(method: string): PermissionAction {
@@ -32,4 +27,13 @@ export function actionFromHttpMethod(method: string): PermissionAction {
   if (m === "POST") return "create";
   if (m === "PUT" || m === "PATCH") return "edit";
   return "view";
+}
+
+/** Lifecycle verbs → Communications RBAC action (view never authorises publish/send). */
+export function communicationsActionForLifecycle(
+  verb: "publish" | "republish" | "unpublish" | "cancel" | "archive"
+): PermissionAction {
+  if (verb === "publish" || verb === "republish") return "send";
+  if (verb === "archive") return "delete";
+  return "edit";
 }

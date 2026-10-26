@@ -21,6 +21,7 @@ import { parseEventInstant } from "../services/schoolEventService";
 import {
   actionFromHttpMethod,
   allowCommunicationsCentreActor,
+  communicationsActionForLifecycle,
 } from "../utils/communicationsCentreAccess";
 import type { PermissionAction } from "../utils/userPermissions";
 
@@ -137,7 +138,8 @@ router.post("/", async (req, res) => {
   try {
     const schoolId = String(req.body?.schoolId || "").trim();
     if (!schoolId) return res.status(400).json({ success: false, error: "schoolId required" });
-    const actor = await resolveEventActor(req, res, schoolId);
+    const publishNow = Boolean(req.body?.publishNow);
+    const actor = await resolveEventActor(req, res, schoolId, publishNow ? "send" : "create");
     if (!actor) return;
     const event = await createEventDraft({
       schoolId,
@@ -152,7 +154,7 @@ router.post("/", async (req, res) => {
         className: req.body?.className ?? null,
         learnerId: req.body?.learnerId ?? null,
       },
-      publishNow: Boolean(req.body?.publishNow),
+      publishNow,
     });
     return res.json({ success: true, event });
   } catch (e) {
@@ -223,7 +225,12 @@ function transitionHandler(action: "publish" | "cancel" | "archive") {
       if (!schoolId || !id) {
         return res.status(400).json({ success: false, error: "schoolId and id required" });
       }
-      const actor = await resolveEventActor(req, res, schoolId, "send");
+      const actor = await resolveEventActor(
+        req,
+        res,
+        schoolId,
+        communicationsActionForLifecycle(action)
+      );
       if (!actor) return;
       const event = await transitionEvent({
         schoolId,

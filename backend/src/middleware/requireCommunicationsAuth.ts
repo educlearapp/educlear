@@ -16,10 +16,7 @@ export type CommunicationsAuthRequest = Request & {
 
 export { evaluateCommunicationsAuth };
 
-export function requireCommunicationsAuth(
-  requireAction: PermissionAction,
-  opts?: { allowTeacherViewFallback?: boolean }
-) {
+export function requireCommunicationsAuth(requireAction: PermissionAction) {
   return async (req: CommunicationsAuthRequest, res: Response, next: NextFunction) => {
     try {
       const auth = await loadStaffSchoolAuth(req.headers.authorization);
@@ -30,7 +27,6 @@ export function requireCommunicationsAuth(
         auth,
         requireAction,
         requestSchoolId,
-        allowTeacherViewFallback: opts?.allowTeacherViewFallback,
       });
       if (!decision.allowed) {
         return res.status(decision.status).json({

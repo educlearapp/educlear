@@ -1,10 +1,5 @@
 import { isSuperAdmin } from "./roles";
-import {
-  hasCommunicationsPermission,
-  hasPermission,
-  type ModuleKey,
-  type PermissionAction,
-} from "../users/permissions";
+import { hasPermission, type ModuleKey, type PermissionAction } from "../users/permissions";
 import { getSchoolSessionUser, type SchoolSessionUser } from "./schoolSession";
 import {
   deniedModuleForSchoolPage,
@@ -33,10 +28,7 @@ const PAGE_RULES: Record<string, PageRule> = {
   parentPortal: { module: "parents", action: "view" },
   /** Parent–teacher messaging — keep on teachers.view so teachers retain inbox access. */
   teacherInbox: { module: "teachers", action: "view" },
-  /**
-   * Communications Centre hub. Primary gate is communications.view; teachers with
-   * teachers.view still reach the Messages tab (see canAccessSchoolPageByPermission).
-   */
+  /** Communications Centre hub — communications.view only (no teachers.view fallback). */
   communicationsHub: { module: "communications", action: "view" },
   learnerProfile: { module: "learners", action: "view" },
   addLearner: { module: "learners", action: "create" },
@@ -157,15 +149,6 @@ export function canAccessSchoolPageByPermission(
   // Accounting product area is Owner-only. reports.view still powers Billing Reports / Lists.
   if (String(page).startsWith("accounting")) {
     return false;
-  }
-
-  // Teachers keep Communications Centre hub (Messages) via teachers.view without a
-  // Communications grant; staff email/SMS/settings/queue require communications.*.
-  if (page === "communicationsHub") {
-    return (
-      hasCommunicationsPermission(user, "view") ||
-      hasPermission(user, "teachers", "view")
-    );
   }
 
   const rule = PAGE_RULES[page];
