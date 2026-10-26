@@ -36,9 +36,38 @@ import {
   completeCommunicationSmsSend,
 } from "../services/communicationSmsDuplicateGuard";
 import type { SchoolModuleGateRequest } from "../middleware/requireSchoolModule";
+import {
+  requireCommunicationsAuth,
+  type CommunicationsAuthRequest,
+} from "../middleware/requireCommunicationsAuth";
+import type { PermissionAction } from "../utils/userPermissions";
 
 const router = Router();
 const DATA_FILE = path.join(process.cwd(), "data", "communication-store.json");
+
+/** Map HTTP verb + path to Communications RBAC action. */
+function communicationsActionForRequest(req: { method?: string; path?: string }): PermissionAction {
+  const method = String(req.method || "GET").toUpperCase();
+  const p = String(req.path || "");
+  if (method === "GET") return "view";
+  if (method === "DELETE") return "delete";
+  if (method === "PUT" || method === "PATCH") return "edit";
+  if (method === "POST") {
+    if (/\/send$|test-sms/.test(p)) return "send";
+    return "create";
+  }
+  return "view";
+}
+
+/** Enforce communications.* on every Communication Centre route (not Teacher Inbox). */
+router.use((req, res, next) => {
+  const action = communicationsActionForRequest(req);
+  return requireCommunicationsAuth(action)(req as CommunicationsAuthRequest, res, next);
+});
+
+function authorizedCommsSchoolId(req: CommunicationsAuthRequest, fallback = ""): string {
+  return String(req.communicationsAuth?.authorizedSchoolId || fallback || "").trim();
+}
 
 export type CommunicationSettings = {
   sendViaEduClearDomain: boolean;
@@ -218,7 +247,10 @@ async function loadSchoolBranding(schoolId: string) {
 
 router.get("/settings", async (req, res) => {
   try {
-    const schoolId = String(req.query.schoolId || "").trim();
+    const schoolId = authorizedCommsSchoolId(
+      req as CommunicationsAuthRequest,
+      String(req.query.schoolId || "")
+    );
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
     const store = ensureStore();
     const schoolStore = getSchoolStore(store, schoolId);
@@ -257,7 +289,10 @@ router.get("/settings", async (req, res) => {
 
 router.put("/settings", async (req, res) => {
   try {
-    const schoolId = String(req.body?.schoolId || "").trim();
+    const schoolId = authorizedCommsSchoolId(
+      req as CommunicationsAuthRequest,
+      String(req.body?.schoolId || "")
+    );
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
     const store = ensureStore();
     const schoolStore = getSchoolStore(store, schoolId);
@@ -298,7 +333,10 @@ router.put("/settings", async (req, res) => {
 
 router.post("/settings/test-sms", async (req, res) => {
   try {
-    const schoolId = String(req.body?.schoolId || "").trim();
+    const schoolId = authorizedCommsSchoolId(
+      req as CommunicationsAuthRequest,
+      String(req.body?.schoolId || "")
+    );
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
 
     const apiKey = String(req.body?.apiKey || req.body?.winSmsApiKey || "").trim();
@@ -328,7 +366,7 @@ router.post("/settings/test-sms", async (req, res) => {
 
 router.get("/contacts", async (req, res) => {
   try {
-    const schoolId = String(req.query.schoolId || "").trim();
+    const schoolId = authorizedCommsSchoolId(req as CommunicationsAuthRequest, String(req.query.schoolId || ""));
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
     const channel = String(req.query.channel || "email").trim() as CommunicationRecipientChannel;
     const kind = String(req.query.kind || "parents").trim() as CommunicationRecipientKind;
@@ -348,7 +386,7 @@ router.get("/contacts", async (req, res) => {
 
 router.get("/emails", (req, res) => {
   try {
-    const schoolId = String(req.query.schoolId || "").trim();
+    const schoolId = authorizedCommsSchoolId(req as CommunicationsAuthRequest, String(req.query.schoolId || ""));
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
     const store = ensureStore();
     const school = getSchoolStore(store, schoolId);
@@ -366,7 +404,7 @@ router.get("/emails", (req, res) => {
 
 router.get("/emails/:id", (req, res) => {
   try {
-    const schoolId = String(req.query.schoolId || "").trim();
+    const schoolId = authorizedCommsSchoolId(req as CommunicationsAuthRequest, String(req.query.schoolId || ""));
     const id = String(req.params.id || "").trim();
     const store = ensureStore();
     const school = getSchoolStore(store, schoolId);
@@ -381,7 +419,7 @@ router.get("/emails/:id", (req, res) => {
 
 router.post("/emails", async (req, res) => {
   try {
-    const schoolId = String(req.body?.schoolId || "").trim();
+    const schoolId = authorizedCommsSchoolId(req as CommunicationsAuthRequest, String(req.body?.schoolId || ""));
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
     const store = ensureStore();
     const school = getSchoolStore(store, schoolId);
@@ -420,7 +458,7 @@ router.post("/emails", async (req, res) => {
 
 router.put("/emails/:id", (req, res) => {
   try {
-    const schoolId = String(req.body?.schoolId || "").trim();
+    const schoolId = authorizedCommsSchoolId(req as CommunicationsAuthRequest, String(req.body?.schoolId || ""));
     const id = String(req.params.id || "").trim();
     const store = ensureStore();
     const school = getSchoolStore(store, schoolId);
@@ -447,7 +485,7 @@ router.put("/emails/:id", (req, res) => {
 
 router.delete("/emails/:id", (req, res) => {
   try {
-    const schoolId = String(req.query.schoolId || req.body?.schoolId || "").trim();
+    const schoolId = authorizedCommsSchoolId(req as CommunicationsAuthRequest, String(req.query.schoolId || req.body?.schoolId || ""));
     const id = String(req.params.id || "").trim();
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
     if (!id) return res.status(400).json({ success: false, error: "Missing email id" });
@@ -475,7 +513,7 @@ function emailBodyToHtml(body: string) {
 
 router.post("/emails/:id/send", async (req, res) => {
   try {
-    const schoolId = String(req.body?.schoolId || "").trim();
+    const schoolId = authorizedCommsSchoolId(req as CommunicationsAuthRequest, String(req.body?.schoolId || ""));
     const id = String(req.params.id || "").trim();
     const store = ensureStore();
     const school = getSchoolStore(store, schoolId);
@@ -544,7 +582,7 @@ router.post("/emails/:id/send", async (req, res) => {
 
 router.get("/sms", (req, res) => {
   try {
-    const schoolId = String(req.query.schoolId || "").trim();
+    const schoolId = authorizedCommsSchoolId(req as CommunicationsAuthRequest, String(req.query.schoolId || ""));
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
     const store = ensureStore();
     const school = getSchoolStore(store, schoolId);
@@ -563,7 +601,7 @@ router.get("/sms", (req, res) => {
 
 router.get("/sms/:id", (req, res) => {
   try {
-    const schoolId = String(req.query.schoolId || "").trim();
+    const schoolId = authorizedCommsSchoolId(req as CommunicationsAuthRequest, String(req.query.schoolId || ""));
     const id = String(req.params.id || "").trim();
     const store = ensureStore();
     const school = getSchoolStore(store, schoolId);
@@ -578,7 +616,7 @@ router.get("/sms/:id", (req, res) => {
 
 router.post("/sms", (req, res) => {
   try {
-    const schoolId = String(req.body?.schoolId || "").trim();
+    const schoolId = authorizedCommsSchoolId(req as CommunicationsAuthRequest, String(req.body?.schoolId || ""));
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
     const store = ensureStore();
     const school = getSchoolStore(store, schoolId);
@@ -605,7 +643,7 @@ router.post("/sms", (req, res) => {
 
 router.put("/sms/:id", (req, res) => {
   try {
-    const schoolId = String(req.body?.schoolId || "").trim();
+    const schoolId = authorizedCommsSchoolId(req as CommunicationsAuthRequest, String(req.body?.schoolId || ""));
     const id = String(req.params.id || "").trim();
     const store = ensureStore();
     const school = getSchoolStore(store, schoolId);
@@ -630,7 +668,7 @@ router.put("/sms/:id", (req, res) => {
 
 router.delete("/sms/:id", (req, res) => {
   try {
-    const schoolId = String(req.query.schoolId || req.body?.schoolId || "").trim();
+    const schoolId = authorizedCommsSchoolId(req as CommunicationsAuthRequest, String(req.query.schoolId || req.body?.schoolId || ""));
     const id = String(req.params.id || "").trim();
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
     if (!id) return res.status(400).json({ success: false, error: "Missing SMS id" });
@@ -652,7 +690,9 @@ router.delete("/sms/:id", (req, res) => {
 router.post("/sms/:id/send", async (req, res) => {
   const requestedSchoolId = String(req.body?.schoolId || "").trim();
   const moduleAuth = (req as SchoolModuleGateRequest).schoolModuleAuth;
-  const authorizedSchoolId = String(moduleAuth?.authorizedSchoolId || "").trim();
+  const moduleSchoolId = String(moduleAuth?.authorizedSchoolId || "").trim();
+  const commsSchoolId = authorizedCommsSchoolId(req as CommunicationsAuthRequest);
+  const authorizedSchoolId = commsSchoolId || moduleSchoolId;
   if (authorizedSchoolId && requestedSchoolId && authorizedSchoolId !== requestedSchoolId) {
     return res.status(403).json({ success: false, error: "School access denied", simulated: false });
   }

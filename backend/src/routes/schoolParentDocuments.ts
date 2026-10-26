@@ -16,6 +16,11 @@ import { assignedClassroomIdsForTeacher } from "../utils/classroomTeachers";
 import { normalizeStaffEmail } from "../utils/staffJwt";
 import { isSchoolWideNoticePublisherRole } from "./parentPortal";
 import {
+  actionFromHttpMethod,
+  allowCommunicationsCentreActor,
+} from "../utils/communicationsCentreAccess";
+import type { PermissionAction } from "../utils/userPermissions";
+import {
   createParentNotification,
   uniqueParentLearnerLinks,
 } from "../services/parentPortalService";
@@ -89,9 +94,10 @@ type DocActor = {
 };
 
 async function resolveDocActor(
-  req: { headers: { authorization?: string } },
+  req: { headers: { authorization?: string }; method?: string },
   res: Response,
-  schoolId: string
+  schoolId: string,
+  requireAction?: PermissionAction
 ): Promise<DocActor | null> {
   const gate = await resolveStaffSchoolGate(req.headers.authorization);
   if (!gate) {
@@ -99,6 +105,16 @@ async function resolveDocActor(
     return null;
   }
   if (!allowSchool(gate, schoolId, res)) return null;
+
+  const action = requireAction || actionFromHttpMethod(req.method || "GET");
+  if (!allowCommunicationsCentreActor(gate, action)) {
+    res.status(403).json({
+      success: false,
+      error: `Permission denied: communications.${action}`,
+      code: "COMMUNICATIONS_FORBIDDEN",
+    });
+    return null;
+  }
 
   const classroomIds = await assignedClassroomIdsForTeacher(
     schoolId,

@@ -5,6 +5,8 @@ import EventsPanel from "./EventsPanel";
 import DocumentsPanel from "./DocumentsPanel";
 import NotificationsOverviewPanel from "./NotificationsOverviewPanel";
 import CommunicationCentre from "./CommunicationCentre";
+import { hasCommunicationsPermission } from "../users/permissions";
+import { getSchoolSessionUser } from "../auth/schoolSession";
 import "./communicationsCentreHub.css";
 
 type Tab =
@@ -21,17 +23,13 @@ type Props = {
 };
 
 function canAccessDeliveryQueue(): boolean {
-  const appRole = String(localStorage.getItem("appRole") || "").trim();
-  const role = String(localStorage.getItem("userRole") || "").trim();
-  const isOwner = localStorage.getItem("isOwner") === "true";
-  return (
-    isOwner ||
-    appRole === "Owner" ||
-    appRole === "Admin" ||
-    role === "SCHOOL_ADMIN" ||
-    role === "Owner" ||
-    role === "Admin"
-  );
+  const user = getSchoolSessionUser();
+  if (hasCommunicationsPermission(user, "view") || hasCommunicationsPermission(user, "manage")) {
+    return true;
+  }
+  // Owner always; keep Admin role continuity when soft-filled communications.view applies via session.
+  const appRole = String(user?.appRole || localStorage.getItem("appRole") || "").trim();
+  return appRole === "Owner" || appRole === "Admin";
 }
 
 const TABS: { id: Tab; label: string; adminOnly?: boolean }[] = [

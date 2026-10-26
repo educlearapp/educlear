@@ -18,13 +18,19 @@ import {
   type EventActor,
 } from "../services/schoolEventService";
 import { parseEventInstant } from "../services/schoolEventService";
+import {
+  actionFromHttpMethod,
+  allowCommunicationsCentreActor,
+} from "../utils/communicationsCentreAccess";
+import type { PermissionAction } from "../utils/userPermissions";
 
 const router = Router();
 
 async function resolveEventActor(
-  req: { headers: { authorization?: string } },
+  req: { headers: { authorization?: string }; method?: string },
   res: any,
-  schoolId: string
+  schoolId: string,
+  requireAction?: PermissionAction
 ): Promise<EventActor | null> {
   const gate = await resolveStaffSchoolGate(req.headers.authorization);
   if (!gate) {
@@ -32,6 +38,16 @@ async function resolveEventActor(
     return null;
   }
   if (!allowSchool(gate, schoolId, res)) return null;
+
+  const action = requireAction || actionFromHttpMethod(req.method || "GET");
+  if (!allowCommunicationsCentreActor(gate, action)) {
+    res.status(403).json({
+      success: false,
+      error: `Permission denied: communications.${action}`,
+      code: "COMMUNICATIONS_FORBIDDEN",
+    });
+    return null;
+  }
 
   const classrooms = await prisma.classroom.findMany({
     where: {
@@ -207,7 +223,7 @@ function transitionHandler(action: "publish" | "cancel" | "archive") {
       if (!schoolId || !id) {
         return res.status(400).json({ success: false, error: "schoolId and id required" });
       }
-      const actor = await resolveEventActor(req, res, schoolId);
+      const actor = await resolveEventActor(req, res, schoolId, "send");
       if (!actor) return;
       const event = await transitionEvent({
         schoolId,

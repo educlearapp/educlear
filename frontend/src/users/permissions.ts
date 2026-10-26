@@ -36,6 +36,7 @@ export const PERMISSION_MODULES = [
   { key: "payroll", label: "Payroll" },
   { key: "educlock", label: "EduClock" },
   { key: "admissions", label: "Admissions" },
+  { key: "communications", label: "Communications" },
   { key: "settings", label: "Settings" },
 ] as const;
 
@@ -131,6 +132,15 @@ export const roleTemplates: Record<Exclude<AppRole, "Custom">, PermissionMap> = 
     educlock: { clock: true, viewOwn: true, manage: true },
     // Full operational admissions. Accept/decline also need Owner/Admin at route level.
     admissions: { view: true, edit: true, delete: true, manage: true, send: true, export: true, print: true },
+    // Communication Centre (email/SMS/announcements hub). Not auto-granted to Teacher/Finance/Viewer.
+    communications: {
+      view: true,
+      create: true,
+      edit: true,
+      delete: true,
+      print: true,
+      send: true,
+    },
   }),
   Finance: withPermissions({
     dashboard: { view: true },
@@ -195,14 +205,36 @@ export function permissionsForRole(appRole: string, custom?: PermissionMap | nul
   return template ? mergePermissions(template) : emptyPermissionMap();
 }
 
-/** Use saved permissions when present; role templates only when no saved data exists. */
+/**
+ * Use saved permissions when present; role templates only when no saved data exists.
+ * Modules missing from a legacy stored map are soft-filled from the role template so
+ * newly added modules (e.g. communications) do not silently deny existing Admins until
+ * an Owner re-saves the matrix. Explicit keys in stored JSON always win.
+ */
 export function resolveStoredPermissions(
   appRole: string,
   stored: PermissionMap | null | undefined
 ): PermissionMap {
   if (appRole === "Owner") return allPermissionsTrue();
-  if (stored) return mergePermissions(stored);
+  if (stored) {
+    const merged = mergePermissions(stored);
+    const template = permissionsForRole(appRole);
+    for (const mod of PERMISSION_MODULES) {
+      if (!Object.prototype.hasOwnProperty.call(stored, mod.key)) {
+        merged[mod.key] = { ...template[mod.key] };
+      }
+    }
+    return merged;
+  }
   return permissionsForRole(appRole);
+}
+
+/** Communication Centre RBAC — authoritative communications.* (Owner always allowed). */
+export function hasCommunicationsPermission(
+  user: Pick<SchoolUser, "appRole" | "isActive" | "permissions"> | null | undefined,
+  action: PermissionAction
+): boolean {
+  return hasPermission(user, "communications", action);
 }
 
 export function hasPermission(
