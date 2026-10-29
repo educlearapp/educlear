@@ -42,6 +42,9 @@ export type EmailContact = {
   email: string;
   attachments: string[];
   status: string;
+  source?: "parent" | "learner" | "teacher" | "employee" | string;
+  sourceId?: string;
+  classNames?: string[];
 };
 
 export type EmailRecord = {
@@ -66,6 +69,9 @@ export type SmsContact = {
   cellNo: string;
   status: string;
   statusDetail?: string;
+  source?: "parent" | "learner" | "teacher" | "employee" | string;
+  sourceId?: string;
+  classNames?: string[];
 };
 
 export type SmsRecord = {
@@ -82,6 +88,8 @@ export type SmsRecord = {
 };
 
 export type CommunicationRecipientKind = "parents" | "learners" | "teachers" | "employees" | "all";
+export type CommunicationAudienceMode = "legacy" | "individual" | "all_parents" | "by_class";
+export type CommunicationClassScope = "classroom" | "grade" | "all_in_grade";
 
 export type CommunicationContact = {
   id: string;
@@ -93,6 +101,14 @@ export type CommunicationContact = {
   sourceId: string;
   learnerIds: string[];
   classNames: string[];
+};
+
+export type CommunicationAudiencePayload = {
+  audience?: CommunicationAudienceMode;
+  classScope?: CommunicationClassScope;
+  grade?: string;
+  className?: string;
+  kind?: CommunicationRecipientKind;
 };
 
 export type SchoolSmtpSender = {
@@ -135,6 +151,9 @@ export const fetchCommunicationContacts = (params: {
   channel: "email" | "sms";
   kind: CommunicationRecipientKind;
   className?: string;
+  grade?: string;
+  audience?: CommunicationAudienceMode;
+  classScope?: CommunicationClassScope;
 }) => {
   const q = new URLSearchParams({
     schoolId: params.schoolId,
@@ -142,16 +161,26 @@ export const fetchCommunicationContacts = (params: {
     kind: params.kind,
   });
   if (params.className) q.set("className", params.className);
+  if (params.grade) q.set("grade", params.grade);
+  if (params.audience) q.set("audience", params.audience);
+  if (params.classScope) q.set("classScope", params.classScope);
   return request<{
     success: boolean;
     contacts: CommunicationContact[];
     classFilters: string[];
+    gradeFilters: string[];
+    classroomsByGrade: Record<string, string[]>;
     counts: {
       parents: number;
       learners: number;
       teachers: number;
       employees: number;
       total: number;
+    };
+    actor?: {
+      isSchoolWideAdmin: boolean;
+      assignedClassNames: string[];
+      canManualAdd: boolean;
     };
   }>(`/contacts?${q.toString()}`);
 };
@@ -183,10 +212,10 @@ export const deleteEmail = (schoolId: string, id: string) =>
     method: "DELETE",
   });
 
-export const sendEmail = (schoolId: string, id: string) =>
+export const sendEmail = (schoolId: string, id: string, audience?: CommunicationAudiencePayload) =>
   request<{ success: boolean; email: EmailRecord; emailBalance: number; simulated?: boolean }>(
     `/emails/${encodeURIComponent(id)}/send`,
-    { method: "POST", body: JSON.stringify({ schoolId }) }
+    { method: "POST", body: JSON.stringify({ schoolId, ...(audience || {}) }) }
   );
 
 export const fetchSmsList = (schoolId: string) =>
@@ -235,7 +264,7 @@ export type SendSmsResponse = {
 export async function sendSms(
   schoolId: string,
   id: string,
-  options?: { confirmResend?: boolean; resendReason?: string }
+  options?: { confirmResend?: boolean; resendReason?: string } & CommunicationAudiencePayload
 ): Promise<SendSmsResponse> {
   const res = await fetch(`${BASE}/sms/${encodeURIComponent(id)}/send`, {
     method: "POST",
@@ -244,6 +273,11 @@ export async function sendSms(
       schoolId,
       confirmResend: options?.confirmResend === true,
       resendReason: options?.confirmResend === true ? options.resendReason : undefined,
+      audience: options?.audience,
+      classScope: options?.classScope,
+      grade: options?.grade,
+      className: options?.className,
+      kind: options?.kind,
     }),
   });
   const data = (await res.json().catch(() => ({}))) as SendSmsResponse & {

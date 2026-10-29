@@ -6,7 +6,13 @@ import { prisma } from "../prisma";
 import { getPublicSchoolEmailSettings } from "../services/schoolEmailService";
 import { sendSchoolEmail } from "../services/schoolEmailService";
 import {
+  assertCommunicationAudienceAllowed,
+  assertContactsAllowedForActor,
+  estimateCommunicationSmsCredits,
   loadCommunicationRecipients,
+  parseAudienceMode,
+  parseClassScope,
+  type CommunicationActor,
   type CommunicationRecipientChannel,
   type CommunicationRecipientKind,
 } from "../services/communicationRecipientService";
@@ -41,6 +47,15 @@ import {
   type CommunicationsAuthRequest,
 } from "../middleware/requireCommunicationsAuth";
 import type { PermissionAction } from "../utils/userPermissions";
+import {
+  allowSchool,
+  resolveStaffSchoolGate,
+  sendAuthRequired,
+} from "../middleware/staffSchoolGate";
+import { assignedClassroomIdsForTeacher } from "../utils/classroomTeachers";
+import { normalizeStaffEmail } from "../utils/staffJwt";
+import { isSchoolWideNoticePublisherRole } from "./parentPortal";
+import { loadSchoolClassMembership } from "../utils/classroomMembership";
 
 const router = Router();
 const DATA_FILE = path.join(process.cwd(), "data", "communication-store.json");
@@ -92,6 +107,9 @@ type EmailContact = {
   email: string;
   attachments: string[];
   status: string;
+  source?: "parent" | "learner" | "teacher" | "employee" | string;
+  sourceId?: string;
+  classNames?: string[];
 };
 
 type EmailRecord = {
@@ -117,6 +135,15 @@ type SmsContact = {
   status: string;
   /** Staff-facing WinSMS result. Never a phone number. */
   statusDetail?: string;
+  source?: "parent" | "learner" | "teacher" | "employee" | string;
+  sourceId?: string;
+  classNames?: string[];
+};
+
+type EmailContactAuth = EmailContact & {
+  source?: "parent" | "learner" | "teacher" | "employee" | string;
+  sourceId?: string;
+  classNames?: string[];
 };
 
 type SmsRecord = {
@@ -207,6 +234,88 @@ function getSchoolStore(store: Store, schoolId: string): SchoolStore {
 
 function newId(prefix: string) {
   return `${prefix}-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
+}
+
+/**
+ * Classroom / school-wide audience scope for an already RBAC-authorised staff user.
+ * Requires communications.* via router.use(requireCommunicationsAuth); this layer only
+ * resolves teacher class assignment vs school-wide publisher roles.
+ */
+async function resolveCommunicationActor(
+  req: CommunicationsAuthRequest,
+  res: any,
+  schoolId: string
+): Promise<CommunicationActor | null> {
+  const authorizedSchoolId = String(req.communicationsAuth?.authorizedSchoolId || "").trim();
+  if (authorizedSchoolId && authorizedSchoolId !== schoolId) {
+    res.status(403).json({ success: false, error: "School access denied" });
+    return null;
+  }
+
+  const gate = await resolveStaffSchoolGate(req.headers.authorization);
+  if (!gate) {
+    sendAuthRequired(res);
+    return null;
+  }
+  if (!allowSchool(gate, schoolId, res)) return null;
+
+  const classrooms = await prisma.classroom.findMany({
+    where: {
+      schoolId,
+      id: {
+        in: await assignedClassroomIdsForTeacher(schoolId, gate.auth.userId, gate.auth.email),
+      },
+    },
+    select: { name: true },
+  });
+  const byEmail = await prisma.classroom.findMany({
+    where: {
+      schoolId,
+      teacherEmail: { equals: normalizeStaffEmail(gate.auth.email), mode: "insensitive" },
+    },
+    select: { name: true },
+  });
+  const assignedClassNames = [
+    ...new Set([...classrooms, ...byEmail].map((c) => String(c.name || "").trim()).filter(Boolean)),
+  ];
+
+  return {
+    isSchoolWideAdmin: isSchoolWideNoticePublisherRole({
+      superAdmin: gate.superAdmin,
+      appRole: gate.auth.appRole,
+      role: gate.auth.role,
+    }),
+    assignedClassNames,
+  };
+}
+
+function readAudienceFromRequest(source: Record<string, unknown> | undefined) {
+  const audience = parseAudienceMode(source?.audience);
+  const classScope = parseClassScope(source?.classScope);
+  const grade = String(source?.grade || "").trim();
+  const className = String(source?.className || "").trim();
+  const kind = String(source?.kind || "parents").trim() as CommunicationRecipientKind;
+  return { audience, classScope, grade, className, kind };
+}
+
+/**
+ * Teachers may save empty SMS/email drafts; any contacts must be verified in-scope parents.
+ * Admins unchanged (manual contacts allowed).
+ */
+async function assertCommunicationDraftContactsAllowed(
+  actor: CommunicationActor,
+  schoolId: string,
+  contacts: Array<{
+    source?: string;
+    sourceId?: string;
+    classNames?: string[];
+    contactName?: string;
+  }>
+): Promise<string | null> {
+  if (actor.isSchoolWideAdmin) return null;
+  if (!Array.isArray(contacts) || contacts.length === 0) return null;
+  const membership = await loadSchoolClassMembership(schoolId);
+  return assertContactsAllowedForActor(actor, contacts, membership);
 }
 
 function maskPassword(password: string) {
@@ -369,17 +478,38 @@ router.get("/contacts", async (req, res) => {
   try {
     const schoolId = authorizedCommsSchoolId(req as CommunicationsAuthRequest, String(req.query.schoolId || ""));
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
+    const actor = await resolveCommunicationActor(req, res, schoolId);
+    if (!actor) return;
+
     const channel = String(req.query.channel || "email").trim() as CommunicationRecipientChannel;
-    const kind = String(req.query.kind || "parents").trim() as CommunicationRecipientKind;
-    const className = String(req.query.className || "").trim();
+    const targeting = readAudienceFromRequest(req.query as Record<string, unknown>);
     const result = await loadCommunicationRecipients({
       schoolId,
       channel: channel === "sms" ? "sms" : "email",
-      kind,
-      className,
+      kind: targeting.kind,
+      className: targeting.className,
+      grade: targeting.grade,
+      audience: targeting.audience,
+      classScope: targeting.classScope,
+      actor,
     });
-    return res.json({ success: true, ...result });
+    return res.json({
+      success: true,
+      ...result,
+      actor: {
+        isSchoolWideAdmin: actor.isSchoolWideAdmin,
+        assignedClassNames: actor.assignedClassNames,
+        canManualAdd: actor.isSchoolWideAdmin,
+      },
+    });
   } catch (error) {
+    const status = typeof (error as { status?: number })?.status === "number" ? (error as { status: number }).status : 500;
+    if (status === 403) {
+      return res.status(403).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Access denied",
+      });
+    }
     console.error("[communication] GET contacts failed:", error);
     return res.status(500).json({ success: false, error: "Failed to load contacts" });
   }
@@ -422,6 +552,15 @@ router.post("/emails", async (req, res) => {
   try {
     const schoolId = authorizedCommsSchoolId(req as CommunicationsAuthRequest, String(req.body?.schoolId || ""));
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
+    const actor = await resolveCommunicationActor(req, res, schoolId);
+    if (!actor) return;
+
+    const contacts: EmailContact[] = Array.isArray(req.body?.contacts) ? req.body.contacts : [];
+    const contactDeny = await assertCommunicationDraftContactsAllowed(actor, schoolId, contacts);
+    if (contactDeny) {
+      return res.status(403).json({ success: false, error: contactDeny });
+    }
+
     const store = ensureStore();
     const school = getSchoolStore(store, schoolId);
     const [branding, smtpPublic] = await Promise.all([
@@ -443,7 +582,7 @@ router.post("/emails", async (req, res) => {
       from: String(req.body?.from || defaultFromLabel).trim(),
       subject: String(req.body?.subject || "").trim(),
       message: String(req.body?.message || "").trim(),
-      contacts: Array.isArray(req.body?.contacts) ? req.body.contacts : [],
+      contacts,
       status: "Draft",
       createdAt: now,
       updatedAt: now,
@@ -457,22 +596,34 @@ router.post("/emails", async (req, res) => {
   }
 });
 
-router.put("/emails/:id", (req, res) => {
+router.put("/emails/:id", async (req, res) => {
   try {
     const schoolId = authorizedCommsSchoolId(req as CommunicationsAuthRequest, String(req.body?.schoolId || ""));
     const id = String(req.params.id || "").trim();
+    if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
+    const actor = await resolveCommunicationActor(req, res, schoolId);
+    if (!actor) return;
+
     const store = ensureStore();
     const school = getSchoolStore(store, schoolId);
     const idx = school.emails.findIndex((e) => e.id === id);
     if (idx < 0) return res.status(404).json({ success: false, error: "Email not found" });
     const current = school.emails[idx];
+    const nextContacts: EmailContact[] = Array.isArray(req.body?.contacts)
+      ? req.body.contacts
+      : current.contacts;
+    const contactDeny = await assertCommunicationDraftContactsAllowed(actor, schoolId, nextContacts);
+    if (contactDeny) {
+      return res.status(403).json({ success: false, error: contactDeny });
+    }
+
     const updated: EmailRecord = {
       ...current,
       description: req.body?.description !== undefined ? String(req.body.description) : current.description,
       from: req.body?.from !== undefined ? String(req.body.from) : current.from,
       subject: req.body?.subject !== undefined ? String(req.body.subject) : current.subject,
       message: req.body?.message !== undefined ? String(req.body.message) : current.message,
-      contacts: Array.isArray(req.body?.contacts) ? req.body.contacts : current.contacts,
+      contacts: nextContacts,
       updatedAt: new Date().toISOString(),
     };
     school.emails[idx] = updated;
@@ -516,6 +667,16 @@ router.post("/emails/:id/send", async (req, res) => {
   try {
     const schoolId = authorizedCommsSchoolId(req as CommunicationsAuthRequest, String(req.body?.schoolId || ""));
     const id = String(req.params.id || "").trim();
+    if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
+    const actor = await resolveCommunicationActor(req, res, schoolId);
+    if (!actor) return;
+
+    const targeting = readAudienceFromRequest(req.body || {});
+    const audienceDeny = assertCommunicationAudienceAllowed(actor, targeting);
+    if (audienceDeny) {
+      return res.status(403).json({ success: false, error: audienceDeny });
+    }
+
     const store = ensureStore();
     const school = getSchoolStore(store, schoolId);
     const idx = school.emails.findIndex((e) => e.id === id);
@@ -524,6 +685,13 @@ router.post("/emails/:id/send", async (req, res) => {
     if (!record.contacts.length) {
       return res.status(400).json({ success: false, error: "Add at least one contact before sending" });
     }
+
+    const membership = await loadSchoolClassMembership(schoolId);
+    const contactDeny = assertContactsAllowedForActor(actor, record.contacts, membership);
+    if (contactDeny) {
+      return res.status(403).json({ success: false, error: contactDeny });
+    }
+
     const sentAt = new Date().toISOString();
     const html = emailBodyToHtml(record.message);
     let sentCount = 0;
@@ -615,10 +783,19 @@ router.get("/sms/:id", (req, res) => {
   }
 });
 
-router.post("/sms", (req, res) => {
+router.post("/sms", async (req, res) => {
   try {
     const schoolId = authorizedCommsSchoolId(req as CommunicationsAuthRequest, String(req.body?.schoolId || ""));
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
+    const actor = await resolveCommunicationActor(req, res, schoolId);
+    if (!actor) return;
+
+    const contacts: SmsContact[] = Array.isArray(req.body?.contacts) ? req.body.contacts : [];
+    const contactDeny = await assertCommunicationDraftContactsAllowed(actor, schoolId, contacts);
+    if (contactDeny) {
+      return res.status(403).json({ success: false, error: contactDeny });
+    }
+
     const store = ensureStore();
     const school = getSchoolStore(store, schoolId);
     const now = new Date().toISOString();
@@ -628,7 +805,7 @@ router.post("/sms", (req, res) => {
       date: now.slice(0, 10),
       description: String(req.body?.description || "New SMS").trim(),
       message: String(req.body?.message || "").trim(),
-      contacts: Array.isArray(req.body?.contacts) ? req.body.contacts : [],
+      contacts,
       status: "Draft",
       createdAt: now,
       updatedAt: now,
@@ -642,20 +819,32 @@ router.post("/sms", (req, res) => {
   }
 });
 
-router.put("/sms/:id", (req, res) => {
+router.put("/sms/:id", async (req, res) => {
   try {
     const schoolId = authorizedCommsSchoolId(req as CommunicationsAuthRequest, String(req.body?.schoolId || ""));
     const id = String(req.params.id || "").trim();
+    if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
+    const actor = await resolveCommunicationActor(req, res, schoolId);
+    if (!actor) return;
+
     const store = ensureStore();
     const school = getSchoolStore(store, schoolId);
     const idx = school.sms.findIndex((e) => e.id === id);
     if (idx < 0) return res.status(404).json({ success: false, error: "SMS not found" });
     const current = school.sms[idx];
+    const nextContacts: SmsContact[] = Array.isArray(req.body?.contacts)
+      ? req.body.contacts
+      : current.contacts;
+    const contactDeny = await assertCommunicationDraftContactsAllowed(actor, schoolId, nextContacts);
+    if (contactDeny) {
+      return res.status(403).json({ success: false, error: contactDeny });
+    }
+
     const updated: SmsRecord = {
       ...current,
       description: req.body?.description !== undefined ? String(req.body.description) : current.description,
       message: req.body?.message !== undefined ? String(req.body.message) : current.message,
-      contacts: Array.isArray(req.body?.contacts) ? req.body.contacts : current.contacts,
+      contacts: nextContacts,
       updatedAt: new Date().toISOString(),
     };
     school.sms[idx] = updated;
@@ -707,14 +896,14 @@ router.post("/sms/:id/send", async (req, res) => {
       return res.status(400).json({ success: false, error: "Missing schoolId", simulated: false });
     }
 
-    const ready = await isSchoolSmsReady(schoolId);
-    if (!ready) {
-      return res.status(409).json({
-        success: false,
-        simulated: false,
-        error:
-          "WinSMS is not configured or not connected. Open Communication → Settings → SMS, connect your account, and test the connection.",
-      });
+    const actor = await resolveCommunicationActor(req, res, schoolId);
+    if (!actor) return;
+
+    // 1) Audience / actor permissions
+    const targeting = readAudienceFromRequest(req.body || {});
+    const audienceDeny = assertCommunicationAudienceAllowed(actor, targeting);
+    if (audienceDeny) {
+      return res.status(403).json({ success: false, error: audienceDeny, simulated: false });
     }
 
     const store = ensureStore();
@@ -723,12 +912,21 @@ router.post("/sms/:id/send", async (req, res) => {
     if (idx < 0) return res.status(404).json({ success: false, error: "SMS not found", simulated: false });
 
     const record = { ...school.sms[idx], contacts: [...school.sms[idx].contacts] };
+
+    // 2) Non-empty recipients
     if (!record.contacts.length) {
       return res.status(400).json({
         success: false,
         error: "Add at least one contact before sending",
         simulated: false,
       });
+    }
+
+    // 3) Every recipient authorised for school / classroom scope
+    const membership = await loadSchoolClassMembership(schoolId);
+    const contactDeny = assertContactsAllowedForActor(actor, record.contacts, membership);
+    if (contactDeny) {
+      return res.status(403).json({ success: false, error: contactDeny, simulated: false });
     }
 
     const message = String(record.message || "").trim();
@@ -740,7 +938,19 @@ router.post("/sms/:id/send", async (req, res) => {
       });
     }
 
-    const segments = analyseSmsMessage(message).segments || 1;
+    // 4) WinSMS readiness — only after auth and recipient checks
+    const ready = await isSchoolSmsReady(schoolId);
+    if (!ready) {
+      return res.status(409).json({
+        success: false,
+        simulated: false,
+        error:
+          "WinSMS is not configured or not connected. Open Communication → Settings → SMS, connect your account, and test the connection.",
+      });
+    }
+
+    const creditEstimate = estimateCommunicationSmsCredits(message, record.contacts.length);
+    const segments = creditEstimate.segments || analyseSmsMessage(message).segments || 1;
     const now = new Date().toISOString();
     const invalidContactIds = new Set<string>();
     const prepared: { contact: SmsContact; mobileNumber: string }[] = [];

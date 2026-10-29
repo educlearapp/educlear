@@ -14,6 +14,8 @@ import {
   sendEmail,
   smtpSenderFromSettings,
   updateEmail,
+  type CommunicationAudienceMode,
+  type CommunicationClassScope,
   type CommunicationSettings,
   type CommunicationRecipientKind,
   type EmailContact,
@@ -21,6 +23,7 @@ import {
   type SchoolSenderContext,
   type SchoolSmtpSender,
 } from "./communicationApi";
+import { isCommunicationSchoolAdmin } from "./communicationAudience";
 import { fetchSchoolEmailSettings } from "./schoolEmailApi";
 import {
   fieldStyle,
@@ -66,12 +69,20 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
   const [contactSearch, setContactSearch] = useState("");
   const [recipientKind, setRecipientKind] = useState<CommunicationRecipientKind>("parents");
+  const [audienceMode, setAudienceMode] = useState<CommunicationAudienceMode>("individual");
+  const [classScope, setClassScope] = useState<CommunicationClassScope>("classroom");
   const [classFilter, setClassFilter] = useState("");
+  const [gradeFilter, setGradeFilter] = useState("");
   const [classFilters, setClassFilters] = useState<string[]>([]);
+  const [gradeFilters, setGradeFilters] = useState<string[]>([]);
+  const [classroomsByGrade, setClassroomsByGrade] = useState<Record<string, string[]>>({});
+  const [isSchoolAdmin] = useState(() => isCommunicationSchoolAdmin());
+  const [canManualAdd, setCanManualAdd] = useState(() => isCommunicationSchoolAdmin());
 
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [attachmentModalOpen, setAttachmentModalOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [sendConfirmOpen, setSendConfirmOpen] = useState(false);
   const [manualName, setManualName] = useState("");
   const [manualRelationship, setManualRelationship] = useState("Parent");
   const [manualEmail, setManualEmail] = useState("");
@@ -97,6 +108,31 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
   const replyToEmail = useMemo(
     () => serverReplyTo || resolveSchoolReplyToEmail(settings, schoolCtx, smtpSender),
     [serverReplyTo, settings, schoolCtx, smtpSender]
+  );
+
+  const finalRecipients = useMemo(() => {
+    if (audienceMode === "individual") {
+      return contacts.filter((c) => selectedContactIds.includes(c.id));
+    }
+    return contacts;
+  }, [audienceMode, contacts, selectedContactIds]);
+
+  const visibleClassFilters = useMemo(() => {
+    if (audienceMode === "by_class" && gradeFilter) {
+      return classroomsByGrade[gradeFilter] || classFilters;
+    }
+    return classFilters;
+  }, [audienceMode, gradeFilter, classroomsByGrade, classFilters]);
+
+  const audiencePayload = useMemo(
+    () => ({
+      audience: audienceMode,
+      classScope: audienceMode === "by_class" ? classScope : undefined,
+      grade: gradeFilter || undefined,
+      className: classFilter || undefined,
+      kind: recipientKind,
+    }),
+    [audienceMode, classScope, gradeFilter, classFilter, recipientKind]
   );
 
   const loadList = useCallback(async () => {
@@ -220,12 +256,21 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
           schoolId,
           channel: "email",
           kind: "parents",
+          audience: "individual",
         }).catch(() => null);
         if (contactRes?.classFilters) setClassFilters(contactRes.classFilters);
+        if (contactRes?.gradeFilters) setGradeFilters(contactRes.gradeFilters);
+        if (contactRes?.classroomsByGrade) setClassroomsByGrade(contactRes.classroomsByGrade || {});
+        if (contactRes?.actor) setCanManualAdd(Boolean(contactRes.actor.canManualAdd));
       } catch {
         /* use cached settings */
       }
     }
+    setAudienceMode("individual");
+    setClassScope("classroom");
+    setGradeFilter("");
+    setClassFilter("");
+    setRecipientKind("parents");
     resetCompose(s, ctx, smtp);
     setView("compose");
   };
@@ -272,12 +317,33 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
 
   const handleSend = async () => {
     setError("");
+    if (!finalRecipients.length) {
+      setError(
+        audienceMode === "individual"
+          ? "Select at least one parent before sending."
+          : "Add at least one contact before sending."
+      );
+      return;
+    }
+    setSendConfirmOpen(false);
     setLoading(true);
     try {
-      const saved = await saveDraft();
+      const payloadContacts = finalRecipients;
+      const payload = {
+        schoolId,
+        description: description || "Email",
+        from: from || formatComposeSenderLabel(settings, schoolCtx, smtpSender),
+        subject,
+        message,
+        contacts: payloadContacts,
+      };
+      const saved = editId
+        ? (await updateEmail(editId, payload)).email
+        : (await createEmail(payload)).email;
+      setEditId(saved.id);
+      setContacts(payloadContacts);
       if (!saved?.id) throw new Error("Could not save email before sending");
-      if (!contacts.length) throw new Error("Add at least one contact before sending");
-      const res = await sendEmail(schoolId, saved.id);
+      const res = await sendEmail(schoolId, saved.id, audiencePayload);
       setEmailBalance(res.emailBalance ?? emailBalance);
       await loadList();
       setView("list");
@@ -313,16 +379,40 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
 
   const handleAutoAdd = async () => {
     if (!schoolId) return;
+    if (audienceMode === "by_class") {
+      if (classScope === "classroom" && !classFilter) {
+        setError("Select a classroom before loading contacts.");
+        return;
+      }
+      if ((classScope === "grade" || classScope === "all_in_grade") && !gradeFilter) {
+        setError("Select a grade before loading contacts.");
+        return;
+      }
+    }
+    if (!isSchoolAdmin && audienceMode === "all_parents") {
+      setError("Teachers may only message parents of their assigned classrooms.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
+      const kindForLoad =
+        audienceMode === "individual" || audienceMode === "all_parents" || audienceMode === "by_class"
+          ? "parents"
+          : recipientKind;
       const res = await fetchCommunicationContacts({
         schoolId,
         channel: "email",
-        kind: recipientKind,
-        className: classFilter,
+        kind: kindForLoad,
+        className: classFilter || undefined,
+        grade: gradeFilter || undefined,
+        audience: audienceMode,
+        classScope: audienceMode === "by_class" ? classScope : undefined,
       });
       setClassFilters(res.classFilters || []);
+      setGradeFilters(res.gradeFilters || []);
+      setClassroomsByGrade(res.classroomsByGrade || {});
+      if (res.actor) setCanManualAdd(Boolean(res.actor.canManualAdd));
       const added: EmailContact[] = (res.contacts || []).map((contact) => ({
         id: contact.id,
         contactName: contact.contactName,
@@ -330,17 +420,25 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
         email: String(contact.email || "").trim(),
         attachments: [],
         status: "Ready",
+        source: contact.source,
+        sourceId: contact.sourceId,
+        classNames: contact.classNames || [],
       }));
       if (!added.length) {
         setError("No valid email contacts found for the selected filters.");
         return;
       }
-      const existing = new Set(contacts.map((c) => c.email.toLowerCase()));
-      const merged = [...contacts];
-      for (const c of added) {
-        if (!existing.has(c.email.toLowerCase())) merged.push(c);
+      if (audienceMode === "individual" || audienceMode === "all_parents" || audienceMode === "by_class") {
+        setContacts(added);
+        setSelectedContactIds(added.map((c) => c.id));
+      } else {
+        const existing = new Set(contacts.map((c) => c.email.toLowerCase()));
+        const merged = [...contacts];
+        for (const c of added) {
+          if (!existing.has(c.email.toLowerCase())) merged.push(c);
+        }
+        setContacts(merged);
       }
-      setContacts(merged);
     } catch (e: any) {
       setError(e?.message || "Failed to load contacts");
     } finally {
@@ -349,6 +447,11 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
   };
 
   const addManualContact = () => {
+    if (!canManualAdd) {
+      setError("Only school administrators may add contacts manually.");
+      setContactModalOpen(false);
+      return;
+    }
     const email = manualEmail.trim();
     if (!email) return;
     setContacts((prev) => [
@@ -418,7 +521,22 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
             <button type="button" style={ghostBtn} onClick={() => { setView("list"); loadList(); }}>
               ← Back
             </button>
-            <button type="button" style={goldBtn} onClick={handleSend} disabled={loading}>
+            <button
+              type="button"
+              style={goldBtn}
+              onClick={() => {
+                if (!finalRecipients.length) {
+                  setError(
+                    audienceMode === "individual"
+                      ? "Select at least one parent before sending."
+                      : "Add at least one contact before sending."
+                  );
+                  return;
+                }
+                setSendConfirmOpen(true);
+              }}
+              disabled={loading}
+            >
               Send
             </button>
             <div style={{ position: "relative" }}>
@@ -486,30 +604,122 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
         </div>
 
         <div style={{ marginTop: 22 }}>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
-            <button type="button" style={goldBtn} onClick={() => setContactModalOpen(true)}>Add</button>
+          <p style={{ margin: "0 0 10px", color: "#0f172a", fontWeight: 800, fontSize: 13 }}>
+            Final selection: {finalRecipients.length} unique recipient{finalRecipients.length === 1 ? "" : "s"}
+          </p>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12, alignItems: "center" }}>
+            {canManualAdd ? (
+              <button type="button" style={goldBtn} onClick={() => setContactModalOpen(true)}>Add</button>
+            ) : null}
             <select
-              style={{ ...fieldStyle, maxWidth: 180 }}
-              value={recipientKind}
-              onChange={(e) => setRecipientKind(e.target.value as CommunicationRecipientKind)}
+              style={{ ...fieldStyle, maxWidth: 200 }}
+              value={audienceMode}
+              onChange={(e) => {
+                const next = e.target.value as CommunicationAudienceMode;
+                setAudienceMode(next);
+                setContacts([]);
+                setSelectedContactIds([]);
+                if (next === "all_parents") {
+                  setRecipientKind("parents");
+                  setClassFilter("");
+                  setGradeFilter("");
+                }
+                if (next === "by_class") {
+                  setRecipientKind("parents");
+                  setClassScope("classroom");
+                }
+                if (next === "individual") setRecipientKind("parents");
+              }}
             >
-              <option value="parents">Parents</option>
-              <option value="learners">Learners</option>
-              <option value="teachers">Teachers</option>
-              <option value="employees">Employees</option>
-              <option value="all">All Contacts</option>
+              <option value="individual">Individual Parents</option>
+              {isSchoolAdmin ? <option value="all_parents">All Parents</option> : null}
+              <option value="by_class">By Class</option>
+              {isSchoolAdmin ? <option value="legacy">Other contacts (teachers/employees)</option> : null}
             </select>
-            <select
-              style={{ ...fieldStyle, maxWidth: 180 }}
-              value={classFilter}
-              onChange={(e) => setClassFilter(e.target.value)}
-              disabled={recipientKind === "employees"}
-            >
-              <option value="">All Classes</option>
-              {classFilters.map((name) => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
+            {audienceMode === "legacy" ? (
+              <select
+                style={{ ...fieldStyle, maxWidth: 180 }}
+                value={recipientKind}
+                onChange={(e) => setRecipientKind(e.target.value as CommunicationRecipientKind)}
+              >
+                <option value="parents">Parents</option>
+                <option value="learners">Learners</option>
+                <option value="teachers">Teachers</option>
+                <option value="employees">Employees</option>
+                <option value="all">All Contacts</option>
+              </select>
+            ) : null}
+            {audienceMode === "by_class" && isSchoolAdmin ? (
+              <select
+                style={{ ...fieldStyle, maxWidth: 220 }}
+                value={classScope}
+                onChange={(e) => {
+                  setClassScope(e.target.value as CommunicationClassScope);
+                  setClassFilter("");
+                }}
+              >
+                <option value="classroom">One classroom</option>
+                <option value="grade">Entire grade</option>
+                <option value="all_in_grade">All classrooms in grade</option>
+              </select>
+            ) : null}
+            {audienceMode === "by_class" && (classScope === "grade" || classScope === "all_in_grade") ? (
+              <select
+                style={{ ...fieldStyle, maxWidth: 160 }}
+                value={gradeFilter}
+                onChange={(e) => {
+                  setGradeFilter(e.target.value);
+                  setClassFilter("");
+                }}
+              >
+                <option value="">Select grade</option>
+                {gradeFilters.map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
+            ) : null}
+            {audienceMode === "by_class" && classScope === "classroom" ? (
+              <>
+                {isSchoolAdmin ? (
+                  <select
+                    style={{ ...fieldStyle, maxWidth: 160 }}
+                    value={gradeFilter}
+                    onChange={(e) => {
+                      setGradeFilter(e.target.value);
+                      setClassFilter("");
+                    }}
+                  >
+                    <option value="">Any grade</option>
+                    {gradeFilters.map((g) => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
+                ) : null}
+                <select
+                  style={{ ...fieldStyle, maxWidth: 180 }}
+                  value={classFilter}
+                  onChange={(e) => setClassFilter(e.target.value)}
+                >
+                  <option value="">Select classroom</option>
+                  {(gradeFilter ? visibleClassFilters : classFilters).map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              </>
+            ) : null}
+            {audienceMode === "legacy" ? (
+              <select
+                style={{ ...fieldStyle, maxWidth: 180 }}
+                value={classFilter}
+                onChange={(e) => setClassFilter(e.target.value)}
+                disabled={recipientKind === "employees"}
+              >
+                <option value="">All Classes</option>
+                {classFilters.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+            ) : null}
             <button type="button" style={ghostBtn} onClick={() => void handleAutoAdd()} disabled={loading}>
               Load Contacts
             </button>
@@ -523,6 +733,11 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
               onChange={(e) => setContactSearch(e.target.value)}
             />
           </div>
+          {audienceMode === "individual" ? (
+            <p style={{ margin: "0 0 10px", color: "#64748b", fontWeight: 600, fontSize: 13 }}>
+              Tick the parents to include. Only checked recipients are sent.
+            </p>
+          ) : null}
 
           <table style={{ width: "100%", borderCollapse: "collapse", background: "#fff", borderRadius: 12 }}>
             <thead>
@@ -602,10 +817,30 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
               <p><strong>From:</strong> {from}</p>
               <p><strong>Subject:</strong> {subject}</p>
               <div style={{ whiteSpace: "pre-wrap", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16, background: "#fafafa" }}>{message}</div>
-              <p style={{ fontSize: 13, color: "#64748b" }}>
-                {contacts.length} recipient(s) · reply-to {replyToEmail || "not set"}
+              <p style={{ fontSize: 13, color: "#64748b", fontWeight: 700 }}>
+                {finalRecipients.length} unique recipient(s) · reply-to {replyToEmail || "not set"}
               </p>
               <button type="button" style={goldBtn} onClick={() => setPreviewOpen(false)}>Close</button>
+            </div>
+          </div>
+        ) : null}
+
+        {sendConfirmOpen ? (
+          <div style={modalOverlay} role="dialog" aria-modal="true">
+            <div style={{ ...modalPanel, padding: 24 }}>
+              <h3 style={{ marginTop: 0 }}>Confirm email send</h3>
+              <p style={{ color: "#64748b", fontWeight: 600, lineHeight: 1.45 }}>
+                Send to <strong>{finalRecipients.length}</strong> unique recipient
+                {finalRecipients.length === 1 ? "" : "s"}?
+              </p>
+              <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+                <button type="button" style={ghostBtn} onClick={() => setSendConfirmOpen(false)} disabled={loading}>
+                  Cancel
+                </button>
+                <button type="button" style={goldBtn} onClick={() => void handleSend()} disabled={loading}>
+                  {loading ? "Sending…" : "Confirm send"}
+                </button>
+              </div>
             </div>
           </div>
         ) : null}
