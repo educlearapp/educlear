@@ -25,6 +25,7 @@ import {
   syncSubscriptionFromLoginResponse,
 } from "./subscriptions/subscriptionsApi";
 import { cacheSchoolLogoUrl } from "./utils/schoolLogo";
+import { quarantineLegacyUnscopedEmployeeCaches } from "./employeesApi";
 
 
 
@@ -66,6 +67,8 @@ export default function Login({ onLoggedIn }: Props) {
     clearSuperAdminSession();
     clearSchoolSession();
     clearMigrationAccess();
+    // Prevent any leftover unscoped employee cache from hydrating the next school session.
+    quarantineLegacyUnscopedEmployeeCaches();
 
 
 

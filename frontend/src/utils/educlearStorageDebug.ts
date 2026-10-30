@@ -29,9 +29,15 @@ export const EDUCLEAR_MIGRATION_DEMO_CACHE_KEYS = [
   "addLearnerPrefillClassName",
   "educlearGroups",
   "educlearEmployees",
+  "educlearEmployees_backup",
 ] as const;
 
 const MIGRATION_DEMO_KEY_PATTERN = /migration|dasilva|demo|staging|mig-test|mig_test/i;
+/** Scoped and legacy employee caches that can leak PII across tenants in one browser. */
+const EMPLOYEE_CACHE_KEY_PATTERN =
+  /^educlearEmployees(:|_backup:|_backup$|$)|^selectedEmployeeForManage(:|$)/;
+/** Evidence quarantine keys — never cleared by migration cache wipe. */
+const EMPLOYEE_EVIDENCE_KEY_PATTERN = /^educlearEmployees_LEGACY_EVIDENCE:/;
 
 /**
  * Clears migration/demo localStorage caches. Does not touch auth or session keys.
@@ -49,8 +55,11 @@ export function clearEduClearMigrationCache(): string[] {
 
   for (let i = localStorage.length - 1; i >= 0; i--) {
     const key = localStorage.key(i);
-    if (!key || AUTH_SESSION_KEYS.has(key)) continue;
-    if (MIGRATION_DEMO_KEY_PATTERN.test(key) && !removed.includes(key)) {
+    if (!key || AUTH_SESSION_KEYS.has(key) || EMPLOYEE_EVIDENCE_KEY_PATTERN.test(key)) continue;
+    if (
+      (MIGRATION_DEMO_KEY_PATTERN.test(key) || EMPLOYEE_CACHE_KEY_PATTERN.test(key)) &&
+      !removed.includes(key)
+    ) {
       localStorage.removeItem(key);
       removed.push(key);
     }

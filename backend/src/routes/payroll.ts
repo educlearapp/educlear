@@ -165,6 +165,22 @@ router.post("/employee", requireEmployeeDirectory, async (req, res) => {
     }
 
     const sid = String(schoolId);
+
+    // Block cross-tenant "restore" that re-homes another school's Employee id under this school.
+    const clientEmployeeId = String((req.body as Record<string, unknown>)?.id || "").trim();
+    if (clientEmployeeId.length >= 20 && !clientEmployeeId.startsWith("employee-")) {
+      const foreign = await prisma.employee.findFirst({
+        where: { id: clientEmployeeId, NOT: { schoolId: sid } },
+        select: { id: true },
+      });
+      if (foreign) {
+        return res.status(403).json({
+          error: "Cannot import an employee that belongs to another school",
+          code: "CROSS_TENANT_EMPLOYEE",
+        });
+      }
+    }
+
     const payrollEnabled = await resolvePayrollModuleEnabled(sid);
     const bodyRecord = req.body as Record<string, unknown>;
     const payrollViolation = assertNoPayrollMutationWhenDisabled(bodyRecord, payrollEnabled);

@@ -134,18 +134,21 @@ import logo from "./assets/logo.png";
 
 import { useSchoolId } from "./useSchoolId";
 import {
+  clearSelectedEmployeeForManage,
   deleteSchoolEmployee,
   isLocalOnlyEmployee,
   isServerEmployeeId,
   loadEmployeesForSchool,
+  quarantineLegacyUnscopedEmployeeCaches,
   readEmployeesCache,
+  readSelectedEmployeeForManage,
   refreshEmployeesCacheFromBackend,
   reloadEmployeesFromBackend,
   removeEmployeeFromCache,
   restoreEmployeesFromBackupToCache,
   restoreLocalEmployeesToBackend,
   saveSchoolEmployee,
-  writeEmployeesCache,
+  writeSelectedEmployeeForManage,
 } from "./employeesApi";
 
 import ParentPortal from "./ParentPortal";
@@ -800,7 +803,7 @@ const [employeeDraft, setEmployeeDraft] = useState<any>({});
 
 
 
-const [localEmployees, setLocalEmployees] = useState<any[]>(() => readEmployeesCache());
+const [localEmployees, setLocalEmployees] = useState<any[]>([]);
 
 const [employeesLoading, setEmployeesLoading] = useState(false);
 
@@ -8729,7 +8732,7 @@ if (schoolId) {
       setEmployeesNeedsSync(reloaded.some(isLocalOnlyEmployee));
       setEmployeesUnsyncedCount(reloaded.filter(isLocalOnlyEmployee).length);
 
-      localStorage.setItem("selectedEmployeeForManage", JSON.stringify(verified));
+      writeSelectedEmployeeForManage(schoolId, verified);
       return verified;
     } catch (e: any) {
       alert(e?.message || "Failed to save employee");
@@ -8738,8 +8741,16 @@ if (schoolId) {
   };
 
   const loadSchoolEmployees = useCallback(async () => {
-    if (!schoolId) return;
+    if (!schoolId) {
+      setLocalEmployees([]);
+      setEmployeesNeedsSync(false);
+      setEmployeesUnsyncedCount(0);
+      setCanRestoreEmployeesFromBackup(false);
+      setEmployeesBackupCount(0);
+      return;
+    }
 
+    quarantineLegacyUnscopedEmployeeCaches();
     setEmployeesLoading(true);
     setEmployeesLoadError("");
 
@@ -8752,12 +8763,11 @@ if (schoolId) {
       setEmployeesBackupCount(result.backupCount);
     } catch (e: any) {
       setEmployeesLoadError(e?.message || "Failed to load employees");
-      const cached = readEmployeesCache();
-      if (cached.length) {
-        setLocalEmployees(cached);
-        setEmployeesNeedsSync(true);
-        setEmployeesUnsyncedCount(cached.length);
-      }
+      // Scoped fallback only — never unscoped / other-tenant cache.
+      const cached = readEmployeesCache(schoolId);
+      setLocalEmployees(cached);
+      setEmployeesNeedsSync(cached.some(isLocalOnlyEmployee));
+      setEmployeesUnsyncedCount(cached.filter(isLocalOnlyEmployee).length);
     } finally {
       setEmployeesLoading(false);
     }
@@ -8773,18 +8783,14 @@ if (schoolId) {
     try {
       const result = await restoreLocalEmployeesToBackend(schoolId);
       const backendRows = await refreshEmployeesCacheFromBackend(schoolId);
-      if (backendRows.length > 0) {
-        setLocalEmployees(backendRows);
-        setEmployeesNeedsSync(false);
-        setEmployeesUnsyncedCount(0);
-        setCanRestoreEmployeesFromBackup(false);
-      } else {
-        await loadSchoolEmployees();
-      }
+      setLocalEmployees(backendRows);
+      setEmployeesNeedsSync(false);
+      setEmployeesUnsyncedCount(0);
+      setCanRestoreEmployeesFromBackup(false);
 
       const errorLines = result.errors.length ? `\n\n${result.errors.slice(0, 5).join("\n")}` : "";
       alert(
-        `Restore complete.\n\nSynced: ${result.restored}\nFailed: ${result.failed}${errorLines}`
+        `Restore complete.\n\nSynced: ${result.restored}\nFailed: ${result.failed}\nSkipped (other school/server): ${result.skippedForeign}${errorLines}`
       );
     } catch (e: any) {
       alert(e?.message || "Failed to restore employees to EduClear");
@@ -8794,9 +8800,13 @@ if (schoolId) {
   };
 
   const handleLoadEmployeesFromBackup = () => {
-    const restored = restoreEmployeesFromBackupToCache();
+    if (!schoolId) {
+      alert("School ID is missing. Cannot load employee backup.");
+      return;
+    }
+    const restored = restoreEmployeesFromBackupToCache(schoolId);
     if (!restored.length) {
-      alert("No employee backup found.");
+      alert("No employee backup found for this school.");
       return;
     }
 
@@ -8808,7 +8818,14 @@ if (schoolId) {
   };
 
   useEffect(() => {
-    loadSchoolEmployees();
+    // Switching schools must not briefly show the previous tenant's employee list.
+    setLocalEmployees([]);
+    setEmployeesNeedsSync(false);
+    setEmployeesUnsyncedCount(0);
+    setCanRestoreEmployeesFromBackup(false);
+    setEmployeesBackupCount(0);
+    quarantineLegacyUnscopedEmployeeCaches();
+    void loadSchoolEmployees();
   }, [loadSchoolEmployees]);
   
   
@@ -8840,13 +8857,13 @@ if (schoolId) {
         setEmployeesNeedsSync(reloaded.some(isLocalOnlyEmployee));
         setEmployeesUnsyncedCount(reloaded.filter(isLocalOnlyEmployee).length);
       } else {
-        const updated = removeEmployeeFromCache(employeeId);
+        const updated = removeEmployeeFromCache(schoolId, employeeId);
         setLocalEmployees(updated);
         setEmployeesNeedsSync(updated.some(isLocalOnlyEmployee));
         setEmployeesUnsyncedCount(updated.filter(isLocalOnlyEmployee).length);
       }
 
-      localStorage.removeItem("selectedEmployeeForManage");
+      clearSelectedEmployeeForManage(schoolId);
       setSelectedEmployee(null);
       setEmployeeDraft({});
       setActivePage("employees");
@@ -8875,7 +8892,9 @@ if (schoolId) {
   
   
   
-    localStorage.setItem("selectedEmployeeForManage", JSON.stringify(employee));
+    if (schoolId) {
+      writeSelectedEmployeeForManage(schoolId, employee);
+    }
   
   
   
@@ -9607,51 +9626,23 @@ if (schoolId) {
 
 
 
-    const saved = localStorage.getItem("selectedEmployeeForManage");
-  
-  
-  
+    const savedScoped = schoolId ? readSelectedEmployeeForManage(schoolId)[0] : null;
+
+
+
     const employee =
-  
-  
-  
+
+
+
       selectedEmployee ||
-  
-  
-  
-      (saved
-  
-  
-  
-        ? (() => {
-  
-  
-  
-            try {
-  
-  
-  
-              return JSON.parse(saved);
-  
-  
-  
-            } catch {
-  
-  
-  
-              return null;
-  
-  
-  
-            }
-  
-  
-  
-          })()
-  
-  
-  
-        : null);
+
+
+
+      savedScoped ||
+
+
+
+      null;
   
   
   

@@ -2,9 +2,45 @@ import { apiFetch } from "./api";
 
 export type AdminEmployee = Record<string, unknown>;
 
-const CACHE_KEY = "educlearEmployees";
-const BACKUP_KEY = "educlearEmployees_backup";
-const SELECTED_EMPLOYEE_KEY = "selectedEmployeeForManage";
+/** Legacy unscoped keys — never read for display/restore (cross-tenant leak vector). */
+const LEGACY_CACHE_KEY = "educlearEmployees";
+const LEGACY_BACKUP_KEY = "educlearEmployees_backup";
+const LEGACY_SELECTED_KEY = "selectedEmployeeForManage";
+
+/** Preserved copies of legacy unscoped caches for POPIA incident assessment — never used by UI. */
+const LEGACY_EVIDENCE_PREFIX = "educlearEmployees_LEGACY_EVIDENCE:";
+
+function resolveStorageUserKey(): string {
+  if (typeof localStorage === "undefined") return "anonymous";
+  const userId = String(localStorage.getItem("userId") || "").trim();
+  if (userId) return userId;
+  const email = String(localStorage.getItem("userEmail") || "")
+    .trim()
+    .toLowerCase();
+  if (email) return email;
+  return "anonymous";
+}
+
+/** Browser storage is scoped by school AND authenticated user. */
+function cacheKey(schoolId: string): string {
+  return `educlearEmployees:${schoolId}:${resolveStorageUserKey()}`;
+}
+
+function backupKey(schoolId: string): string {
+  return `educlearEmployees_backup:${schoolId}:${resolveStorageUserKey()}`;
+}
+
+function selectedEmployeeKey(schoolId: string): string {
+  return `selectedEmployeeForManage:${schoolId}:${resolveStorageUserKey()}`;
+}
+
+function requireSchoolId(schoolId: string): string {
+  const sid = String(schoolId || "").trim();
+  if (!sid) {
+    throw new Error("schoolId is required for employee cache access");
+  }
+  return sid;
+}
 
 function num(v: unknown, fallback = 0): number {
   const n = Number(v === undefined || v === null || v === "" ? fallback : v);
@@ -51,6 +87,35 @@ export function isServerEmployeeId(id: unknown): boolean {
 
 export function isLocalOnlyEmployee(employee: AdminEmployee): boolean {
   return !isServerEmployeeId(employee.id);
+}
+
+/**
+ * Quarantine legacy global employee caches that were not scoped by school/user.
+ * Copies payloads to evidence keys first (POPIA assessment) then removes active keys
+ * so they cannot leak across tenants. Evidence keys are never read by the UI.
+ */
+export function quarantineLegacyUnscopedEmployeeCaches(): string[] {
+  const removed: string[] = [];
+  if (typeof localStorage === "undefined") return removed;
+  for (const key of [LEGACY_CACHE_KEY, LEGACY_BACKUP_KEY, LEGACY_SELECTED_KEY]) {
+    const raw = localStorage.getItem(key);
+    if (raw === null) continue;
+    const evidenceKey = `${LEGACY_EVIDENCE_PREFIX}${key}`;
+    if (localStorage.getItem(evidenceKey) === null) {
+      localStorage.setItem(
+        evidenceKey,
+        JSON.stringify({
+          quarantinedAt: new Date().toISOString(),
+          sourceKey: key,
+          byteLength: raw.length,
+          payload: raw,
+        })
+      );
+    }
+    localStorage.removeItem(key);
+    removed.push(key);
+  }
+  return removed;
 }
 
 function employeeDedupeKey(employee: AdminEmployee): string {
@@ -219,38 +284,54 @@ export function mergeEmployees(
     backendEmployees.map((e) => String(e.id || "").trim()).filter(Boolean)
   );
 
+  // Only merge local-only drafts. Never re-attach server IDs missing from this school's API
+  // (those are other-tenant or deleted rows and must not reappear in the UI).
   const unsyncedLocal = localEmployees.filter((employee) => {
+    if (!isLocalOnlyEmployee(employee)) return false;
     if (backendEmployees.some((backendEmployee) => namesMatch(employee, backendEmployee))) {
       return false;
     }
-
     const id = String(employee.id || "").trim();
     if (!id) return true;
-    if (isLocalOnlyEmployee(employee)) return true;
     return !backendIds.has(id);
   });
 
   return dedupeEmployees([...backendEmployees, ...unsyncedLocal]);
 }
 
-export function collectRecoverableLocalEmployees(): AdminEmployee[] {
+/** Recoverable drafts for ONE school only — never legacy unscoped keys. */
+export function collectRecoverableLocalEmployees(schoolId: string): AdminEmployee[] {
+  const sid = requireSchoolId(schoolId);
   const combined = [
-    ...readEmployeesCache(),
-    ...readEmployeesBackup(),
-    ...readSelectedEmployeeForManage(),
+    ...readEmployeesCache(sid),
+    ...readEmployeesBackup(sid),
+    ...readSelectedEmployeeForManage(sid),
   ];
-  return dedupeEmployees(combined);
+  return dedupeEmployees(combined).filter(isLocalOnlyEmployee);
 }
 
-export function readSelectedEmployeeForManage(): AdminEmployee[] {
+export function readSelectedEmployeeForManage(schoolId: string): AdminEmployee[] {
+  const sid = requireSchoolId(schoolId);
   try {
-    const raw = localStorage.getItem(SELECTED_EMPLOYEE_KEY);
+    const raw = localStorage.getItem(selectedEmployeeKey(sid));
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === "object" ? [parsed as AdminEmployee] : [];
   } catch {
     return [];
   }
+}
+
+export function writeSelectedEmployeeForManage(schoolId: string, employee: AdminEmployee): void {
+  const sid = requireSchoolId(schoolId);
+  quarantineLegacyUnscopedEmployeeCaches();
+  localStorage.setItem(selectedEmployeeKey(sid), JSON.stringify(employee));
+}
+
+export function clearSelectedEmployeeForManage(schoolId: string): void {
+  const sid = requireSchoolId(schoolId);
+  localStorage.removeItem(selectedEmployeeKey(sid));
+  localStorage.removeItem(LEGACY_SELECTED_KEY);
 }
 
 export type EmployeesLoadResult = {
@@ -262,52 +343,60 @@ export type EmployeesLoadResult = {
 };
 
 export async function loadEmployeesForSchool(schoolId: string): Promise<EmployeesLoadResult> {
-  const cached = readEmployeesCache();
-  const backup = readEmployeesBackup();
-  const recoverable = collectRecoverableLocalEmployees();
+  const sid = requireSchoolId(schoolId);
+  quarantineLegacyUnscopedEmployeeCaches();
+
+  const cached = readEmployeesCache(sid);
+  const backup = readEmployeesBackup(sid);
+  const localOnlyDrafts = collectRecoverableLocalEmployees(sid);
 
   let backend: AdminEmployee[] = [];
   try {
-    backend = await fetchSchoolEmployees(schoolId);
+    backend = await fetchSchoolEmployees(sid);
   } catch {
-    const fallback = recoverable.length ? recoverable : cached.length ? cached : backup;
+    // Network failure: fall back ONLY to this school's scoped cache — never another tenant.
+    const fallback = cached.length ? cached : backup;
+    const scoped = dedupeEmployees(fallback);
     return {
-      employees: dedupeEmployees(fallback),
-      needsSync: dedupeEmployees(fallback).some(isLocalOnlyEmployee),
-      unsyncedLocalCount: dedupeEmployees(fallback).filter(isLocalOnlyEmployee).length,
+      employees: scoped,
+      needsSync: scoped.some(isLocalOnlyEmployee),
+      unsyncedLocalCount: scoped.filter(isLocalOnlyEmployee).length,
       canRestoreFromBackup: cached.length === 0 && backup.length > 0,
       backupCount: backup.length,
     };
   }
 
-  if (backend.length === 0 && recoverable.length > 0) {
+  // Authoritative empty school: show empty (plus any local-only drafts for THIS school).
+  // Never resurrect unscoped/other-tenant server rows.
+  if (backend.length === 0) {
+    writeEmployeesCache(sid, localOnlyDrafts);
     return {
-      employees: recoverable,
-      needsSync: true,
-      unsyncedLocalCount: recoverable.filter(isLocalOnlyEmployee).length,
-      canRestoreFromBackup: cached.length === 0 && backup.length > 0,
-      backupCount: backup.length,
+      employees: localOnlyDrafts,
+      needsSync: localOnlyDrafts.length > 0,
+      unsyncedLocalCount: localOnlyDrafts.length,
+      canRestoreFromBackup: false,
+      backupCount: 0,
     };
   }
 
-  const merged = mergeEmployees(backend, recoverable);
-  writeEmployeesCache(merged);
+  const merged = mergeEmployees(backend, localOnlyDrafts);
+  writeEmployeesCache(sid, merged);
 
   return {
     employees: merged,
     needsSync: merged.some(isLocalOnlyEmployee),
     unsyncedLocalCount: merged.filter(isLocalOnlyEmployee).length,
-    canRestoreFromBackup: cached.length === 0 && backup.length > 0,
-    backupCount: backup.length,
+    canRestoreFromBackup: false,
+    backupCount: readEmployeesBackup(sid).length,
   };
 }
 
 /** Reload employees from backend and refresh local cache (source of truth after save/refresh). */
 export async function reloadEmployeesFromBackend(schoolId: string): Promise<AdminEmployee[]> {
-  const backend = await fetchSchoolEmployees(schoolId);
-  if (backend.length > 0) {
-    writeEmployeesCache(backend);
-  }
+  const sid = requireSchoolId(schoolId);
+  quarantineLegacyUnscopedEmployeeCaches();
+  const backend = await fetchSchoolEmployees(sid);
+  writeEmployeesCache(sid, backend);
   return backend;
 }
 
@@ -359,38 +448,54 @@ export async function deleteSchoolEmployee(schoolId: string, employeeId: string)
   );
 }
 
-export function removeEmployeeFromCache(employeeId: string): AdminEmployee[] {
+export function removeEmployeeFromCache(schoolId: string, employeeId: string): AdminEmployee[] {
+  const sid = requireSchoolId(schoolId);
   const id = String(employeeId || "").trim();
-  const updated = readEmployeesCache().filter((e) => String(e.id || "").trim() !== id);
-  writeEmployeesCache(updated);
+  const updated = readEmployeesCache(sid).filter((e) => String(e.id || "").trim() !== id);
+  writeEmployeesCache(sid, updated);
   return updated;
 }
 
 export type RestoreLocalEmployeesResult = {
   restored: number;
   failed: number;
+  skippedForeign: number;
   errors: string[];
 };
 
 export async function refreshEmployeesCacheFromBackend(
   schoolId: string
 ): Promise<AdminEmployee[]> {
-  const backend = await fetchSchoolEmployees(schoolId);
-  if (backend.length > 0) {
-    writeEmployeesCache(backend);
-  }
+  const sid = requireSchoolId(schoolId);
+  quarantineLegacyUnscopedEmployeeCaches();
+  const backend = await fetchSchoolEmployees(sid);
+  writeEmployeesCache(sid, backend);
   return backend;
 }
 
+/**
+ * Restore ONLY local-only drafts for this schoolId.
+ * Never imports server-owned rows (other tenants / deleted server employees).
+ */
 export async function restoreLocalEmployeesToBackend(
   schoolId: string,
   employees?: AdminEmployee[]
 ): Promise<RestoreLocalEmployeesResult> {
-  const source = employees ?? collectRecoverableLocalEmployees();
+  const sid = requireSchoolId(schoolId);
+  quarantineLegacyUnscopedEmployeeCaches();
+
+  const source = employees ?? collectRecoverableLocalEmployees(sid);
+  let skippedForeign = 0;
   const candidates = dedupeEmployees(source).filter((employee) => {
     const firstName = String(employee.firstName || "").trim();
     const surname = String(employee.surname || employee.lastName || "").trim();
-    return Boolean(firstName && surname);
+    if (!firstName || !surname) return false;
+    // Block cross-tenant / deleted server rows from being re-created under this school.
+    if (!isLocalOnlyEmployee(employee)) {
+      skippedForeign += 1;
+      return false;
+    }
+    return true;
   });
 
   let restored = 0;
@@ -403,11 +508,7 @@ export async function restoreLocalEmployeesToBackend(
       "Employee";
 
     try {
-      if (isServerEmployeeId(employee.id)) {
-        await updateSchoolEmployee(schoolId, employee);
-      } else {
-        await createSchoolEmployee(schoolId, employee);
-      }
+      await createSchoolEmployee(sid, employee);
       restored += 1;
     } catch (e: unknown) {
       failed += 1;
@@ -416,28 +517,47 @@ export async function restoreLocalEmployeesToBackend(
     }
   }
 
-  return { restored, failed, errors };
+  if (skippedForeign > 0) {
+    errors.push(
+      `Skipped ${skippedForeign} employee(s) that belong to another school or the server (not imported).`
+    );
+  }
+
+  return { restored, failed, skippedForeign, errors };
 }
 
-export function readEmployeesCache(): AdminEmployee[] {
-  return parseEmployeeList(localStorage.getItem(CACHE_KEY));
+export function readEmployeesCache(schoolId: string): AdminEmployee[] {
+  const sid = requireSchoolId(schoolId);
+  return parseEmployeeList(localStorage.getItem(cacheKey(sid)));
 }
 
-export function readEmployeesBackup(): AdminEmployee[] {
-  return parseEmployeeList(localStorage.getItem(BACKUP_KEY));
+export function readEmployeesBackup(schoolId: string): AdminEmployee[] {
+  const sid = requireSchoolId(schoolId);
+  return parseEmployeeList(localStorage.getItem(backupKey(sid)));
 }
 
-export function restoreEmployeesFromBackupToCache(): AdminEmployee[] {
-  const backup = readEmployeesBackup();
+export function restoreEmployeesFromBackupToCache(schoolId: string): AdminEmployee[] {
+  const sid = requireSchoolId(schoolId);
+  quarantineLegacyUnscopedEmployeeCaches();
+  const backup = readEmployeesBackup(sid).filter(isLocalOnlyEmployee);
   if (!backup.length) return [];
-  writeEmployeesCache(backup);
+  writeEmployeesCache(sid, backup);
   return backup;
 }
 
-export function writeEmployeesCache(employees: AdminEmployee[]): void {
-  const existing = readEmployeesCache();
-  if (existing.length > 0) {
-    localStorage.setItem(BACKUP_KEY, JSON.stringify(existing));
+export function writeEmployeesCache(schoolId: string, employees: AdminEmployee[]): void {
+  const sid = requireSchoolId(schoolId);
+  quarantineLegacyUnscopedEmployeeCaches();
+
+  if (employees.length === 0) {
+    localStorage.removeItem(cacheKey(sid));
+    localStorage.removeItem(backupKey(sid));
+    return;
   }
-  localStorage.setItem(CACHE_KEY, JSON.stringify(employees));
+
+  const existing = readEmployeesCache(sid);
+  if (existing.length > 0) {
+    localStorage.setItem(backupKey(sid), JSON.stringify(existing));
+  }
+  localStorage.setItem(cacheKey(sid), JSON.stringify(employees));
 }

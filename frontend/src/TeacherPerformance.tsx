@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch, ApiError } from "./api";
+import { fetchSchoolEmployees, quarantineLegacyUnscopedEmployeeCaches } from "./employeesApi";
 import { useSchoolId } from "./useSchoolId";
 
 
@@ -54,35 +55,7 @@ export default function TeacherPerformance() {
     notes: "",
   });
 
-  const [localEmployees] = useState<any[]>(() => {
-
-
-
-    try {
-  
-  
-  
-      const saved = localStorage.getItem("educlearEmployees");
-  
-  
-  
-      return saved ? JSON.parse(saved) : [];
-  
-  
-  
-    } catch {
-  
-  
-  
-      return [];
-  
-  
-  
-    }
-  
-  
-  
-  });
+  const [localEmployees, setLocalEmployees] = useState<any[]>([]);
 
   const [records, setRecords] = useState<TeacherRecord[]>([]);
 
@@ -101,6 +74,25 @@ export default function TeacherPerformance() {
     } catch (error) {
       console.error("Failed to load records", error);
     }
+  }, [schoolId]);
+
+  useEffect(() => {
+    if (!schoolId) {
+      setLocalEmployees([]);
+      return;
+    }
+    quarantineLegacyUnscopedEmployeeCaches();
+    let cancelled = false;
+    void fetchSchoolEmployees(schoolId)
+      .then((rows) => {
+        if (!cancelled) setLocalEmployees(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setLocalEmployees([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [schoolId]);
 
   useEffect(() => {

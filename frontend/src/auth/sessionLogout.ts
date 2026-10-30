@@ -7,6 +7,7 @@ import {
   clearSubscriptionGateCache,
 } from "../subscriptions/subscriptionsApi";
 import { clearParentSession, getParentToken } from "../parent/parentApi";
+import { quarantineLegacyUnscopedEmployeeCaches } from "../employeesApi";
 
 export const INACTIVITY_LOGOUT_MESSAGE = "You were logged out due to inactivity.";
 export const INACTIVITY_LOGOUT_STORAGE_KEY = "educlearLogoutReason";
@@ -26,6 +27,10 @@ const STAFF_AUTH_KEYS = [
 ] as const;
 
 export function clearStaffAuthSession(): void {
+  // Quarantine legacy global employee caches before auth keys are cleared so a later
+  // login cannot resurrect another school's employees from unscoped browser storage.
+  // Evidence keys (POPIA) are preserved by quarantineLegacyUnscopedEmployeeCaches.
+  quarantineLegacyUnscopedEmployeeCaches();
   for (const key of STAFF_AUTH_KEYS) {
     localStorage.removeItem(key);
   }
