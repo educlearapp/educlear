@@ -97,6 +97,10 @@ model School {
 
   createdAt DateTime @default(now())
 
+  /// Trusted server-side demo tenant flag. Never derived from name/email/hardcoded IDs.
+  /// Only Super Admin (or privileged seed) may set this; school-scoped users cannot.
+  isDemoTenant Boolean @default(false)
+
   /// Super Admin organisation lifecycle. Separate from SchoolSubscription.status.
   lifecycleStatus          SchoolLifecycleStatus @default(ACTIVE)
   lifecycleChangedAt       DateTime?
@@ -218,6 +222,7 @@ model School {
   admissionFinancialAcceptances AdmissionFinancialAcceptance[]
 
   @@index([lifecycleStatus])
+  @@index([isDemoTenant])
 }
 
 /// Platform product modules licensed per school. Orthogonal to STARTER/UNLIMITED capacity packages.

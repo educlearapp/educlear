@@ -31,10 +31,15 @@ export async function sendEmailPlaceholder(ctx: ProviderSendContext): Promise<Pr
         .map((line) => `<p style="margin:0 0 8px">${line}</p>`)
         .join("")}</div>`,
     });
+    const demoSimulated = Boolean(
+      result && typeof result === "object" && (result as { demoSimulated?: boolean }).demoSimulated
+    );
     return {
       ok: true,
-      simulated: false,
-      reference: result.messageId || `email:${ctx.messageId}`,
+      simulated: demoSimulated,
+      reference:
+        (result as { messageId?: string })?.messageId ||
+        (demoSimulated ? `demo-email:${ctx.messageId}` : `email:${ctx.messageId}`),
     };
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : String(e);

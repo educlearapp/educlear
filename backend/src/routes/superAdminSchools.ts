@@ -8,6 +8,7 @@ import {
 } from "../services/superAdmin/resetSuperAdminSchoolPassword";
 import { updateSuperAdminSchool } from "../services/superAdmin/updateSuperAdminSchool";
 import { updateSchoolLifecycle } from "../services/superAdmin/updateSchoolLifecycle";
+import { setSchoolDemoTenantFlag } from "../services/demoTenantSafety";
 import {
   SchoolLifecycleError,
   resolveLifecycleTargetSchoolId,
@@ -96,7 +97,22 @@ router.patch("/:schoolId", async (req: SuperAdminRequest, res) => {
     const schoolId = resolveLifecycleTargetSchoolId(req.params.schoolId, req.body?.schoolId);
     const hasLifecycle =
       req.body != null && Object.prototype.hasOwnProperty.call(req.body, "lifecycleStatus");
+    const hasDemoTenantFlag =
+      req.body != null && Object.prototype.hasOwnProperty.call(req.body, "isDemoTenant");
     const modulePatch = extractModuleEntitlementPatch(req.body);
+
+    let demoTenant = null as { schoolId: string; isDemoTenant: boolean } | null;
+    if (hasDemoTenantFlag) {
+      if (!req.superAdmin?.userId || !req.superAdmin?.email) {
+        return res.status(403).json({ success: false, error: "Super Admin required to set isDemoTenant" });
+      }
+      demoTenant = await setSchoolDemoTenantFlag({
+        schoolId,
+        isDemoTenant: req.body.isDemoTenant === true,
+        actorUserId: req.superAdmin.userId,
+        actorEmail: req.superAdmin.email,
+      });
+    }
 
     let moduleEntitlements = null as Awaited<
       ReturnType<typeof updateSchoolModuleEntitlements>
@@ -126,6 +142,7 @@ router.patch("/:schoolId", async (req: SuperAdminRequest, res) => {
       return res.json({
         ...result,
         ...(moduleEntitlements ? { moduleEntitlements } : {}),
+        ...(demoTenant ? { isDemoTenant: demoTenant.isDemoTenant } : {}),
       });
     }
 
@@ -139,13 +156,14 @@ router.patch("/:schoolId", async (req: SuperAdminRequest, res) => {
         status: statusRaw,
         package: packageRaw,
       });
-    } else if (!moduleEntitlements) {
+    } else if (!moduleEntitlements && !demoTenant) {
       throw new Error("No changes provided");
     }
 
     return res.json({
       success: true,
       ...(moduleEntitlements ? { moduleEntitlements } : {}),
+      ...(demoTenant ? { isDemoTenant: demoTenant.isDemoTenant } : {}),
     });
   } catch (error: unknown) {
     console.error("[super-admin/schools] PATCH", error);

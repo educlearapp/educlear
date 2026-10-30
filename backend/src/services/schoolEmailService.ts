@@ -13,6 +13,12 @@ import {
 import {
   postResendEmail,
 } from "./resendClient";
+import { assertOutboundEmailEnabled } from "../utils/outboundSafety";
+import {
+  buildDemoEmailSimulation,
+  isDemoTenantSchool,
+  labelDemoEmailSubject,
+} from "./demoTenantSafety";
 
 export {
   isResendNetworkUnavailableError,
@@ -603,8 +609,17 @@ export function createTransportFromSettings(row: SchoolEmailSettings) {
 
 export async function sendMailWithSettings(
   _row: SchoolEmailSettings,
-  mail: Parameters<ReturnType<typeof nodemailer.createTransport>["sendMail"]>[0]
+  mail: Parameters<ReturnType<typeof nodemailer.createTransport>["sendMail"]>[0],
+  opts?: { schoolId?: string }
 ) {
+  const schoolId = String(opts?.schoolId || (_row as { schoolId?: string }).schoolId || "").trim();
+  if (schoolId && (await isDemoTenantSchool(schoolId))) {
+    console.info(
+      `[school-email] DEMO simulated send (sendMailWithSettings) schoolId=${schoolId} to=${String(mail.to || "")}`
+    );
+    return buildDemoEmailSimulation(String(mail.to || ""));
+  }
+
   if (hasResendProvider()) {
     const fallbackFrom = formatFromAddress(platformFromName(), platformFromEmail());
     const rawFrom = String(mail.from || fallbackFrom).trim() || fallbackFrom;
@@ -668,10 +683,26 @@ export async function resolveReplyToForSchoolSend(schoolId: string): Promise<str
 }
 
 export async function sendSchoolEmail(schoolId: string, input: SendSchoolEmailInput) {
-  await seedSchoolEmailDefaults(schoolId);
+  assertOutboundEmailEnabled();
+
+  const sid = String(schoolId || "").trim();
+  if (!sid) {
+    throw new Error("Missing schoolId for email delivery.");
+  }
+
+  // Trusted demo-tenant gate — blocks Resend, platform SMTP, and school SMTP fallbacks.
+  if (await isDemoTenantSchool(sid)) {
+    const simulated = buildDemoEmailSimulation(input.to);
+    console.info(
+      `[school-email] ${simulated.demoLabel} schoolId=${sid} to=${JSON.stringify(input.to)} subject=${labelDemoEmailSubject(input.subject)}`
+    );
+    return simulated;
+  }
+
+  await seedSchoolEmailDefaults(sid);
   const [row, branding] = await Promise.all([
-    getSchoolEmailSettingsRow(schoolId),
-    loadSchoolEmailBranding(schoolId),
+    getSchoolEmailSettingsRow(sid),
+    loadSchoolEmailBranding(sid),
   ]);
   if (!isValidEmail(branding.schoolEmail)) {
     const err = new Error(SETUP_REQUIRED_MESSAGE) as Error & { setupRequired?: boolean };
@@ -681,7 +712,7 @@ export async function sendSchoolEmail(schoolId: string, input: SendSchoolEmailIn
 
   const fromName = platformFromName();
   const from = formatFromAddress(fromName, platformFromEmail());
-  const replyTo = await resolveReplyToForSchoolSend(schoolId);
+  const replyTo = await resolveReplyToForSchoolSend(sid);
   if (hasResendProvider()) {
     return sendWithResend({
       from,

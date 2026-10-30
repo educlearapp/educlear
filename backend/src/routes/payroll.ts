@@ -21,6 +21,10 @@ import {
   sanitizeEmployeesForModule,
   stripPayrollFieldsFromWriteData,
 } from "../services/employeeModuleFieldPolicy";
+import {
+  DEMO_NOT_DELIVERED_LABEL,
+  isDemoTenantSchool,
+} from "../services/demoTenantSafety";
 
 
 
@@ -767,13 +771,6 @@ router.post("/email-payslip", requireSchoolModule("PAYROLL"), async (req, res) =
       return res.status(400).json({ error: "schoolId, employeeId, and pdfBase64 are required" });
     }
 
-    const transport = createMailTransport();
-    if (!transport) {
-      return res.status(503).json({
-        error: "Email is not configured. Set SMTP_HOST (and SMTP_USER / SMTP_PASS if required) on the server.",
-      });
-    }
-
     const employee = await prisma.employee.findFirst({
       where: { id: employeeId, schoolId },
     });
@@ -784,6 +781,22 @@ router.post("/email-payslip", requireSchoolModule("PAYROLL"), async (req, res) =
     const to = String(employee.email || "").trim();
     if (!to) {
       return res.status(400).json({ error: "This employee has no email address on file." });
+    }
+
+    if (await isDemoTenantSchool(schoolId)) {
+      return res.json({
+        success: true,
+        simulated: true,
+        demoLabel: DEMO_NOT_DELIVERED_LABEL,
+        message: `${DEMO_NOT_DELIVERED_LABEL} — payslip email to ${to} was not delivered externally`,
+      });
+    }
+
+    const transport = createMailTransport();
+    if (!transport) {
+      return res.status(503).json({
+        error: "Email is not configured. Set SMTP_HOST (and SMTP_USER / SMTP_PASS if required) on the server.",
+      });
     }
 
     let pdfBuffer: Buffer;
@@ -864,6 +877,23 @@ router.post("/email-bookkeeper-report", requireSchoolModule("PAYROLL"), async (r
       return res.status(400).json({ error: "Invalid bookkeeper email address" });
     }
 
+    const school = await prisma.school.findUnique({
+      where: { id: schoolId },
+      select: { name: true },
+    });
+    if (!school) {
+      return res.status(404).json({ error: "School not found" });
+    }
+
+    if (await isDemoTenantSchool(schoolId)) {
+      return res.json({
+        success: true,
+        simulated: true,
+        demoLabel: DEMO_NOT_DELIVERED_LABEL,
+        message: `${DEMO_NOT_DELIVERED_LABEL} — bookkeeper report to ${bookkeeperEmail} was not delivered externally`,
+      });
+    }
+
     const transport = createMailTransport();
     if (!transport) {
       return res.status(503).json({
@@ -883,14 +913,6 @@ router.post("/email-bookkeeper-report", requireSchoolModule("PAYROLL"), async (r
     const magic = pdfBuffer.subarray(0, 5).toString("utf8");
     if (!magic.startsWith("%PDF")) {
       return res.status(400).json({ error: "Attachment is not a valid PDF" });
-    }
-
-    const school = await prisma.school.findUnique({
-      where: { id: schoolId },
-      select: { name: true },
-    });
-    if (!school) {
-      return res.status(404).json({ error: "School not found" });
     }
     const schoolName = school.name?.trim() || "School";
 
