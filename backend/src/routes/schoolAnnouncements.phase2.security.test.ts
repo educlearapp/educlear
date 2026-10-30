@@ -176,10 +176,26 @@ async function main() {
       isActive: true,
     },
   });
+  // Teacher needs communications.* to use Communications Centre; still not school-wide admin.
+  const teacherComms = {
+    communications: {
+      view: true,
+      create: true,
+      edit: true,
+      delete: false,
+      print: true,
+      send: true,
+    },
+  };
   await prisma.userRbacMeta.upsert({
     where: { userId: teacher.id },
-    create: { userId: teacher.id, schoolId: schoolA.id, appRole: "Teacher", permissions: {} },
-    update: { appRole: "Teacher" },
+    create: {
+      userId: teacher.id,
+      schoolId: schoolA.id,
+      appRole: "Teacher",
+      permissions: teacherComms,
+    },
+    update: { appRole: "Teacher", permissions: teacherComms },
   });
 
   const finance = await prisma.user.create({

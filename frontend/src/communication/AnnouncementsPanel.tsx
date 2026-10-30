@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { staffApiFetch } from "../staffApi";
 
-type Classroom = { id: string; name: string };
+type Classroom = { id: string; name: string; grade?: string | null };
 
 type Lifecycle = "DRAFT" | "PUBLISHED" | "UNPUBLISHED" | "ARCHIVED";
+
+type AudienceMode = "all_parents" | "by_class" | "individual";
+type ClassScope = "grade" | "all_in_grade" | "classroom";
 
 type NoticeRow = {
   id: string;
@@ -15,6 +18,7 @@ type NoticeRow = {
   className?: string | null;
   grade?: string | null;
   learnerId?: string | null;
+  audienceParentIds?: string[] | null;
   isDraft?: boolean;
   visibility?: string;
   lifecycleStatus?: Lifecycle;
@@ -35,6 +39,23 @@ type ListResponse = {
   error?: string;
 };
 
+type ParentOption = {
+  id: string;
+  name: string;
+  idNumber?: string | null;
+  cellNo?: string | null;
+  learnerLabels?: string[];
+};
+
+type PreviewResponse = {
+  success?: boolean;
+  audience?: string;
+  uniqueParentCount?: number;
+  learnerCount?: number;
+  recipients?: { parentId: string; parentName: string; learnerLabels: string[] }[];
+  error?: string;
+};
+
 type Props = {
   schoolId: string;
 };
@@ -48,31 +69,37 @@ function canPublishSchoolWide(role: string, appRole: string, isOwner: boolean): 
 }
 
 function statusLabel(n: NoticeRow): Lifecycle {
-  // Legacy safety: isDraft=true must never render as PUBLISHED even if lifecycleStatus is stale.
   if (n.isDraft) return "DRAFT";
   if (n.lifecycleStatus) return n.lifecycleStatus;
   return "PUBLISHED";
 }
 
 function targetingLabel(n: NoticeRow): string {
+  if (Array.isArray(n.audienceParentIds) && n.audienceParentIds.length) {
+    return `Individual · ${n.audienceParentIds.length} parent(s)`;
+  }
   if (n.className) return `Class · ${n.className}`;
   if (n.grade) return `Grade · ${n.grade}`;
   if (n.learnerId) return "Learner-specific";
-  return "School-wide";
+  return "All Parents";
 }
 
 const EMPTY_FORM = {
   title: "",
   body: "",
   noticeType: "SCHOOL",
+  audienceMode: "by_class" as AudienceMode,
+  classScope: "classroom" as ClassScope,
   grade: "",
   className: "",
+  parentIds: [] as string[],
   publishNow: false,
 };
 
 export default function AnnouncementsPanel({ schoolId }: Props) {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
+  const [gradeOptions, setGradeOptions] = useState<string[]>([]);
   const [items, setItems] = useState<NoticeRow[]>([]);
   const [lifecycleFilter, setLifecycleFilter] = useState<FilterLifecycle>("ALL");
   const [q, setQ] = useState("");
@@ -83,6 +110,11 @@ export default function AnnouncementsPanel({ schoolId }: Props) {
   const [busy, setBusy] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [parentQuery, setParentQuery] = useState("");
+  const [parentHits, setParentHits] = useState<ParentOption[]>([]);
+  const [selectedParents, setSelectedParents] = useState<ParentOption[]>([]);
+  const [preview, setPreview] = useState<PreviewResponse | null>(null);
+  const [confirmPublish, setConfirmPublish] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
     id: string;
     action: "publish" | "unpublish" | "republish" | "archive";
@@ -119,6 +151,28 @@ export default function AnnouncementsPanel({ schoolId }: Props) {
           ? profile.assignedClassrooms
           : (profile.assignedClassNames || []).map((name, i) => ({ id: `name-${i}`, name }));
       setClassrooms(rooms);
+
+      // Admins: load school classroom directory for grade/class pickers when available.
+      if (canPublishSchoolWide(profile.user?.role || "", profile.user?.appRole || "", localStorage.getItem("isOwner") === "true")) {
+        try {
+          const dir = (await staffApiFetch(
+            `/api/classrooms?schoolId=${encodeURIComponent(schoolId)}`
+          )) as { classrooms?: Classroom[]; items?: Classroom[] } | Classroom[];
+          const list = Array.isArray(dir)
+            ? dir
+            : dir.classrooms || dir.items || [];
+          if (list.length) {
+            setClassrooms(list);
+            const grades = [
+              ...new Set(list.map((c) => String(c.grade || "").trim()).filter(Boolean)),
+            ].sort();
+            setGradeOptions(grades);
+          }
+        } catch {
+          // Keep assigned classrooms fallback.
+        }
+      }
+
       await loadList();
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Failed to load announcements");
@@ -128,7 +182,7 @@ export default function AnnouncementsPanel({ schoolId }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [loadList]);
+  }, [loadList, schoolId]);
 
   useEffect(() => {
     void load();
@@ -139,7 +193,8 @@ export default function AnnouncementsPanel({ schoolId }: Props) {
       setForm((f) => ({
         ...f,
         className: f.className || classrooms[0]?.name || "",
-        noticeType: f.noticeType || (schoolWideAllowed ? "SCHOOL" : "CLASS"),
+        audienceMode: schoolWideAllowed ? f.audienceMode : "by_class",
+        classScope: schoolWideAllowed ? f.classScope : "classroom",
       }));
     }
   }, [classrooms, schoolWideAllowed, editingId]);
@@ -153,14 +208,11 @@ export default function AnnouncementsPanel({ schoolId }: Props) {
   }, [lifecycleFilter, qApplied]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const permissionBlurb = useMemo(() => {
-    if (schoolWideAllowed && hasAssignedClasses) {
-      return "You can manage school-wide, grade and class announcements. Teachers without admin rights only see their assigned classes.";
-    }
     if (schoolWideAllowed) {
-      return "School-admin: manage school-wide and grade announcements. Assign classrooms to also manage class-scoped notices.";
+      return "Admin: All Parents, grade, class and individual parents. Preview recipients before publishing. No SMS or email.";
     }
     if (hasAssignedClasses) {
-      return "Class-scoped management only for your assigned classrooms. Drafts, unpublished and archived never reach parents.";
+      return "Teachers: class-scoped or individual parents linked to assigned classrooms only. Drafts stay staff-only until published.";
     }
     return "No assigned classrooms and no school-admin role — announcement management is locked.";
   }, [schoolWideAllowed, hasAssignedClasses]);
@@ -170,27 +222,109 @@ export default function AnnouncementsPanel({ schoolId }: Props) {
     setForm({
       ...EMPTY_FORM,
       className: classrooms[0]?.name || "",
-      noticeType: schoolWideAllowed ? "SCHOOL" : "CLASS",
+      audienceMode: schoolWideAllowed ? "all_parents" : "by_class",
+      classScope: "classroom",
     });
+    setSelectedParents([]);
+    setParentHits([]);
+    setParentQuery("");
+    setPreview(null);
+    setConfirmPublish(false);
   }
 
   function startEdit(n: NoticeRow) {
     setEditingId(n.id);
+    const individual = Array.isArray(n.audienceParentIds) && n.audienceParentIds.length > 0;
     setForm({
       title: n.title || "",
       body: n.body || "",
       noticeType: n.noticeType || "SCHOOL",
+      audienceMode: individual ? "individual" : n.className || n.grade ? "by_class" : "all_parents",
+      classScope: n.className ? "classroom" : "grade",
       grade: n.grade || "",
       className: n.className || "",
+      parentIds: individual ? [...n.audienceParentIds!] : [],
       publishNow: false,
     });
+    setSelectedParents(
+      individual
+        ? n.audienceParentIds!.map((id) => ({ id, name: id }))
+        : []
+    );
+    setPreview(null);
     setOk(null);
     setErr(null);
+  }
+
+  function targetingPayload() {
+    if (form.audienceMode === "all_parents") {
+      return { audienceMode: "all_parents" as const };
+    }
+    if (form.audienceMode === "individual") {
+      return {
+        audienceMode: "individual" as const,
+        parentIds: selectedParents.map((p) => p.id),
+      };
+    }
+    return {
+      audienceMode: "by_class" as const,
+      classScope: form.classScope,
+      grade: form.classScope === "classroom" ? null : form.grade.trim() || null,
+      className: form.classScope === "classroom" ? form.className.trim() || null : null,
+    };
+  }
+
+  async function runPreview() {
+    setErr(null);
+    setOk(null);
+    setBusy(true);
+    setConfirmPublish(false);
+    try {
+      const res = (await staffApiFetch("/api/school-announcements/preview", {
+        method: "POST",
+        body: JSON.stringify({ schoolId, ...targetingPayload() }),
+      })) as PreviewResponse;
+      setPreview(res);
+      setOk(`Preview ready: ${res.uniqueParentCount ?? 0} unique parents.`);
+    } catch (e: unknown) {
+      setPreview(null);
+      setErr(e instanceof Error ? e.message : "Preview failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function searchParents(query: string) {
+    setParentQuery(query);
+    if (!schoolId) return;
+    try {
+      const params = new URLSearchParams({ schoolId, q: query });
+      const res = (await staffApiFetch(
+        `/api/school-announcements/parents/search?${params.toString()}`
+      )) as { parents?: ParentOption[] };
+      setParentHits(Array.isArray(res.parents) ? res.parents : []);
+    } catch {
+      setParentHits([]);
+    }
+  }
+
+  function toggleParent(p: ParentOption) {
+    setSelectedParents((prev) => {
+      const exists = prev.some((x) => x.id === p.id);
+      const next = exists ? prev.filter((x) => x.id !== p.id) : [...prev, p];
+      setForm((f) => ({ ...f, parentIds: next.map((x) => x.id) }));
+      setPreview(null);
+      return next;
+    });
   }
 
   async function submitForm(e: React.FormEvent) {
     e.preventDefault();
     if (!canManage) return;
+    if (form.publishNow && !confirmPublish) {
+      setErr("Preview recipients and confirm before publishing.");
+      return;
+    }
     setErr(null);
     setOk(null);
     setBusy(true);
@@ -200,10 +334,8 @@ export default function AnnouncementsPanel({ schoolId }: Props) {
         title: form.title.trim(),
         body: form.body.trim(),
         noticeType: form.noticeType,
-        grade: form.grade.trim() || null,
-        className: form.className.trim() || null,
-        learnerId: null,
         publishNow: form.publishNow,
+        ...targetingPayload(),
       };
       if (editingId) {
         await staffApiFetch(`/api/school-announcements/${encodeURIComponent(editingId)}`, {
@@ -213,9 +345,7 @@ export default function AnnouncementsPanel({ schoolId }: Props) {
             title: payload.title,
             body: payload.body,
             noticeType: payload.noticeType,
-            grade: payload.grade,
-            className: payload.className,
-            learnerId: null,
+            ...targetingPayload(),
           }),
         });
         setOk("Announcement updated. Ordinary edits do not re-notify parents.");
@@ -226,7 +356,7 @@ export default function AnnouncementsPanel({ schoolId }: Props) {
         });
         setOk(
           form.publishNow
-            ? "Announcement published. Authorised parents notified in-app (deduped)."
+            ? `Published to ${preview?.uniqueParentCount ?? "authorised"} parent(s). In-app notify + push enqueue used existing pipelines.`
             : "Draft saved. Parents cannot see drafts."
         );
       }
@@ -284,10 +414,141 @@ export default function AnnouncementsPanel({ schoolId }: Props) {
           <div className="communications-centre-hub__card">
             <h3>{editingId ? "Edit announcement" : "Create announcement"}</h3>
             <p className="lead">
-              Drafts stay staff-only. Publishing notifies authorised parents in-app once (Phase 0 dedupe). No SMS or
-              email from this panel.
+              Delivers to Parent Portal <strong>Notices</strong> (and Alerts / push via existing pipelines). Does not
+              create teacher chat threads. No SMS or email.
             </p>
             <form onSubmit={submitForm}>
+              <div className="communications-centre-hub__field">
+                <label>Recipients</label>
+                <select
+                  value={form.audienceMode}
+                  onChange={(e) => {
+                    const audienceMode = e.target.value as AudienceMode;
+                    setForm((f) => ({
+                      ...f,
+                      audienceMode,
+                      classScope: audienceMode === "by_class" ? f.classScope || "classroom" : f.classScope,
+                    }));
+                    setPreview(null);
+                    setConfirmPublish(false);
+                  }}
+                >
+                  {schoolWideAllowed ? <option value="all_parents">All Parents</option> : null}
+                  <option value="by_class">By Class</option>
+                  <option value="individual">Individual Parents</option>
+                </select>
+              </div>
+
+              {form.audienceMode === "by_class" ? (
+                <>
+                  <div className="communications-centre-hub__field">
+                    <label>Class scope</label>
+                    <select
+                      value={form.classScope}
+                      onChange={(e) => {
+                        setForm((f) => ({ ...f, classScope: e.target.value as ClassScope }));
+                        setPreview(null);
+                        setConfirmPublish(false);
+                      }}
+                    >
+                      <option value="classroom">One classroom</option>
+                      {schoolWideAllowed ? <option value="grade">Entire grade</option> : null}
+                      {schoolWideAllowed ? (
+                        <option value="all_in_grade">All classrooms in a grade</option>
+                      ) : null}
+                    </select>
+                  </div>
+                  {form.classScope === "classroom" ? (
+                    <div className="communications-centre-hub__field">
+                      <label>Classroom</label>
+                      <select
+                        value={form.className}
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, className: e.target.value }));
+                          setPreview(null);
+                          setConfirmPublish(false);
+                        }}
+                        required
+                      >
+                        <option value="">Select classroom</option>
+                        {classrooms.map((c) => (
+                          <option key={c.id} value={c.name}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="communications-centre-hub__field">
+                      <label>Grade</label>
+                      {gradeOptions.length ? (
+                        <select
+                          value={form.grade}
+                          onChange={(e) => {
+                            setForm((f) => ({ ...f, grade: e.target.value }));
+                            setPreview(null);
+                            setConfirmPublish(false);
+                          }}
+                          required
+                        >
+                          <option value="">Select grade</option>
+                          {gradeOptions.map((g) => (
+                            <option key={g} value={g}>
+                              {g}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          value={form.grade}
+                          onChange={(e) => {
+                            setForm((f) => ({ ...f, grade: e.target.value }));
+                            setPreview(null);
+                            setConfirmPublish(false);
+                          }}
+                          required
+                          placeholder="e.g. 1 or Grade 1"
+                        />
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : null}
+
+              {form.audienceMode === "individual" ? (
+                <div className="communications-centre-hub__field">
+                  <label>Search parents</label>
+                  <input
+                    value={parentQuery}
+                    onChange={(e) => void searchParents(e.target.value)}
+                    placeholder="Name, ID number or cell"
+                  />
+                  {parentHits.length ? (
+                    <ul className="communications-centre-hub__list" style={{ maxHeight: 160, overflow: "auto" }}>
+                      {parentHits.map((p) => {
+                        const on = selectedParents.some((s) => s.id === p.id);
+                        return (
+                          <li key={p.id}>
+                            <label className="communications-centre-hub__field--check">
+                              <input type="checkbox" checked={on} onChange={() => toggleParent(p)} />{" "}
+                              {p.name}
+                              {p.learnerLabels?.length ? ` — ${p.learnerLabels.join(", ")}` : ""}
+                            </label>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : null}
+                  {selectedParents.length ? (
+                    <p className="lead">
+                      Selected: {selectedParents.map((p) => p.name).join(", ")}
+                    </p>
+                  ) : (
+                    <p className="lead">Select one or more parents.</p>
+                  )}
+                </div>
+              ) : null}
+
               <div className="communications-centre-hub__field">
                 <label>Type</label>
                 <select
@@ -300,38 +561,6 @@ export default function AnnouncementsPanel({ schoolId }: Props) {
                   <option value="ASSESSMENT">Assessment</option>
                   <option value="EXAM">Exam</option>
                 </select>
-              </div>
-              {schoolWideAllowed ? (
-                <div className="communications-centre-hub__field">
-                  <label>Grade (optional — blank = not grade-scoped)</label>
-                  <input
-                    value={form.grade}
-                    onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))}
-                    placeholder="e.g. 3"
-                  />
-                </div>
-              ) : null}
-              <div className="communications-centre-hub__field">
-                <label>
-                  {schoolWideAllowed
-                    ? "Class (optional — blank = school-wide / grade)"
-                    : "Class (required for teachers)"}
-                </label>
-                <select
-                  value={form.className}
-                  onChange={(e) => setForm((f) => ({ ...f, className: e.target.value }))}
-                  required={!schoolWideAllowed}
-                >
-                  {schoolWideAllowed ? <option value="">— School-wide / grade —</option> : null}
-                  {classrooms.map((c) => (
-                    <option key={c.id} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-                {!schoolWideAllowed && !hasAssignedClasses ? (
-                  <span className="lead">No assigned classes available.</span>
-                ) : null}
               </div>
               <div className="communications-centre-hub__field">
                 <label>Title</label>
@@ -349,25 +578,88 @@ export default function AnnouncementsPanel({ schoolId }: Props) {
                   rows={5}
                 />
               </div>
+
+              <div className="communications-centre-hub__actions">
+                <button
+                  type="button"
+                  className="communications-centre-hub__btn communications-centre-hub__btn--ghost"
+                  disabled={busy}
+                  onClick={() => void runPreview()}
+                >
+                  Preview recipients
+                </button>
+              </div>
+
+              {preview ? (
+                <div className="communications-centre-hub__card" style={{ marginTop: 12 }}>
+                  <h3>Recipient preview</h3>
+                  <p className="lead">
+                    {preview.audience}
+                    <br />
+                    Unique parents: <strong>{preview.uniqueParentCount ?? 0}</strong>
+                    <br />
+                    Learners represented: <strong>{preview.learnerCount ?? 0}</strong>
+                  </p>
+                  <ul className="communications-centre-hub__list" style={{ maxHeight: 180, overflow: "auto" }}>
+                    {(preview.recipients || []).map((r) => (
+                      <li key={r.parentId}>
+                        {r.parentName}
+                        {r.learnerLabels?.length ? ` — ${r.learnerLabels.join(", ")}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
               {!editingId ? (
                 <div className="communications-centre-hub__field communications-centre-hub__field--check">
                   <label>
                     <input
                       type="checkbox"
                       checked={form.publishNow}
-                      onChange={(e) => setForm((f) => ({ ...f, publishNow: e.target.checked }))}
+                      onChange={(e) => {
+                        setForm((f) => ({ ...f, publishNow: e.target.checked }));
+                        setConfirmPublish(false);
+                      }}
                     />{" "}
                     Publish immediately (otherwise save as draft)
                   </label>
                 </div>
               ) : null}
+
+              {form.publishNow && !editingId ? (
+                <div className="communications-centre-hub__field communications-centre-hub__field--check">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={confirmPublish}
+                      disabled={!preview}
+                      onChange={(e) => setConfirmPublish(e.target.checked)}
+                    />{" "}
+                    I confirm publishing to{" "}
+                    <strong>{preview?.uniqueParentCount ?? "—"}</strong> unique parent(s)
+                    {preview?.audience ? ` (${preview.audience})` : ""}. Preview required first.
+                  </label>
+                </div>
+              ) : null}
+
               <div className="communications-centre-hub__actions">
                 <button
                   type="submit"
                   className="communications-centre-hub__btn"
-                  disabled={busy || !form.title.trim()}
+                  disabled={
+                    busy ||
+                    !form.title.trim() ||
+                    (form.publishNow && !editingId && (!preview || !confirmPublish))
+                  }
                 >
-                  {busy ? "Saving…" : editingId ? "Save changes" : form.publishNow ? "Create & publish" : "Save draft"}
+                  {busy
+                    ? "Saving…"
+                    : editingId
+                      ? "Save changes"
+                      : form.publishNow
+                        ? "Create & publish"
+                        : "Save draft"}
                 </button>
                 {editingId ? (
                   <button
@@ -385,7 +677,7 @@ export default function AnnouncementsPanel({ schoolId }: Props) {
 
           <div className="communications-centre-hub__card">
             <h3>Announcement library</h3>
-            <p className="lead">Filter by lifecycle. Parents only ever see PUBLISHED items that match their learners.</p>
+            <p className="lead">Filter by lifecycle. Parents only ever see PUBLISHED items that match their audience.</p>
             <div className="communications-centre-hub__toolbar">
               <div className="communications-centre-hub__field">
                 <label>Status</label>

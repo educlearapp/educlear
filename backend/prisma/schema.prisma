@@ -2990,6 +2990,8 @@ model SchoolNotice {
   grade              String?
   className          String?
   learnerId          String?
+  /// Explicit individual-parent targeting only (string[] of parent ids). Never treat empty/invalid as school-wide.
+  audienceParentIds  Json?
   attachments        Json?
   publishedAt        DateTime                 @default(now())
   /// Cleared while unpublished/archived; set on publish/republish.

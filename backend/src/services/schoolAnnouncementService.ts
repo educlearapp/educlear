@@ -1,18 +1,44 @@
-import type {
+import {
   Prisma,
-  SchoolNoticeLifecycle,
-  SchoolNoticeType,
-  TeacherContentVisibility,
+  type SchoolNoticeLifecycle,
+  type SchoolNoticeType,
+  type TeacherContentVisibility,
 } from "@prisma/client";
 import { prisma } from "../prisma";
-import { createParentNotification, uniqueParentLearnerLinks } from "./parentPortalService";
-import { loadSchoolClassMembership } from "../utils/classroomMembership";
+import { createParentNotification } from "./parentPortalService";
+import {
+  normalizeAnnouncementTargeting,
+  noticeHasExplicitParentAudience,
+  parentNoticeVisibilityOr,
+  resolveAnnouncementAudience,
+  storedTargetingToAudienceInput,
+  targetingFromNotice,
+  type AnnouncementAudienceInput,
+  type AnnouncementStoredTargeting,
+} from "./schoolAnnouncementAudience";
 
 export type AnnouncementTargeting = {
   grade?: string | null;
   className?: string | null;
   learnerId?: string | null;
+  audienceParentIds?: string[] | null;
+  audienceMode?: string | null;
+  classScope?: string | null;
+  parentIds?: string[] | null;
 };
+
+export type {
+  AnnouncementAudienceInput,
+  AnnouncementAudienceResolution,
+  AnnouncementStoredTargeting,
+} from "./schoolAnnouncementAudience";
+export {
+  normalizeAnnouncementTargeting,
+  parseAudienceParentIds,
+  parentMayViewNotice,
+  resolveAnnouncementAudience,
+  noticeHasExplicitParentAudience,
+} from "./schoolAnnouncementAudience";
 
 export type AnnouncementActor = {
   userId: string;
@@ -73,41 +99,65 @@ export function parentVisibleNoticeWhere() {
   };
 }
 
-export function targetingSnapshot(n: AnnouncementTargeting) {
+export function targetingSnapshot(n: AnnouncementTargeting | AnnouncementStoredTargeting) {
+  const stored = targetingFromNotice(n);
   return {
-    grade: n.grade ?? null,
-    className: n.className ?? null,
-    learnerId: n.learnerId ?? null,
+    grade: stored.grade,
+    className: stored.className,
+    learnerId: stored.learnerId,
+    audienceParentIds: stored.audienceParentIds,
   };
 }
 
 export function isSchoolWideTarget(t: AnnouncementTargeting): boolean {
+  if (noticeHasExplicitParentAudience(t.audienceParentIds ?? t.parentIds)) return false;
   return !String(t.className || "").trim() && !String(t.learnerId || "").trim();
   // grade-only still counts as school-admin scope (not class-assigned)
 }
 
 export function assertActorMayManageTarget(actor: AnnouncementActor, t: AnnouncementTargeting): string | null {
-  const className = String(t.className || "").trim();
-  const learnerId = String(t.learnerId || "").trim();
-  const grade = String(t.grade || "").trim();
-
-  if (actor.isSchoolWideAdmin) return null;
-
-  // Teachers: class-scoped only (must have className in assigned set); no school-wide / grade-only / learner-only.
-  if (!className) {
-    return "Teachers may only manage class-scoped announcements for assigned classrooms";
+  try {
+    const normalized = normalizeAnnouncementTargeting({
+      audienceMode: t.audienceMode,
+      classScope: t.classScope,
+      grade: t.grade,
+      className: t.className,
+      learnerId: t.learnerId,
+      parentIds: t.parentIds ?? t.audienceParentIds,
+      audienceParentIds: t.audienceParentIds,
+    });
+    if (normalized.mode === "all_parents" && !actor.isSchoolWideAdmin) {
+      return "Only school administrators may target all parents";
+    }
+    if (
+      normalized.mode === "by_class" &&
+      (normalized.classScope === "grade" || normalized.classScope === "all_in_grade") &&
+      !actor.isSchoolWideAdmin
+    ) {
+      return "Teachers may not publish grade-only announcements";
+    }
+    if (normalized.mode === "individual") {
+      if (actor.isSchoolWideAdmin) return null;
+      // Detailed parent/class authorisation runs in resolveAnnouncementAudience.
+      return null;
+    }
+    if (actor.isSchoolWideAdmin) return null;
+    const className = String(normalized.className || "").trim();
+    const learnerId = String(normalized.learnerId || "").trim();
+    if (!className) {
+      return "Teachers may only manage class-scoped announcements for assigned classrooms";
+    }
+    if (learnerId && !className) {
+      return "Teachers may not manage learner-only announcements without a class";
+    }
+    const allowed = new Set(actor.assignedClassNames.map((c) => String(c || "").trim()).filter(Boolean));
+    if (!allowed.has(className)) {
+      return "You are not assigned to this class";
+    }
+    return null;
+  } catch (e) {
+    return e instanceof Error ? e.message : "Invalid targeting";
   }
-  if (grade && !className) {
-    return "Teachers may not publish grade-only announcements";
-  }
-  if (learnerId && !className) {
-    return "Teachers may not manage learner-only announcements without a class";
-  }
-  const allowed = new Set(actor.assignedClassNames.map((c) => String(c || "").trim()).filter(Boolean));
-  if (!allowed.has(className)) {
-    return "You are not assigned to this class";
-  }
-  return null;
 }
 
 async function writeAudit(opts: {
@@ -147,6 +197,7 @@ function mapNoticeType(raw: string): SchoolNoticeType {
 
 async function fanOutPublishNotifications(opts: {
   schoolId: string;
+  actor: AnnouncementActor;
   notice: {
     id: string;
     title: string;
@@ -155,6 +206,7 @@ async function fanOutPublishNotifications(opts: {
     grade: string | null;
     className: string | null;
     learnerId: string | null;
+    audienceParentIds?: unknown;
   };
 }) {
   const notifType =
@@ -164,37 +216,26 @@ async function fanOutPublishNotifications(opts: {
         ? ("EXAM" as const)
         : ("SCHOOL_NOTICE" as const);
 
-  const membership = await loadSchoolClassMembership(opts.schoolId);
-  const links = await prisma.parentLearnerLink.findMany({
-    where: { schoolId: opts.schoolId },
-    include: { learner: true },
+  const stored = targetingFromNotice(opts.notice);
+  // Re-resolve with the publishing actor so permissions and audience stay aligned with preview.
+  const resolved = await resolveAnnouncementAudience({
+    schoolId: opts.schoolId,
+    actor: opts.actor,
+    input: storedTargetingToAudienceInput(stored),
   });
 
-  const matched = uniqueParentLearnerLinks(
-    links.filter((link) => {
-      const n = opts.notice;
-      if (n.learnerId && n.learnerId === link.learnerId) return true;
-      if (n.grade && n.grade === link.learner.grade) return true;
-      if (n.className && membership.resolver.sameClassroom(n.className, link.learner.className)) {
-        return true;
-      }
-      if (!n.learnerId && !n.grade && !n.className) return true;
-      return false;
-    })
-  );
-
-  for (const link of matched) {
+  for (const recipient of resolved.recipients) {
     await createParentNotification({
       schoolId: opts.schoolId,
-      parentId: link.parentId,
-      learnerId: link.learnerId,
+      parentId: recipient.parentId,
+      learnerId: recipient.learnerIds[0] || null,
       type: notifType,
       title: opts.notice.title,
       message: String(opts.notice.body || opts.notice.title).slice(0, 500),
       metadata: { noticeId: opts.notice.id },
     });
   }
-  return matched.length;
+  return resolved.uniqueParentCount;
 }
 
 export async function listAnnouncements(opts: {
@@ -226,7 +267,13 @@ export async function listAnnouncements(opts: {
 
   if (!opts.actor.isSchoolWideAdmin) {
     const classes = opts.actor.assignedClassNames.filter(Boolean);
-    where.className = classes.length ? { in: classes } : "__none__";
+    // Class-scoped notices for assigned rooms, plus own individual-audience notices.
+    and.push({
+      OR: [
+        ...(classes.length ? [{ className: { in: classes } as const }] : []),
+        { createdByTeacherId: opts.actor.userId },
+      ],
+    });
   }
 
   const rows = await prisma.schoolNotice.findMany({
@@ -244,6 +291,18 @@ export async function listAnnouncements(opts: {
   };
 }
 
+export async function previewAnnouncementAudience(opts: {
+  schoolId: string;
+  actor: AnnouncementActor;
+  targeting: AnnouncementAudienceInput;
+}) {
+  return resolveAnnouncementAudience({
+    schoolId: opts.schoolId,
+    actor: opts.actor,
+    input: opts.targeting,
+  });
+}
+
 export async function createAnnouncementDraft(opts: {
   schoolId: string;
   actor: AnnouncementActor;
@@ -258,25 +317,34 @@ export async function createAnnouncementDraft(opts: {
   const body = String(opts.body || "").trim();
   if (!title) throw Object.assign(new Error("title required"), { status: 400 });
 
-  const targeting = {
-    grade: opts.targeting.grade ? String(opts.targeting.grade).trim() || null : null,
-    className: opts.targeting.className ? String(opts.targeting.className).trim() || null : null,
-    learnerId: opts.targeting.learnerId ? String(opts.targeting.learnerId).trim() || null : null,
-  };
-  const deny = assertActorMayManageTarget(opts.actor, targeting);
-  if (deny) throw Object.assign(new Error(deny), { status: 403 });
+  const resolved = await resolveAnnouncementAudience({
+    schoolId: opts.schoolId,
+    actor: opts.actor,
+    input: opts.targeting,
+  });
+  const targeting = resolved.targeting;
 
   const lifecycle: SchoolNoticeLifecycle = opts.publishNow ? "PUBLISHED" : "DRAFT";
   const visibility = opts.visibility || "CLASS_TEACHERS";
+  const noticeTypeDefault =
+    targeting.audienceParentIds?.length
+      ? "SCHOOL"
+      : targeting.className
+        ? "CLASS"
+        : targeting.grade
+          ? "GRADE"
+          : "SCHOOL";
   const notice = await prisma.schoolNotice.create({
     data: {
       schoolId: opts.schoolId,
-      noticeType: mapNoticeType(opts.noticeType || (targeting.className ? "CLASS" : "SCHOOL")),
+      noticeType: mapNoticeType(opts.noticeType || noticeTypeDefault),
       title,
       body,
       grade: targeting.grade,
       className: targeting.className,
       learnerId: targeting.learnerId,
+      audienceParentIds:
+        targeting.audienceParentIds === null ? Prisma.DbNull : targeting.audienceParentIds,
       createdBy: opts.actor.email,
       createdByTeacherId: opts.actor.userId,
       visibility,
@@ -297,10 +365,15 @@ export async function createAnnouncementDraft(opts: {
     previousLifecycle: null,
     newLifecycle: lifecycle,
     newTargeting: targeting,
+    detail: {
+      audienceMode: resolved.mode,
+      uniqueParentCount: resolved.uniqueParentCount,
+      learnerCount: resolved.learnerCount,
+    },
   });
 
   if (opts.publishNow && visibility === "CLASS_TEACHERS") {
-    await fanOutPublishNotifications({ schoolId: opts.schoolId, notice });
+    await fanOutPublishNotifications({ schoolId: opts.schoolId, actor: opts.actor, notice });
   }
 
   return presentAnnouncement(notice);
@@ -325,31 +398,38 @@ export async function updateAnnouncement(opts: {
     throw Object.assign(new Error("Archived announcements cannot be edited"), { status: 400 });
   }
 
-  const denyExisting = assertActorMayManageTarget(opts.actor, existing);
+  const denyExisting = assertActorMayManageTarget(opts.actor, {
+    ...targetingFromNotice(existing),
+    audienceMode: storedTargetingToAudienceInput(targetingFromNotice(existing)).audienceMode,
+  });
   if (denyExisting) throw Object.assign(new Error(denyExisting), { status: 403 });
 
-  const nextTarget = {
-    grade:
-      opts.targeting && "grade" in opts.targeting
-        ? opts.targeting.grade
-          ? String(opts.targeting.grade).trim() || null
-          : null
-        : existing.grade,
-    className:
-      opts.targeting && "className" in opts.targeting
-        ? opts.targeting.className
-          ? String(opts.targeting.className).trim() || null
-          : null
-        : existing.className,
-    learnerId:
-      opts.targeting && "learnerId" in opts.targeting
-        ? opts.targeting.learnerId
-          ? String(opts.targeting.learnerId).trim() || null
-          : null
-        : existing.learnerId,
-  };
-  const denyNext = assertActorMayManageTarget(opts.actor, nextTarget);
-  if (denyNext) throw Object.assign(new Error(denyNext), { status: 403 });
+  let nextTarget = targetingFromNotice(existing);
+  const t = opts.targeting;
+  const retarget =
+    t &&
+    (t.audienceMode != null ||
+      t.classScope != null ||
+      t.parentIds != null ||
+      t.audienceParentIds != null ||
+      ("grade" in t && t.grade !== undefined) ||
+      ("className" in t && t.className !== undefined) ||
+      ("learnerId" in t && t.learnerId !== undefined));
+  if (retarget) {
+    const resolved = await resolveAnnouncementAudience({
+      schoolId: opts.schoolId,
+      actor: opts.actor,
+      input: {
+        audienceMode: t!.audienceMode,
+        classScope: t!.classScope,
+        grade: t!.grade,
+        className: t!.className,
+        learnerId: t!.learnerId,
+        parentIds: t!.parentIds ?? t!.audienceParentIds,
+      },
+    });
+    nextTarget = resolved.targeting;
+  }
 
   const updated = await prisma.schoolNotice.update({
     where: { id: existing.id },
@@ -360,6 +440,7 @@ export async function updateAnnouncement(opts: {
       grade: nextTarget.grade,
       className: nextTarget.className,
       learnerId: nextTarget.learnerId,
+      audienceParentIds: nextTarget.audienceParentIds === null ? Prisma.DbNull : nextTarget.audienceParentIds,
       visibility: opts.visibility || existing.visibility,
       // Ordinary edits do not change lifecycle / do not re-notify.
     },
@@ -372,7 +453,7 @@ export async function updateAnnouncement(opts: {
     action: effectiveBefore === "PUBLISHED" ? "EDIT_PUBLISHED" : "EDIT_DRAFT",
     previousLifecycle: effectiveBefore,
     newLifecycle: effectiveBefore,
-    previousTargeting: existing,
+    previousTargeting: targetingFromNotice(existing),
     newTargeting: nextTarget,
     detail: { titleChanged: opts.title != null, bodyChanged: opts.body != null },
   });
@@ -391,7 +472,10 @@ export async function transitionAnnouncement(opts: {
   });
   if (!existing) throw Object.assign(new Error("Announcement not found"), { status: 404 });
 
-  const deny = assertActorMayManageTarget(opts.actor, existing);
+  const deny = assertActorMayManageTarget(opts.actor, {
+    ...targetingFromNotice(existing),
+    audienceMode: storedTargetingToAudienceInput(targetingFromNotice(existing)).audienceMode,
+  });
   if (deny) throw Object.assign(new Error(deny), { status: 403 });
 
   // Use effective lifecycle so isDraft=true never transitions as if PUBLISHED.
@@ -441,8 +525,8 @@ export async function transitionAnnouncement(opts: {
     action: actionName,
     previousLifecycle: from,
     newLifecycle: to,
-    previousTargeting: existing,
-    newTargeting: existing,
+    previousTargeting: targetingFromNotice(existing),
+    newTargeting: targetingFromNotice(updated),
   });
 
   // First publish + republish attempt fan-out. Phase 0 dedupeKey prevents a second row /
@@ -451,7 +535,12 @@ export async function transitionAnnouncement(opts: {
     (actionName === "PUBLISH" || actionName === "REPUBLISH") &&
     updated.visibility === "CLASS_TEACHERS"
   ) {
-    await fanOutPublishNotifications({ schoolId: opts.schoolId, notice: updated });
+    // Revalidate audience immediately before fan-out (same resolver as preview).
+    await fanOutPublishNotifications({
+      schoolId: opts.schoolId,
+      actor: opts.actor,
+      notice: updated,
+    });
   }
 
   return presentAnnouncement(updated);
@@ -475,6 +564,7 @@ type ParentLearnerTarget = { id: string; grade: string; className: string | null
 /** Parent notice list with DB targeting + cursor/offset pagination (replaces 300-row scan). */
 export async function listParentVisibleNotices(opts: {
   schoolId: string;
+  parentId: string;
   learners: ParentLearnerTarget[];
   spellingsFor: (className: string | null | undefined) => string[];
   limit: number;
@@ -485,19 +575,15 @@ export async function listParentVisibleNotices(opts: {
   const offset = Math.max(opts.offset ?? 0, 0);
   const cursor = opts.cursor ? String(opts.cursor).trim() : "";
 
-  if (!opts.learners.length) {
+  if (!opts.parentId) {
     return { notices: [], hasMore: false, nextCursor: null as string | null, limit, offset };
   }
 
-  const or: Prisma.SchoolNoticeWhereInput[] = [
-    { AND: [{ learnerId: null }, { grade: null }, { className: null }] },
-  ];
-  for (const learner of opts.learners) {
-    or.push({ learnerId: learner.id });
-    if (learner.grade) or.push({ grade: learner.grade });
-    const spellings = learner.className ? opts.spellingsFor(learner.className) : [];
-    if (spellings.length) or.push({ className: { in: spellings } });
-  }
+  const or = parentNoticeVisibilityOr({
+    parentId: opts.parentId,
+    learners: opts.learners,
+    spellingsFor: opts.spellingsFor,
+  });
 
   const where: Prisma.SchoolNoticeWhereInput = {
     schoolId: opts.schoolId,

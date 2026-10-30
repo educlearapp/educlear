@@ -43,10 +43,17 @@ assert.ok(queueTsx.includes("never processed on page load") || queueTsx.includes
 assert.ok(queueTsx.includes("Delivery Queue"), "legacy heading Delivery Queue");
 
 assert.ok(announceTsx.includes("/api/school-announcements"), "lifecycle API mounted in UI");
+assert.ok(announceTsx.includes("/api/school-announcements/preview"), "recipient preview wired");
+assert.ok(announceTsx.includes("all_parents"), "All Parents audience mode");
+assert.ok(announceTsx.includes("by_class"), "By Class audience mode");
+assert.ok(announceTsx.includes("individual"), "Individual Parents audience mode");
+assert.ok(announceTsx.includes("Preview recipients"), "preview action present");
 assert.ok(announceTsx.includes("publish"), "publish control present");
 assert.ok(announceTsx.includes("unpublish"), "unpublish control present");
 assert.ok(announceTsx.includes("archive"), "archive control present");
 assert.ok(announceTsx.includes("SCHOOL_ADMIN"), "admin gate mentioned in UI");
+assert.equal(announceTsx.includes("/api/communication/sms"), false, "announcements must not call SMS");
+assert.equal(announceTsx.includes("TeacherInbox"), false, "announcements panel must not embed inbox");
 assert.equal(
   announceTsx.includes("/api/teacher-app/notices"),
   false,

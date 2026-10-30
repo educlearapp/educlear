@@ -13,6 +13,7 @@ import {
   getAnnouncement,
   listAnnouncementAudit,
   listAnnouncements,
+  previewAnnouncementAudience,
   transitionAnnouncement,
   updateAnnouncement,
   type AnnouncementActor,
@@ -129,6 +130,104 @@ router.get("/", async (req, res) => {
   }
 });
 
+function targetingFromBody(body: any) {
+  return {
+    audienceMode: body?.audienceMode ?? null,
+    classScope: body?.classScope ?? null,
+    grade: body?.grade ?? null,
+    className: body?.className ?? null,
+    learnerId: body?.learnerId ?? null,
+    parentIds: body?.parentIds ?? body?.audienceParentIds ?? null,
+    audienceParentIds: body?.audienceParentIds ?? null,
+  };
+}
+
+router.post("/preview", async (req, res) => {
+  try {
+    const schoolId = String(req.body?.schoolId || "").trim();
+    if (!schoolId) return res.status(400).json({ success: false, error: "schoolId required" });
+    const actor = await resolveAnnouncementActor(req, res, schoolId, "view");
+    if (!actor) return;
+    const preview = await previewAnnouncementAudience({
+      schoolId,
+      actor,
+      targeting: targetingFromBody(req.body),
+    });
+    return res.json({
+      success: true,
+      audience: preview.label,
+      mode: preview.mode,
+      classScope: preview.classScope,
+      uniqueParentCount: preview.uniqueParentCount,
+      learnerCount: preview.learnerCount,
+      recipients: preview.recipients,
+      targeting: preview.targeting,
+    });
+  } catch (e) {
+    return sendErr(res, e);
+  }
+});
+
+/** School-scoped parent search for individual targeting. */
+router.get("/parents/search", async (req, res) => {
+  try {
+    const schoolId = String(req.query.schoolId || "").trim();
+    const q = String(req.query.q || "").trim();
+    if (!schoolId) return res.status(400).json({ success: false, error: "schoolId required" });
+    const actor = await resolveAnnouncementActor(req, res, schoolId, "view");
+    if (!actor) return;
+
+    const links = await prisma.parentLearnerLink.findMany({
+      where: { schoolId },
+      include: {
+        parent: { select: { id: true, firstName: true, surname: true, idNumber: true, cellNo: true } },
+        learner: { select: { id: true, firstName: true, lastName: true, className: true, grade: true } },
+      },
+      take: 500,
+    });
+
+    const assigned = new Set(actor.assignedClassNames.map((c) => String(c || "").trim()).filter(Boolean));
+    const byParent = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        idNumber: string | null;
+        cellNo: string | null;
+        learnerLabels: string[];
+      }
+    >();
+
+    for (const link of links) {
+      if (!actor.isSchoolWideAdmin) {
+        const cn = String(link.learner.className || "").trim();
+        if (!assigned.has(cn)) continue;
+      }
+      const name = `${link.parent.firstName || ""} ${link.parent.surname || ""}`.trim() || "Parent";
+      const needle = q.toLowerCase();
+      const hay = `${name} ${link.parent.idNumber || ""} ${link.parent.cellNo || ""}`.toLowerCase();
+      if (q && !hay.includes(needle)) continue;
+      const cur = byParent.get(link.parent.id) || {
+        id: link.parent.id,
+        name,
+        idNumber: link.parent.idNumber ?? null,
+        cellNo: (link.parent as { cellNo?: string | null }).cellNo ?? null,
+        learnerLabels: [],
+      };
+      const label = `${link.learner.firstName || ""} ${link.learner.lastName || ""}`.trim();
+      const cls = link.learner.className ? ` (${link.learner.className})` : "";
+      const learnerLabel = `${label || "Learner"}${cls}`;
+      if (!cur.learnerLabels.includes(learnerLabel)) cur.learnerLabels.push(learnerLabel);
+      byParent.set(link.parent.id, cur);
+    }
+
+    const parents = [...byParent.values()].sort((a, b) => a.name.localeCompare(b.name)).slice(0, 40);
+    return res.json({ success: true, parents });
+  } catch (e) {
+    return sendErr(res, e);
+  }
+});
+
 router.post("/", async (req, res) => {
   try {
     const schoolId = String(req.body?.schoolId || "").trim();
@@ -144,11 +243,7 @@ router.post("/", async (req, res) => {
       title: String(req.body?.title || ""),
       body: String(req.body?.body || ""),
       noticeType: String(req.body?.noticeType || ""),
-      targeting: {
-        grade: req.body?.grade ?? null,
-        className: req.body?.className ?? null,
-        learnerId: req.body?.learnerId ?? null,
-      },
+      targeting: targetingFromBody(req.body),
       visibility: req.body?.visibility,
       publishNow,
     });
@@ -168,7 +263,10 @@ router.get("/:id", async (req, res) => {
     const notice = await getAnnouncement(schoolId, id);
     if (!notice) return res.status(404).json({ success: false, error: "Not found" });
     if (!actor.isSchoolWideAdmin) {
-      if (!notice.className || !actor.assignedClassNames.includes(notice.className)) {
+      const isOwnerNotice = notice.createdByTeacherId === actor.userId;
+      const classOk =
+        notice.className && actor.assignedClassNames.includes(String(notice.className));
+      if (!classOk && !isOwnerNotice) {
         return res.status(403).json({ success: false, error: "Access denied" });
       }
     }
@@ -186,19 +284,24 @@ router.patch("/:id", async (req, res) => {
     if (!schoolId || !id) return res.status(400).json({ success: false, error: "schoolId and id required" });
     const actor = await resolveAnnouncementActor(req, res, schoolId);
     if (!actor) return;
+    const body = req.body || {};
+    const retarget =
+      body.audienceMode != null ||
+      body.classScope != null ||
+      body.parentIds != null ||
+      body.audienceParentIds != null ||
+      "grade" in body ||
+      "className" in body ||
+      "learnerId" in body;
     const notice = await updateAnnouncement({
       schoolId,
       noticeId: id,
       actor,
-      title: req.body?.title,
-      body: req.body?.body,
-      noticeType: req.body?.noticeType,
-      targeting: {
-        grade: req.body?.grade,
-        className: req.body?.className,
-        learnerId: req.body?.learnerId,
-      },
-      visibility: req.body?.visibility,
+      title: body.title,
+      body: body.body,
+      noticeType: body.noticeType,
+      targeting: retarget ? targetingFromBody(body) : undefined,
+      visibility: body.visibility,
     });
     return res.json({ success: true, notice });
   } catch (e) {

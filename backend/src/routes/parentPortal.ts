@@ -84,6 +84,7 @@ import {
   listParentVisibleNotices,
   parentVisibleNoticeWhere,
 } from "../services/schoolAnnouncementService";
+import { parentMayViewNotice } from "../services/schoolAnnouncementAudience";
 import { listParentVisibleEvents } from "../services/schoolEventService";
 import { assignedClassroomIdsForTeacher } from "../utils/classroomTeachers";
 import { normalizeStaffEmail } from "../utils/staffJwt";
@@ -282,8 +283,27 @@ function resolveEntryLearnerLabel(
 function learnerMatchesNotice(
   membership: SchoolClassMembership,
   learner: { id: string; grade: string; className: string | null },
-  notice: { learnerId: string | null; grade: string | null; className: string | null }
+  notice: {
+    learnerId: string | null;
+    grade: string | null;
+    className: string | null;
+    audienceParentIds?: unknown;
+  },
+  parentId?: string
 ) {
+  // Prefer parent-aware visibility when parentId is known (individual audience must not leak school-wide).
+  if (parentId) {
+    return parentMayViewNotice({
+      parentId,
+      learners: [learner],
+      notice,
+      sameClassroom: (a, b) => membership.resolver.sameClassroom(a, b),
+    });
+  }
+  if (notice.audienceParentIds != null) {
+    // Without parentId, never treat explicit parent-audience notices as class/school matches.
+    return false;
+  }
   if (notice.learnerId && notice.learnerId === learner.id) return true;
   if (notice.grade && notice.grade === learner.grade) return true;
   if (notice.className && membership.resolver.sameClassroom(notice.className, learner.className)) return true;
@@ -533,9 +553,9 @@ router.get("/dashboard", parentAuthMiddleware, async (req, res) => {
 
     const latestInvoice = notifications.find((n) => n.type === "INVOICE_READY") || null;
     const filteredNotices = activeLearner
-      ? notices.filter((n) => learnerMatchesNotice(membership, activeLearner, n))
+      ? notices.filter((n) => learnerMatchesNotice(membership, activeLearner, n, auth.parentId))
       : notices.filter((n) =>
-          learners.some((l) => learnerMatchesNotice(membership, l, n))
+          learners.some((l) => learnerMatchesNotice(membership, l, n, auth.parentId))
         );
     const filteredDocs = documents;
 
@@ -1335,6 +1355,7 @@ router.get("/notices", parentAuthMiddleware, async (req, res) => {
     // DB-level recipient targeting + bounded cursor/offset pagination (no 300-row scan).
     const page = await listParentVisibleNotices({
       schoolId: auth.schoolId,
+      parentId: auth.parentId,
       learners: targets,
       spellingsFor: (cn) => membership.spellingsFor(cn),
       limit,
@@ -1384,11 +1405,17 @@ router.get("/notices/:id/attachments/:index", parentAuthMiddleware, async (req, 
     if (!notice) return res.status(404).json({ success: false, error: "Not found" });
 
     const visible = learners.some((l) =>
-      learnerMatchesNotice(membership, l, {
-        learnerId: notice.learnerId,
-        grade: notice.grade,
-        className: notice.className,
-      })
+      learnerMatchesNotice(
+        membership,
+        l,
+        {
+          learnerId: notice.learnerId,
+          grade: notice.grade,
+          className: notice.className,
+          audienceParentIds: notice.audienceParentIds,
+        },
+        auth.parentId
+      )
     );
     if (!visible) return res.status(404).json({ success: false, error: "Not found" });
 

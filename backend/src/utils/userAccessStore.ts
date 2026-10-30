@@ -36,12 +36,18 @@ function rowToMeta(row: {
   updatedBy?: string | null;
   roleChangedAt?: Date | null;
 }): UserAccessMeta {
+  // Preserve raw stored keys. Do NOT mergePermissions here — that materialises every
+  // module as false and defeats resolveStoredPermissions soft-fill for newly added
+  // modules (e.g. communications) on legacy Admin/Owner maps that omit the key.
+  const raw = (row.permissions && typeof row.permissions === "object"
+    ? (row.permissions as PermissionMap)
+    : {}) as PermissionMap;
   return {
     schoolId: row.schoolId,
     firstName: row.firstName,
     surname: row.surname,
     appRole: row.appRole,
-    permissions: mergePermissions(row.permissions as PermissionMap),
+    permissions: raw,
     lastLoginAt: row.lastLoginAt?.toISOString() ?? null,
     updatedAt: row.updatedAt?.toISOString() ?? null,
     updatedBy: row.updatedBy ?? null,
