@@ -17452,15 +17452,6 @@ return (
                 </div>
                 ) : null}
 
-                {canPage("parentPortal") ? (
-                <div className={`submenu-item ${activePage === "parentPortal" ? "active" : ""}`} onClick={() => go("parentPortal")}>Parent Portal</div>
-                ) : null}
-                {canPage("teacherInbox") ? (
-                <div className={`submenu-item ${activePage === "teacherInbox" ? "active" : ""}`} onClick={() => go("teacherInbox")}>Teacher Inbox</div>
-                ) : null}
-  
-  
-  
                 {canPage("addLearner") ? (
                 <div className={`submenu-item ${activePage === "addLearner" ? "active" : ""}`} onClick={() => go("addLearner")}>Add Learner</div>
                 ) : null}
