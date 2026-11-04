@@ -92,6 +92,7 @@ import publicAdmissionsRoutes from "./routes/publicAdmissions";
 import { requireMigrationAccess } from "./middleware/requireMigrationAccess";
 import { requireSuperAdmin } from "./middleware/requireSuperAdmin";
 import { requireSchoolModule } from "./middleware/requireSchoolModule";
+import homesafeCollectionsRoutes from "./routes/homesafeCollections";
 import { publicAdmissionsJsonParser } from "./middleware/publicAdmissionsJsonLimit";
 import { isAllowedSchoolLogo, schoolLogoExtension } from "./utils/logoUploadPolicy";
 import { lookupParentPortalBySchool } from "./services/parentPortalLookup";
@@ -390,6 +391,8 @@ app.use("/api/lists-registers", requireSchoolModule("CORE"), listsRegistersRoute
 app.use("/api/parent-portal", parentPortalRoutes);
 app.use("/api/classrooms", requireSchoolModule("CORE"), classroomsRoutes);
 app.use("/api/groups", requireSchoolModule("CORE"), groupsRoutes);
+/** HomeSafe Collections V2 — additive; does not replace Groups or Early Departure. */
+app.use("/api/homesafe/collections", requireSchoolModule("CORE"), homesafeCollectionsRoutes);
 app.use("/api/classes", requireSchoolModule("CORE"), classesRoutes);
 app.use("/api/attendance", requireSchoolModule("CORE"), attendanceRoutes);
 app.use("/api/school-subjects", requireSchoolModule("CORE"), schoolSubjectsRoutes);

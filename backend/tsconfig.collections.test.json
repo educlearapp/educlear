@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/prisma.ts",
+    "src/services/homesafeCollectionsDomain.ts",
+    "src/services/homesafeCollectionsService.ts",
+    "src/services/homesafeCollectionsPrismaService.ts",
+    "src/services/homesafeCollections.unit.test.ts",
+    "src/services/homesafeCollectionsPrisma.unit.test.ts",
+    "src/routes/homesafeCollections.ts",
+    "src/routes/homesafeCollections.route.unit.test.ts"
+  ],
+  "exclude": ["node_modules", "dist"],
+  "compilerOptions": {
+    "outDir": "./dist-collections-test",
+    "rootDir": "./src"
+  }
+}

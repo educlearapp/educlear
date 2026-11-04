@@ -68,6 +68,40 @@ enum HomeSafeCollectionMethod {
   OTHER
 }
 
+/// HomeSafe Collections V2 — school-owned Transport | Activity groups (separate from Lists Groups).
+enum HomeSafeCollectionGroupKind {
+  TRANSPORT
+  ACTIVITY
+}
+
+enum HomeSafeCollectionWeekday {
+  Mon
+  Tue
+  Wed
+  Thu
+  Fri
+}
+
+enum HomeSafeCollectionAttendance {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+  UNCONFIRMED
+}
+
+enum HomeSafeCollectionProgress {
+  WAITING
+  CALLED
+  READY
+  COLLECTED
+  HANDED_OVER
+  RETURNED
+  PARTICIPATING
+  COMPLETED
+  AWAY
+}
+
 model School {
   id String @id @default(cuid())
 
@@ -96,6 +130,7 @@ model School {
   primaryColor String?
 
   createdAt DateTime @default(now())
+
 
   /// Super Admin organisation lifecycle. Separate from SchoolSubscription.status.
   lifecycleStatus          SchoolLifecycleStatus @default(ACTIVE)
@@ -183,6 +218,10 @@ model School {
   creditPurchaseInvoices           CreditPurchaseInvoice[]
   creditPurchasePaymentLogs        CreditPurchasePaymentLog[]
   homeSafeEvents                   HomeSafeEvent[]
+  homeSafeCollectionGroups         HomeSafeCollectionGroup[]
+  homeSafeCollectionSessions       HomeSafeCollectionSession[]
+  homeSafeCollectionMemberships    HomeSafeCollectionMembership[]
+  homeSafeCollectionRegisterRows   HomeSafeCollectionRegisterRow[]
   eduClockActivationAudits         EduClockActivationAudit[]
   eduClockCampuses                 EduClockCampus[]
   eduClockEntrances                EduClockEntrance[]
@@ -842,6 +881,8 @@ model Learner {
   communicationMessages     CommunicationMessage[]
   groupLinks                GroupLearner[]
   homeSafeEvents            HomeSafeEvent[]
+  homeSafeCollectionMemberships HomeSafeCollectionMembership[]
+  homeSafeCollectionRegisterRows HomeSafeCollectionRegisterRow[]
 
   /// Post-accept link from Online Admissions application (historical staging record retained).
   admissionPromotedFrom AdmissionApplication[] @relation("AdmissionPromotedLearner")
@@ -3236,6 +3277,91 @@ model HomeSafeEvent {
   @@index([schoolId, schoolLocalDate])
   @@index([schoolId, learnerId])
   @@index([teacherId])
+}
+
+/// HomeSafe Collections V2 — named Transport/Activity container (not Lists & Registers Group).
+model HomeSafeCollectionGroup {
+  id            String                     @id @default(cuid())
+  schoolId      String
+  name          String
+  kind          HomeSafeCollectionGroupKind
+  driverName    String?
+  driverContact String?
+  vehicleReg    String?
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
+
+  school   School                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  sessions HomeSafeCollectionSession[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+  @@index([schoolId, kind])
+}
+
+/// Recurring weekly session slot. Multiple sessions per group (incl. same weekday) are allowed.
+model HomeSafeCollectionSession {
+  id                String                   @id @default(cuid())
+  schoolId          String
+  groupId           String
+  weekday           HomeSafeCollectionWeekday
+  startTime         String
+  endTime           String
+  responsibleAdult  String
+  location          String?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  school       School                         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  group        HomeSafeCollectionGroup        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  memberships  HomeSafeCollectionMembership[]
+  registerRows HomeSafeCollectionRegisterRow[]
+
+  @@index([schoolId])
+  @@index([schoolId, groupId])
+  @@index([schoolId, weekday])
+  @@index([groupId])
+}
+
+/// Learner assigned to a specific recurring session (independent of other sessions / GroupLearner).
+model HomeSafeCollectionMembership {
+  id        String   @id @default(cuid())
+  schoolId  String
+  sessionId String
+  learnerId String
+  createdAt DateTime @default(now())
+
+  school  School                   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  session HomeSafeCollectionSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  learner Learner                  @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, learnerId])
+  @@index([schoolId])
+  @@index([sessionId])
+  @@index([learnerId])
+}
+
+/// Dated occurrence register row for one learner on one session.
+model HomeSafeCollectionRegisterRow {
+  id              String                       @id @default(cuid())
+  schoolId        String
+  sessionId       String
+  learnerId       String
+  schoolLocalDate String
+  attendance      HomeSafeCollectionAttendance @default(PRESENT)
+  progress        HomeSafeCollectionProgress   @default(WAITING)
+  note            String?
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
+
+  school  School                    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  session HomeSafeCollectionSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  learner Learner                   @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, learnerId, schoolLocalDate])
+  @@index([schoolId, schoolLocalDate])
+  @@index([sessionId, schoolLocalDate])
+  @@index([learnerId])
 }
 
 model ParentOnboarding {

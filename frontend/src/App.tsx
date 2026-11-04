@@ -45,6 +45,7 @@ import EduClockApp from "./educlock/EduClockApp";
 import GeofencePhase2aPreviewPage from "./geofence/GeofencePhase2aPreviewPage";
 import EntranceSetupPreviewPage from "./geofence/EntranceSetupPreviewPage";
 import OwnerLocationTestPreviewPage from "./geofence/OwnerLocationTestPreviewPage";
+import HomeSafeCollectionsPrototypePage from "./homesafe/collections-prototype/HomeSafeCollectionsPrototypePage";
 
 
 
@@ -657,6 +658,14 @@ export default function App() {
             <Route
               path="/__local/geofence-location-test-preview"
               element={<OwnerLocationTestPreviewPage />}
+            />
+            <Route
+              path="/__local/homesafe-collections-prototype"
+              element={<HomeSafeCollectionsPrototypePage />}
+            />
+            <Route
+              path="/__local/homesafe-collections-v2"
+              element={<HomeSafeCollectionsPrototypePage />}
             />
           </>
         ) : null}
