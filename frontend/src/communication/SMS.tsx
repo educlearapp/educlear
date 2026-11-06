@@ -16,6 +16,7 @@ import {
   type SmsRecord,
 } from "./communicationApi";
 import { checkSchoolSmsCreditBalance } from "./schoolSmsApi";
+import { describeCommunicationSmsCampaign } from "./smsCampaignStatus";
 import { analyseSmsMessage } from "../billing/smsSegmentCalculator";
 import {
   fieldStyle,
@@ -286,9 +287,11 @@ export default function SMS({
     }
   };
 
-  const statusColor = (status: string) => {
-    if (status === "Sent" || status === "Accepted" || status === "Delivered") return "#15803d";
-    if (status === "Failed" || status === "Rejected") return "#b91c1c";
+  const statusColor = (tone: string) => {
+    const key = tone.toLowerCase();
+    if (key === "accepted" || key === "delivered") return "#15803d";
+    if (key === "rejected" || key === "failed") return "#b91c1c";
+    if (key === "stored") return "#334155";
     return "#92400e";
   };
 
@@ -599,7 +602,8 @@ export default function SMS({
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(160px, 1fr))", gap: 16, marginBottom: 22, maxWidth: 520 }}>
         <div style={summaryCard}>
           <div style={{ fontSize: 28, fontWeight: 950 }}>{smsCredits.toLocaleString()}</div>
-          <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b" }}>SMS CREDITS</div>
+          <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b" }}>LOCAL CREDIT COUNTER</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8" }}>Not the WinSMS balance</div>
         </div>
         <div style={summaryCard}>
           <div style={{ fontSize: 28, fontWeight: 950 }}>
@@ -610,6 +614,19 @@ export default function SMS({
                 : "—"}
           </div>
           <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b" }}>LIVE WINSMS BALANCE</div>
+          {liveBalanceLoading ? null : liveWinSmsBalance === 0 ? (
+            <div style={{ marginTop: 6, color: "#991b1b", fontWeight: 800, fontSize: 12 }}>
+              This school's WinSMS credits are exhausted.
+            </div>
+          ) : liveWinSmsBalance !== null && liveWinSmsBalance > 0 && liveWinSmsBalance < 20 ? (
+            <div style={{ marginTop: 6, color: "#9a3412", fontWeight: 800, fontSize: 12 }}>
+              This school's live WinSMS balance is low.
+            </div>
+          ) : liveWinSmsBalance === null ? (
+            <div style={{ marginTop: 6, color: "#9a3412", fontWeight: 800, fontSize: 12 }}>
+              Live balance was not checked. A saved snapshot is not the current balance.
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -673,7 +690,19 @@ export default function SMS({
                   ) : null}
                 </td>
                 <td style={td}>
-                  <span style={{ color: statusColor(row.status), fontWeight: 800 }}>{row.status}</span>
+                  {(() => {
+                    const described = describeCommunicationSmsCampaign(row);
+                    return (
+                      <>
+                        <span style={{ color: statusColor(described.tone), fontWeight: 800 }}>{described.label}</span>
+                        {described.detail ? (
+                          <div style={{ marginTop: 4, color: "#64748b", fontWeight: 700, fontSize: 12, whiteSpace: "normal" }}>
+                            {described.detail}
+                          </div>
+                        ) : null}
+                      </>
+                    );
+                  })()}
                 </td>
               </tr>
             ))

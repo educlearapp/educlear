@@ -126,7 +126,16 @@ type SmsRecord = {
   description: string;
   message: string;
   contacts: SmsContact[];
-  status: "Draft" | "Sent" | "Failed" | "Unknown";
+  status:
+    | "Draft"
+    | "Sent"
+    | "Failed"
+    | "Unknown"
+    | "Accepted"
+    | "Partial"
+    | "Rejected"
+    | "Unconfirmed"
+    | "Delivered";
   createdAt: string;
   updatedAt: string;
   sentAt?: string;
@@ -869,11 +878,18 @@ router.post("/sms/:id/send", async (req, res) => {
       });
     }
 
-    if (acceptance.campaignStatus === "Sent") {
-      record.status = "Sent";
+    if (
+      acceptance.campaignStatus === "Accepted" ||
+      acceptance.campaignStatus === "Partial" ||
+      acceptance.campaignStatus === "Delivered"
+    ) {
+      record.status = acceptance.campaignStatus;
       record.sentAt = now;
-    } else if (acceptance.campaignStatus === "Unknown") {
-      record.status = "Unknown";
+    } else if (acceptance.campaignStatus === "Unconfirmed") {
+      record.status = "Unconfirmed";
+      record.sentAt = undefined;
+    } else if (acceptance.campaignStatus === "Rejected") {
+      record.status = "Rejected";
       record.sentAt = undefined;
     } else {
       record.status = "Failed";

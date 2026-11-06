@@ -85,6 +85,8 @@ function testSegmentEstimate() {
     2
   );
   assert.ok(BULK_STATEMENT_SMS_DEFAULT_TEMPLATE.includes("{{amount}}"));
+  assert.ok(BULK_STATEMENT_SMS_DEFAULT_TEMPLATE.includes("outstanding balance"));
+  assert.equal(BULK_STATEMENT_SMS_DEFAULT_TEMPLATE.includes("statement"), false);
   assert.ok(STATEMENT_SMS_MAX_CHARS === 480);
   const november = "A".repeat(460);
   assert.strictEqual(estimateBulkTemplateSegments(november), 4);
@@ -196,7 +198,7 @@ function testCollectPreviewRecipientsByStrategyShape() {
 function testOutstandingAccountsWired() {
   const src = readFileSync(join(here, "OutstandingAccountsReport.tsx"), "utf8");
   assert.ok(src.includes("BulkStatementSmsModal"));
-  assert.ok(src.includes("Bulk SMS"));
+  assert.ok(src.includes("Bulk Outstanding Balance SMS"));
   assert.ok(src.includes("Clear selection"));
   assert.ok(src.includes("outstandingSelectionKey"));
   assert.ok(src.includes("selectedFamilyAccountIds"));

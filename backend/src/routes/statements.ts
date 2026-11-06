@@ -11,12 +11,8 @@ import {
   previewStatementSms,
   sendStatementSms,
 } from "../services/statementSmsService";
-import {
-  parseBulkRecipientStrategy,
-  previewBulkStatementSms,
-  sendBulkStatementSms,
-  type BulkStatementSmsAccountOverride,
-} from "../services/statementBulkSmsService";
+import { parseBulkRecipientStrategy, type BulkStatementSmsAccountOverride } from "../services/statementBulkSmsService";
+import { previewOutstandingBalanceSms, sendOutstandingBalanceSms } from "../services/outstandingBalanceBulkSms";
 import {
   previewOutstandingFeesReminder,
   sendOutstandingFeesReminder,
@@ -328,15 +324,11 @@ router.post(
       const schoolId = auth.authorizedSchoolId;
       const body = (req.body ?? {}) as Record<string, unknown>;
 
-      const preview = await previewBulkStatementSms({
+      const preview = await previewOutstandingBalanceSms({
         schoolId,
-        familyAccountIds: Array.isArray(body.familyAccountIds)
-          ? body.familyAccountIds
-          : [],
+        familyAccountIds: Array.isArray(body.familyAccountIds) ? body.familyAccountIds : [],
         recipientStrategy: parseBulkRecipientStrategy(body.recipientStrategy),
-        accountOverrides: parseBulkAccountOverrides(body.accountOverrides),
-        messageTemplate:
-          typeof body.messageTemplate === "string" ? body.messageTemplate : undefined,
+        messageTemplate: typeof body.messageTemplate === "string" ? body.messageTemplate : undefined,
       });
 
       if (!preview.ok) {
@@ -349,9 +341,9 @@ router.post(
       }
 
       return res.json({
+        ...preview,
         success: true,
         simulated: false,
-        ...preview,
       });
     } catch (error) {
       console.error("[statements] POST /bulk-sms-preview failed:", error);
@@ -374,20 +366,13 @@ router.post(
       const schoolId = auth.authorizedSchoolId;
       const body = (req.body ?? {}) as Record<string, unknown>;
 
-      const result = await sendBulkStatementSms({
+      const result = await sendOutstandingBalanceSms({
         schoolId,
-        familyAccountIds: Array.isArray(body.familyAccountIds)
-          ? body.familyAccountIds
-          : [],
+        familyAccountIds: Array.isArray(body.familyAccountIds) ? body.familyAccountIds : [],
+        sendInstanceId: typeof body.sendInstanceId === "string" ? body.sendInstanceId : "",
         recipientStrategy: parseBulkRecipientStrategy(body.recipientStrategy),
-        accountOverrides: parseBulkAccountOverrides(body.accountOverrides),
-        messageTemplate:
-          typeof body.messageTemplate === "string" ? body.messageTemplate : undefined,
-        mobileNumbers: body.mobileNumbers,
-        cellNo: body.cellNo,
-        phone: body.phone,
-        confirmResend: body.confirmResend === true,
-        resendReason: typeof body.resendReason === "string" ? body.resendReason : undefined,
+        messageTemplate: typeof body.messageTemplate === "string" ? body.messageTemplate : undefined,
+        authorizationText: typeof body.authorizationText === "string" ? body.authorizationText : undefined,
         actorUserId: auth.userId,
       });
 

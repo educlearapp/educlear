@@ -31,7 +31,7 @@ export type StoredRecipient = {
 
 export type ReminderCampaign = {
   campaignId: string;
-  messageType: typeof REMINDER_MESSAGE_TYPE;
+  messageType: string;
   schoolId: string;
   billingPeriod: string;
   campaignKey: string;
@@ -131,12 +131,17 @@ export function readOutstandingFeesReminderCampaignsForTests(): ReminderCampaign
   return readStore().campaigns;
 }
 
-function scoped(campaigns: ReminderCampaign[], schoolId: string, billingPeriod: string): ReminderCampaign[] {
+function scoped(
+  campaigns: ReminderCampaign[],
+  schoolId: string,
+  billingPeriod: string,
+  messageType = REMINDER_MESSAGE_TYPE
+): ReminderCampaign[] {
   return campaigns.filter(
     (campaign) =>
       campaign.schoolId === schoolId &&
       campaign.billingPeriod === billingPeriod &&
-      campaign.messageType === REMINDER_MESSAGE_TYPE
+      campaign.messageType === messageType
   );
 }
 
@@ -144,21 +149,30 @@ function cloneCampaigns(campaigns: ReminderCampaign[]): ReminderCampaign[] {
   return JSON.parse(JSON.stringify(campaigns)) as ReminderCampaign[];
 }
 
-async function fileList(schoolId: string, billingPeriod: string): Promise<ReminderCampaign[]> {
-  return withFileLock(() => scoped(readStore().campaigns, schoolId, billingPeriod));
+async function fileList(
+  schoolId: string,
+  billingPeriod: string,
+  messageType = REMINDER_MESSAGE_TYPE
+): Promise<ReminderCampaign[]> {
+  return withFileLock(() => scoped(readStore().campaigns, schoolId, billingPeriod, messageType));
 }
 
 async function fileTransaction<T>(
   schoolId: string,
   billingPeriod: string,
+  messageType: string,
   fn: (campaigns: ReminderCampaign[]) => { campaigns: ReminderCampaign[]; result: T }
 ): Promise<T> {
   return withFileLock(() => {
     const all = readStore().campaigns;
-    const current = cloneCampaigns(scoped(all, schoolId, billingPeriod));
+    const current = cloneCampaigns(scoped(all, schoolId, billingPeriod, messageType));
     const next = fn(current);
     for (const campaign of next.campaigns) {
-      if (campaign.schoolId !== schoolId || campaign.billingPeriod !== billingPeriod) {
+      if (
+        campaign.schoolId !== schoolId ||
+        campaign.billingPeriod !== billingPeriod ||
+        campaign.messageType !== messageType
+      ) {
         throw new Error("Reminder campaign school did not match the locked school.");
       }
     }
@@ -167,7 +181,7 @@ async function fileTransaction<T>(
         !(
           campaign.schoolId === schoolId &&
           campaign.billingPeriod === billingPeriod &&
-          campaign.messageType === REMINDER_MESSAGE_TYPE
+          campaign.messageType === messageType
         )
     );
     writeStore({ campaigns: [...rest, ...next.campaigns] });
@@ -235,7 +249,7 @@ async function prismaClient(): Promise<{
 function mapRow(row: PrismaCampaignRow): ReminderCampaign {
   return {
     campaignId: row.id,
-    messageType: REMINDER_MESSAGE_TYPE,
+    messageType: row.messageType,
     schoolId: row.schoolId,
     billingPeriod: row.billingPeriod,
     campaignKey: row.campaignKey,
@@ -266,12 +280,22 @@ function mapRow(row: PrismaCampaignRow): ReminderCampaign {
   };
 }
 
-async function loadRows(db: { outstandingFeesReminderCampaign: PrismaCampaignDelegate }, schoolId: string, billingPeriod: string) {
+async function loadRows(
+  db: { outstandingFeesReminderCampaign: PrismaCampaignDelegate },
+  schoolId: string,
+  billingPeriod: string,
+  messageType = REMINDER_MESSAGE_TYPE
+) {
   const rows = await db.outstandingFeesReminderCampaign.findMany({
-    where: { schoolId, billingPeriod, messageType: REMINDER_MESSAGE_TYPE },
+    where: { schoolId, billingPeriod, messageType },
     include: { recipients: true },
   });
   return rows.map(mapRow);
+}
+
+function campaignLockKey(schoolId: string, messageType: string): string {
+  if (messageType === REMINDER_MESSAGE_TYPE) return `outstanding-fees-reminder:${schoolId}`;
+  return `${messageType}:${schoolId}`;
 }
 
 async function persistDiff(tx: PrismaTx, schoolId: string, before: ReminderCampaign[], after: ReminderCampaign[]) {
@@ -334,23 +358,33 @@ async function persistDiff(tx: PrismaTx, schoolId: string, before: ReminderCampa
   }
 }
 
-async function databaseList(schoolId: string, billingPeriod: string): Promise<ReminderCampaign[]> {
+async function databaseList(
+  schoolId: string,
+  billingPeriod: string,
+  messageType = REMINDER_MESSAGE_TYPE
+): Promise<ReminderCampaign[]> {
   const db = await prismaClient();
-  return loadRows(db, schoolId, billingPeriod);
+  return loadRows(db, schoolId, billingPeriod, messageType);
 }
 
 async function databaseTransaction<T>(
   schoolId: string,
   billingPeriod: string,
+  messageType: string,
   fn: (campaigns: ReminderCampaign[]) => { campaigns: ReminderCampaign[]; result: T }
 ): Promise<T> {
   const db = await prismaClient();
-  const lockKey = `outstanding-fees-reminder:${schoolId}`;
+  const lockKey = campaignLockKey(schoolId, messageType);
   return db.$transaction(
     async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
-      const current = await loadRows(tx, schoolId, billingPeriod);
+      const current = await loadRows(tx, schoolId, billingPeriod, messageType);
       const next = fn(cloneCampaigns(current));
+      for (const campaign of next.campaigns) {
+        if (campaign.schoolId !== schoolId || campaign.billingPeriod !== billingPeriod || campaign.messageType !== messageType) {
+          throw new Error("Reminder campaign school did not match the locked school.");
+        }
+      }
       await persistDiff(tx, schoolId, current, next.campaigns);
       return next.result;
     },
@@ -386,27 +420,34 @@ async function databaseComplete(campaignId: string, schoolId: string, completedA
   }
 }
 
-async function databaseFind(schoolId: string, campaignId: string): Promise<ReminderCampaign | null> {
+async function databaseFind(
+  schoolId: string,
+  campaignId: string,
+  messageType = REMINDER_MESSAGE_TYPE
+): Promise<ReminderCampaign | null> {
   const db = await prismaClient();
   const rows = await db.outstandingFeesReminderCampaign.findMany({
-    where: { id: campaignId, schoolId, messageType: REMINDER_MESSAGE_TYPE },
+    where: { id: campaignId, schoolId, messageType },
     include: { recipients: true },
   });
   return rows[0] ? mapRow(rows[0]) : null;
 }
 
 export const reminderCampaignStore = {
-  list(schoolId: string, billingPeriod: string): Promise<ReminderCampaign[]> {
-    return reminderStoreUsesDatabase() ? databaseList(schoolId, billingPeriod) : fileList(schoolId, billingPeriod);
+  list(schoolId: string, billingPeriod: string, messageType = REMINDER_MESSAGE_TYPE): Promise<ReminderCampaign[]> {
+    return reminderStoreUsesDatabase()
+      ? databaseList(schoolId, billingPeriod, messageType)
+      : fileList(schoolId, billingPeriod, messageType);
   },
   transaction<T>(
     schoolId: string,
     billingPeriod: string,
-    fn: (campaigns: ReminderCampaign[]) => { campaigns: ReminderCampaign[]; result: T }
+    fn: (campaigns: ReminderCampaign[]) => { campaigns: ReminderCampaign[]; result: T },
+    messageType = REMINDER_MESSAGE_TYPE
   ): Promise<T> {
     return reminderStoreUsesDatabase()
-      ? databaseTransaction(schoolId, billingPeriod, fn)
-      : fileTransaction(schoolId, billingPeriod, fn);
+      ? databaseTransaction(schoolId, billingPeriod, messageType, fn)
+      : fileTransaction(schoolId, billingPeriod, messageType, fn);
   },
   async updateRecipient(
     campaignId: string,
@@ -443,12 +484,18 @@ export const reminderCampaignStore = {
     }
     await databaseComplete(campaignId, schoolId, completedAt);
   },
-  find(schoolId: string, campaignId: string): Promise<ReminderCampaign | null> {
+  find(schoolId: string, campaignId: string, messageType = REMINDER_MESSAGE_TYPE): Promise<ReminderCampaign | null> {
     if (!reminderStoreUsesDatabase()) {
       return Promise.resolve(
-        withFileLock(() => readStore().campaigns.find((row) => row.campaignId === campaignId && row.schoolId === schoolId) || null)
+        withFileLock(
+          () =>
+            readStore().campaigns.find(
+              (row) =>
+                row.campaignId === campaignId && row.schoolId === schoolId && row.messageType === messageType
+            ) || null
+        )
       );
     }
-    return databaseFind(schoolId, campaignId);
+    return databaseFind(schoolId, campaignId, messageType);
   },
 };

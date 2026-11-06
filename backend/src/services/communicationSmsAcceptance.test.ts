@@ -21,7 +21,7 @@ function testFullAcceptanceIsNotDelivery() {
   });
   assert.equal(result.accepted, 3);
   assert.equal(result.delivered, 0);
-  assert.equal(result.campaignStatus, "Sent");
+  assert.equal(result.campaignStatus, "Accepted");
   assert.deepEqual(
     result.contacts.map((contact) => contact.status),
     ["Accepted", "Accepted", "Accepted"]
@@ -46,7 +46,8 @@ function testPartialAcceptance() {
   assert.equal(result.rejected, 1);
   assert.equal(result.pending, 1);
   assert.equal(result.failed, 1);
-  assert.equal(result.campaignStatus, "Sent");
+  assert.equal(result.campaignStatus, "Partial");
+  assert.notEqual(result.campaignStatus, "Delivered");
   assert.equal(result.contacts.find((contact) => contact.contactId === "c0")?.status, "Failed");
   assert.equal(result.contacts.find((contact) => contact.contactId === "c2")?.detail?.includes("082"), false);
   console.log("  ✓ partial acceptance keeps delivered, rejected, pending and invalid numbers apart");
@@ -59,7 +60,7 @@ function testHttp200WithoutRecipientsIsUnknown() {
   });
   assert.equal(result.accepted, 0);
   assert.equal(result.unknown, 1);
-  assert.equal(result.campaignStatus, "Unknown");
+  assert.equal(result.campaignStatus, "Unconfirmed");
   assert.match(result.contacts[0].detail || "", /HTTP success was not treated as acceptance/);
   console.log("  ✓ HTTP 200 without a recipient result is Unknown");
 }
@@ -71,7 +72,7 @@ function testRejectionAndNetwork() {
   });
   assert.equal(rejected.rejected, 2);
   assert.equal(rejected.accepted, 0);
-  assert.equal(rejected.campaignStatus, "Failed");
+  assert.equal(rejected.campaignStatus, "Rejected");
 
   const network = classifyCommunicationSmsSend({
     prepared: [prepared[0]],
@@ -118,6 +119,15 @@ function testDeliveryStatusVariations() {
   });
   assert.equal(acceptedOnly.contacts[0].status, "Accepted");
   assert.equal(acceptedOnly.delivered, 0);
+  assert.equal(acceptedOnly.campaignStatus, "Accepted");
+  const allDelivered = classifyCommunicationSmsSend({
+    prepared: [prepared[0]],
+    providerResponse: {
+      recipients: [{ clientMessageId: "sms-1-c1", accepted: true, deliveryStatus: "Delivered" }],
+    },
+  });
+  assert.equal(allDelivered.campaignStatus, "Delivered");
+  assert.equal(allDelivered.delivered, 1);
   assert.equal(classifyOne("in transit", true), "Unknown");
   assert.equal(
     classifyCommunicationSmsSend({

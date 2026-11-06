@@ -67,8 +67,13 @@ export type BulkStatementSmsPreview = {
   accounts: BulkStatementSmsAccountPreview[];
   smsReady: boolean;
   outboundDisabled: boolean;
+  creditBalance?: number | null;
+  creditBalanceIsCurrent?: boolean;
+  creditWarning?: string | null;
   canSend: boolean;
   concurrency: number;
+  requiresNewCampaignAuthorization?: boolean;
+  historicalStatementNote?: string | null;
 };
 
 export type BulkStatementSmsSendResponse = {
@@ -116,7 +121,10 @@ export type BulkStatementSmsSendResponse = {
 };
 
 export const BULK_STATEMENT_SMS_DEFAULT_TEMPLATE =
-  "{{schoolName}}: Account {{accountNo}} has an outstanding balance of {{amount}}. Please view your statement for details. Thank you.";
+  "{{schoolName}}: Account {{accountNo}} has an outstanding balance of {{amount}}. Please arrange payment.";
+
+export const NEW_BALANCE_CAMPAIGN_AUTHORIZATION_TEXT =
+  "Start a new outstanding balance SMS. Do not retry accepted or unconfirmed messages.";
 
 export { STATEMENT_SMS_MAX_CHARS, STATEMENT_SMS_SEGMENT_CHARS };
 
@@ -198,6 +206,8 @@ export async function sendBulkStatementSmsRequest(input: {
   recipientStrategy: BulkStatementSmsRecipientStrategy;
   accountOverrides?: BulkStatementSmsAccountOverride[];
   messageTemplate?: string;
+  sendInstanceId: string;
+  authorizationText?: string;
   confirmResend?: boolean;
   resendReason?: string;
 }): Promise<BulkStatementSmsSendResponse> {
@@ -213,6 +223,8 @@ export async function sendBulkStatementSmsRequest(input: {
       recipientStrategy: input.recipientStrategy,
       accountOverrides: input.accountOverrides || [],
       messageTemplate: input.messageTemplate,
+      sendInstanceId: input.sendInstanceId,
+      authorizationText: input.authorizationText,
       confirmResend: input.confirmResend === true,
       resendReason: input.resendReason,
     }),
@@ -221,7 +233,10 @@ export async function sendBulkStatementSmsRequest(input: {
   if (
     json.code === "DUPLICATE_BULK_SMS" ||
     json.code === "RESEND_REASON_REQUIRED" ||
-    json.code === "HISTORICAL_STATEMENT_SMS_HOLD"
+    json.code === "HISTORICAL_STATEMENT_SMS_HOLD" ||
+    json.code === "NEW_CAMPAIGN_AUTHORIZATION_REQUIRED" ||
+    json.code === "BALANCE_SMS_IN_PROGRESS" ||
+    json.code === "SEND_INSTANCE_MISMATCH"
   ) {
     return json;
   }

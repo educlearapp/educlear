@@ -11,7 +11,13 @@ export type CommunicationSmsRecipientStatus =
   | "Pending"
   | "Delivered";
 
-export type CommunicationSmsCampaignStatus = "Sent" | "Failed" | "Unknown";
+export type CommunicationSmsCampaignStatus =
+  | "Accepted"
+  | "Partial"
+  | "Rejected"
+  | "Unconfirmed"
+  | "Delivered"
+  | "Failed";
 
 export type ClassifiedCommunicationContact = {
   contactId: string;
@@ -201,8 +207,19 @@ export function classifyCommunicationSmsSend(input: {
   const pending = count("Pending");
   const delivered = count("Delivered");
   const failed = count("Failed");
+  const positive = accepted + delivered;
+  const negative = rejected + failed;
+  const open = pending + unknown;
   const campaignStatus: CommunicationSmsCampaignStatus =
-    accepted + delivered > 0 ? "Sent" : pending + unknown > 0 ? "Unknown" : "Failed";
+    delivered > 0 && delivered === contacts.length && negative === 0 && open === 0
+      ? "Delivered"
+      : positive > 0 && (negative > 0 || open > 0)
+        ? "Partial"
+        : positive > 0
+          ? "Accepted"
+          : open > 0
+            ? "Unconfirmed"
+            : "Rejected";
 
   return { contacts, accepted, rejected, unknown, pending, delivered, failed, campaignStatus };
 }

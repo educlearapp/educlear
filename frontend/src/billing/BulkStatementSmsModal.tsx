@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { formatMoney } from "./billingLedger";
 import {
   BULK_STATEMENT_SMS_DEFAULT_TEMPLATE,
+  NEW_BALANCE_CAMPAIGN_AUTHORIZATION_TEXT,
   collectBulkSmsPreviewRecipients,
   estimateBulkTemplateSegments,
   fetchBulkStatementSmsPreview,
@@ -137,6 +138,8 @@ export default function BulkStatementSmsModal({
   onClose,
   onSent,
 }: Props) {
+  const sendInstanceId = useMemo(() => crypto.randomUUID(), []);
+  const [authorized, setAuthorized] = useState(false);
   const [step, setStep] = useState<Step>(1);
   const [strategy, setStrategy] = useState<BulkStatementSmsRecipientStrategy>("recommended");
   const [messageTemplate, setMessageTemplate] = useState(BULK_STATEMENT_SMS_DEFAULT_TEMPLATE);
@@ -146,7 +149,6 @@ export default function BulkStatementSmsModal({
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<BulkStatementSmsSendResponse | null>(null);
   const [sendError, setSendError] = useState("");
-  const [resendReason, setResendReason] = useState("");
   const bodyRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -193,11 +195,10 @@ export default function BulkStatementSmsModal({
   const canAdvanceFromMessage =
     Boolean(messageTemplate.trim()) && messageTemplate.trim().length <= STATEMENT_SMS_MAX_CHARS;
 
-  async function handleSend(confirmResend?: boolean) {
-    const resend = confirmResend === true;
+  async function handleSend() {
     if (sending || !preview?.canSend) return;
-    if (resend && resendReason.trim().length < 15) {
-      setSendError("An intentional resend needs a reason of at least 15 characters. Nothing was sent.");
+    if (preview.requiresNewCampaignAuthorization && !authorized) {
+      setSendError("Confirm this new outstanding-balance campaign before sending. Nothing was sent.");
       return;
     }
     setSending(true);
@@ -208,8 +209,8 @@ export default function BulkStatementSmsModal({
         familyAccountIds,
         recipientStrategy: strategy,
         messageTemplate,
-        confirmResend: resend,
-        resendReason: resend ? resendReason.trim() : undefined,
+        sendInstanceId,
+        authorizationText: preview.requiresNewCampaignAuthorization ? NEW_BALANCE_CAMPAIGN_AUTHORIZATION_TEXT : undefined,
       });
       setSendResult(result);
       setStep(5);
@@ -231,7 +232,7 @@ export default function BulkStatementSmsModal({
   }
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="Bulk Statement SMS">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label="Bulk Outstanding Balance SMS">
       <div style={panel}>
         <div
           style={{
@@ -245,7 +246,7 @@ export default function BulkStatementSmsModal({
           }}
         >
           <div>
-            <div style={{ fontWeight: 900, fontSize: 18, color: INK }}>Bulk Statement SMS</div>
+            <div style={{ fontWeight: 900, fontSize: 18, color: INK }}>Bulk Outstanding Balance SMS</div>
             <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>
               Step {step} of 5 · Outstanding accounts only
             </div>
@@ -313,7 +314,7 @@ export default function BulkStatementSmsModal({
                 <span>
                   <strong>All eligible billing parents</strong>
                   <div style={{ fontSize: 13, color: "#64748b" }}>
-                    Every eligible parent with SMS consent. Duplicate numbers still send once.
+                    Every eligible parent with SMS consent. A shared mobile receives one SMS listing every balance.
                   </div>
                 </span>
               </label>
@@ -374,6 +375,21 @@ export default function BulkStatementSmsModal({
                       Outbound SMS is disabled for this environment.
                     </div>
                   ) : null}
+                  {preview.creditWarning ? (
+                    <div
+                      style={{
+                        marginBottom: 12,
+                        padding: 12,
+                        borderRadius: 10,
+                        background: "#fff7ed",
+                        border: "1px solid #fed7aa",
+                        color: "#9a3412",
+                        fontWeight: 800,
+                      }}
+                    >
+                      {preview.creditWarning}
+                    </div>
+                  ) : null}
                   {!preview.smsReady ? (
                     <div
                       style={{
@@ -393,7 +409,7 @@ export default function BulkStatementSmsModal({
                   <div>Eligible accounts: {preview.eligibleAccountCount}</div>
                   <div>Skipped accounts: {preview.skippedAccountCount}</div>
                   <div>Eligible destinations: {preview.destinationCount}</div>
-                  <div>Duplicate numbers removed: {preview.duplicateNumbersRemoved}</div>
+                  <div>Shared numbers combined into one SMS: {preview.duplicateNumbersRemoved}</div>
                   <div>Total outstanding: {formatMoney(preview.totalOutstanding)}</div>
                   <div>Estimated SMS segments: {preview.estimatedSegments}</div>
                   <div>
@@ -446,10 +462,23 @@ export default function BulkStatementSmsModal({
                     )}
                   </div>
                   <div style={{ marginTop: 12, color: "#64748b", fontSize: 13, lineHeight: 1.5 }}>
-                    Sending this same group again in the current billing period is blocked. A
-                    refresh or a second click does not contact WinSMS again. An intentional resend
-                    is a separate step and asks for a written reason.
+                    Each message states the outstanding balance only. A second click of this confirmation does not
+                    contact WinSMS again. Accepted and unconfirmed numbers are not retried automatically. WinSMS
+                    acceptance is not handset delivery.
                   </div>
+                  {preview.historicalStatementNote ? (
+                    <div style={{ marginTop: 8, fontSize: 13, fontWeight: 700 }}>{preview.historicalStatementNote}</div>
+                  ) : null}
+                  {preview.requiresNewCampaignAuthorization ? (
+                    <label style={{ display: "flex", gap: 10, alignItems: "flex-start", marginTop: 12 }}>
+                      <input
+                        type="checkbox"
+                        checked={authorized}
+                        onChange={(event) => setAuthorized(event.target.checked)}
+                      />
+                      <span style={{ fontSize: 13, fontWeight: 700 }}>{NEW_BALANCE_CAMPAIGN_AUTHORIZATION_TEXT}</span>
+                    </label>
+                  ) : null}
                   {Array.isArray(preview.sampleMessages) && preview.sampleMessages.length ? (
                     <div style={{ marginTop: 12 }}>
                       <div style={{ fontWeight: 800, marginBottom: 6 }}>Sample messages</div>
@@ -515,34 +544,6 @@ export default function BulkStatementSmsModal({
                     Copy failure summary
                   </button>
                 ) : null}
-                {sendResult.code === "DUPLICATE_BULK_SMS" && !sendResult.inProgress ? (
-                  <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid #e2e8f0" }}>
-                    <div style={{ fontWeight: 800, marginBottom: 6 }}>Intentional resend</div>
-                    <div style={{ fontSize: 13, color: "#64748b", marginBottom: 8 }}>
-                      This sends the same accounts again and is stored with your reason. It does
-                      not run automatically.
-                    </div>
-                    <textarea
-                      data-testid="bulk-sms-resend-reason"
-                      value={resendReason}
-                      onChange={(event) => setResendReason(event.target.value)}
-                      rows={3}
-                      style={{ width: "100%", boxSizing: "border-box", font: "inherit" }}
-                    />
-                    {sendError ? (
-                      <div style={{ marginTop: 8, color: "#991b1b", fontWeight: 700 }}>{sendError}</div>
-                    ) : null}
-                    <button
-                      type="button"
-                      data-testid="bulk-sms-intentional-resend"
-                      style={{ ...goldBtn, marginTop: 8 }}
-                      disabled={sending}
-                      onClick={() => void handleSend(true)}
-                    >
-                      {sending ? "Sending…" : "Record intentional resend"}
-                    </button>
-                  </div>
-                ) : null}
               </div>
             </div>
           ) : null}
@@ -596,9 +597,19 @@ export default function BulkStatementSmsModal({
                 type="button"
                 style={disabledBtn(
                   goldBtn,
-                  sending || previewLoading || !preview?.canSend || Boolean(previewError)
+                  sending ||
+                    previewLoading ||
+                    !preview?.canSend ||
+                    Boolean(previewError) ||
+                    (Boolean(preview?.requiresNewCampaignAuthorization) && !authorized)
                 )}
-                disabled={sending || previewLoading || !preview?.canSend || Boolean(previewError)}
+                disabled={
+                  sending ||
+                  previewLoading ||
+                  !preview?.canSend ||
+                  Boolean(previewError) ||
+                  (Boolean(preview?.requiresNewCampaignAuthorization) && !authorized)
+                }
                 onClick={() => void handleSend()}
               >
                 {sending ? "Sending…" : "Send SMS"}

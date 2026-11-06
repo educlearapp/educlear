@@ -216,7 +216,7 @@ async function testBadSampleMessagesDoNotBlankTheDialog() {
   assert.equal(r.caught.length, 0, "non-text samples are skipped");
   const text = r.container.textContent || "";
   assert.ok(text.includes("Final preview"), "preview stays visible");
-  assert.ok(text.includes("Bulk Statement SMS"), "header still shown");
+  assert.ok(text.includes("Bulk Outstanding Balance SMS"), "header still shown");
   assert.ok(text.trim().length > 40, "dialog is not blank");
   await act(async () => buttonByText(r.container, "Close").click());
   assert.equal(r.closed(), 1, "Close still works");

@@ -529,8 +529,8 @@ export default function OutstandingAccountsReport({ schoolId, schoolName }: Prop
     <div style={pageWrap}>
       <h1 style={heading}>Outstanding Fees</h1>
       <div style={subtitle}>
-        Family accounts with an outstanding balance greater than R0.00, organised by class. Statement SMS and the short
-        outstanding-fees reminder are separate sends.
+        Family accounts with an outstanding balance greater than R0.00, organised by class. Bulk outstanding-balance
+        SMS and the short payment reminder are separate sends.
       </div>
 
       <div style={filterRow}>
@@ -689,7 +689,7 @@ export default function OutstandingAccountsReport({ schoolId, schoolName }: Prop
           onClick={() => setBulkSmsOpen(true)}
           style={goldButton(selectedFamilyAccountIds.length > 0)}
         >
-          Bulk SMS
+          Bulk Outstanding Balance SMS
         </button>
       </div>
 

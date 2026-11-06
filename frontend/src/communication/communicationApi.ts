@@ -75,7 +75,16 @@ export type SmsRecord = {
   description: string;
   message: string;
   contacts: SmsContact[];
-  status: "Draft" | "Sent" | "Failed" | "Unknown";
+  status:
+    | "Draft"
+    | "Sent"
+    | "Failed"
+    | "Unknown"
+    | "Accepted"
+    | "Partial"
+    | "Rejected"
+    | "Unconfirmed"
+    | "Delivered";
   createdAt: string;
   updatedAt: string;
   sentAt?: string;

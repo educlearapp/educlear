@@ -257,8 +257,8 @@ function testRoutesWired() {
   const src = readFileSync(join(__dirname, "../routes/statements.ts"), "utf8");
   assert.ok(src.includes('/bulk-sms-preview'));
   assert.ok(src.includes('/bulk-send-sms'));
-  assert.ok(src.includes("previewBulkStatementSms"));
-  assert.ok(src.includes("sendBulkStatementSms"));
+  assert.ok(src.includes("previewOutstandingBalanceSms"));
+  assert.ok(src.includes("sendOutstandingBalanceSms"));
   assert.ok(src.includes("requireStatementSendAuth"));
 }
 
