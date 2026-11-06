@@ -530,7 +530,10 @@ export async function claimOutstandingFeesReminderCampaign(input: {
   });
   const contentHash = reminderContentHash(template);
 
-  return reminderCampaignStore.transaction(input.schoolId, input.billingPeriod, (campaigns) => {
+  return reminderCampaignStore.transaction(input.schoolId, input.billingPeriod, (campaigns): {
+    campaigns: ReminderCampaign[];
+    result: ClaimResult;
+  } => {
     const sameInstance = campaigns.find((campaign) => campaign.sendInstanceId === sendInstanceId);
     if (sameInstance) {
       if (
