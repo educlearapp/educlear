@@ -3,6 +3,7 @@ import { API_URL } from "../api";
 import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 import { formatMoney } from "./billingLedger";
 import BulkStatementSmsModal from "./BulkStatementSmsModal";
+import OutstandingFeesReminderSmsModal from "./OutstandingFeesReminderSmsModal";
 import {
   outstandingSelectionKey,
   summarizeSelectedOutstanding,
@@ -227,6 +228,7 @@ export default function OutstandingAccountsReport({ schoolId, schoolName }: Prop
   const [serverClassOptions, setServerClassOptions] = useState<string[]>([]);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [bulkSmsOpen, setBulkSmsOpen] = useState(false);
+  const [reminderSmsOpen, setReminderSmsOpen] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
@@ -527,8 +529,8 @@ export default function OutstandingAccountsReport({ schoolId, schoolName }: Prop
     <div style={pageWrap}>
       <h1 style={heading}>Outstanding Fees</h1>
       <div style={subtitle}>
-        Family accounts with an outstanding balance greater than R0.00, organised by class. Select accounts to send bulk
-        statement SMS.
+        Family accounts with an outstanding balance greater than R0.00, organised by class. Statement SMS and the short
+        outstanding-fees reminder are separate sends.
       </div>
 
       <div style={filterRow}>
@@ -676,6 +678,14 @@ export default function OutstandingAccountsReport({ schoolId, schoolName }: Prop
         <button
           type="button"
           disabled={!selectedFamilyAccountIds.length}
+          onClick={() => setReminderSmsOpen(true)}
+          style={goldButton(selectedFamilyAccountIds.length > 0)}
+        >
+          Payment reminder SMS
+        </button>
+        <button
+          type="button"
+          disabled={!selectedFamilyAccountIds.length}
           onClick={() => setBulkSmsOpen(true)}
           style={goldButton(selectedFamilyAccountIds.length > 0)}
         >
@@ -781,6 +791,14 @@ export default function OutstandingAccountsReport({ schoolId, schoolName }: Prop
         </div>
       )}
 
+      {reminderSmsOpen ? (
+        <OutstandingFeesReminderSmsModal
+          schoolId={schoolId}
+          familyAccountIds={selectedFamilyAccountIds}
+          selectedCount={selectedCount}
+          onClose={() => setReminderSmsOpen(false)}
+        />
+      ) : null}
       {bulkSmsOpen ? (
         <BulkStatementSmsModal
           schoolId={schoolId}

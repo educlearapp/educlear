@@ -4220,3 +4220,51 @@ model AdmissionStaffNote {
 
   @@index([schoolId, applicationId, createdAt])
 }
+
+/// Outstanding-fees reminder campaigns. schoolId is always the authorized school.
+/// No School foreign key: history must not be deleted with a school row.
+/// Raw mobile numbers are never stored.
+model OutstandingFeesReminderCampaign {
+  id                String    @id
+  schoolId          String
+  messageType       String
+  billingPeriod     String
+  campaignKey       String
+  sendInstanceId    String
+  contentHash       String
+  messageTemplate   String    @db.Text
+  state             String
+  createdAt         DateTime
+  completedAt       DateTime?
+  actorUserId       String    @default("")
+  authorizationText String    @default("")
+  recipients        OutstandingFeesReminderRecipient[]
+
+  @@unique([schoolId, sendInstanceId])
+  @@index([schoolId, billingPeriod, messageType])
+  @@index([schoolId, campaignKey])
+}
+
+model OutstandingFeesReminderRecipient {
+  id              String  @id
+  campaignId      String
+  schoolId        String
+  recipientKey    String
+  familyAccountId String
+  accountNo       String
+  phoneHash       String
+  mobileMasked    String
+  displayName     String
+  message         String  @db.Text
+  encoding        String
+  units           Int
+  segments        Int
+  credits         Int
+  status          String
+  providerDetail  String  @default("")
+  providerCalled  Boolean @default(false)
+  campaign        OutstandingFeesReminderCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, recipientKey])
+  @@index([schoolId, phoneHash, status])
+}

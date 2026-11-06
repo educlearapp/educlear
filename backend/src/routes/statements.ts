@@ -18,6 +18,10 @@ import {
   type BulkStatementSmsAccountOverride,
 } from "../services/statementBulkSmsService";
 import {
+  previewOutstandingFeesReminder,
+  sendOutstandingFeesReminder,
+} from "../services/outstandingFeesReminderSms";
+import {
   requireStatementSendAuth,
   type StatementSendAuthRequest,
 } from "../middleware/requireStatementSendAuth";
@@ -398,6 +402,58 @@ router.post(
         error: "Server error",
         simulated: false,
       });
+    }
+  }
+);
+
+function selectedFamilyAccountIds(body: Record<string, unknown>): string[] {
+  return Array.isArray(body.familyAccountIds) ? body.familyAccountIds.map((id) => String(id || "")) : [];
+}
+
+// POST /api/statements/outstanding-fees-reminder/preview — short reminder preview, no send
+router.post(
+  "/outstanding-fees-reminder/preview",
+  requireStatementSendAuth,
+  async (req: StatementSendAuthRequest, res) => {
+    try {
+      const schoolId = req.statementSendAuth!.authorizedSchoolId;
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const preview = await previewOutstandingFeesReminder({
+        schoolId,
+        familyAccountIds: selectedFamilyAccountIds(body),
+        messageTemplate: typeof body.messageTemplate === "string" ? body.messageTemplate : undefined,
+      });
+      if (!preview.ok) {
+        return res.status(preview.status).json({ success: false, error: preview.error, code: preview.code });
+      }
+      return res.json(preview);
+    } catch (error) {
+      console.error("[statements] POST /outstanding-fees-reminder/preview failed:", error);
+      return res.status(500).json({ success: false, error: "Server error" });
+    }
+  }
+);
+
+// POST /api/statements/outstanding-fees-reminder/send — short reminder only
+router.post(
+  "/outstanding-fees-reminder/send",
+  requireStatementSendAuth,
+  async (req: StatementSendAuthRequest, res) => {
+    try {
+      const auth = req.statementSendAuth!;
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const result = await sendOutstandingFeesReminder({
+        schoolId: auth.authorizedSchoolId,
+        familyAccountIds: selectedFamilyAccountIds(body),
+        sendInstanceId: typeof body.sendInstanceId === "string" ? body.sendInstanceId : "",
+        messageTemplate: typeof body.messageTemplate === "string" ? body.messageTemplate : undefined,
+        authorizationText: typeof body.authorizationText === "string" ? body.authorizationText : undefined,
+        actorUserId: auth.userId,
+      });
+      return res.status(result.status).json({ success: Boolean(result.ok), ...result });
+    } catch (error) {
+      console.error("[statements] POST /outstanding-fees-reminder/send failed:", error);
+      return res.status(500).json({ success: false, error: "Server error", simulated: false });
     }
   }
 );
