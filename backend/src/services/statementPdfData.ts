@@ -421,6 +421,11 @@ async function loadSchoolBranding(schoolId: string) {
   };
 }
 
+/** Exported for invoice-run bulk PDF to load school branding once per request. */
+export async function loadSchoolBrandingForBulk(schoolId: string) {
+  return loadSchoolBranding(schoolId);
+}
+
 export async function resolveAccountStatementScope(
   schoolId: string,
   opts: { accountNo?: string; learnerId?: string }
@@ -456,7 +461,7 @@ export async function buildStatementPdfInput(
   if (!resolved) throw new Error("Account not found for statement PDF");
   const { scope } = resolved;
 
-  const ledger = readSchoolLedger(schoolId);
+  const ledger = options.sharedLedger ?? readSchoolLedger(schoolId);
   const scopedEntries = collectAccountRefLedgerEntries(ledger, scope.accountRef);
   const filtered = filterLedgerByStatementPeriod(scopedEntries, period);
   const openingBalance = computeStatementOpeningBalance(scopedEntries, period);
@@ -494,7 +499,7 @@ export async function buildStatementPdfInput(
     scope.learnerIds,
     scope.accountRef || "—"
   );
-  const school = await loadSchoolBranding(schoolId);
+  const school = options.sharedSchoolBranding ?? (await loadSchoolBranding(schoolId));
 
   const transactions = buildStatementTransactions({
     schoolId,
@@ -503,6 +508,7 @@ export async function buildStatementPdfInput(
     period,
     openingBalance,
     nameByLearnerId,
+    kidesysHistory: options.sharedKidesysHistory,
   });
 
   return {
@@ -529,7 +535,12 @@ export async function buildAndGenerateStatementPdf(options: BuildStatementPdfOpt
   input: StatementPdfInput;
 }> {
   const input = await buildStatementPdfInput(options);
-  const buffer = await generateStatementPdfBuffer(input);
+  const buffer = await generateStatementPdfBuffer(
+    input,
+    options.sharedLogoBuffer !== undefined
+      ? { logoBuffer: options.sharedLogoBuffer }
+      : undefined
+  );
   return {
     buffer,
     filename: statementPdfFilename(input.accountNo, options.period),

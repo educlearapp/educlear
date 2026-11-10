@@ -91,7 +91,29 @@ export function formatStatementPeriodHeaderLabel(period: string, now: Date = new
 
   const end = new Date(now);
   end.setHours(0, 0, 0, 0);
+  // Human-readable PDF/UI label (may include en-dash). Never put this in HTTP headers.
   return `${normalized} (${formatDisplayDate(cutoff)} – ${formatDisplayDate(end)})`;
+}
+
+function isoDateLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * ASCII-safe statement window for HTTP response headers.
+ * Example: "2026-08-10 to 2026-11-10" or "All Time".
+ */
+export function formatStatementPeriodHttpWindow(period: string, now: Date = new Date()): string {
+  const normalized = normalizeStatementPeriod(period);
+  if (normalized === "All Time") return "All Time";
+  const cutoff = resolveStatementPeriodCutoff(normalized, now);
+  if (!cutoff) return normalized;
+  const end = new Date(now);
+  end.setHours(0, 0, 0, 0);
+  return `${isoDateLocal(cutoff)} to ${isoDateLocal(end)}`;
 }
 
 export function formatStatementPeriodFilenameSlug(period: string): string {

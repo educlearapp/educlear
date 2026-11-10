@@ -1,4 +1,5 @@
-import type { BillingInvoiceChargeLine } from "../utils/billingLedgerStore";
+import type { BillingInvoiceChargeLine, BillingLedgerEntry } from "../utils/billingLedgerStore";
+import type { KidesysHistoryEntry } from "../utils/kidesysTransactionHistoryStore";
 
 export type StatementPdfTransaction = {
   date: string;
@@ -65,4 +66,12 @@ export type BuildStatementPdfOptions = {
    * Invoice-run bulk print must pass period-ledger.
    */
   closingBalanceSource?: StatementClosingBalanceSource;
+  /**
+   * Optional request-scoped reuse for bulk generation.
+   * Individual statement callers omit these (existing behaviour).
+   */
+  sharedLedger?: BillingLedgerEntry[];
+  sharedSchoolBranding?: StatementPdfSchoolBranding;
+  sharedLogoBuffer?: Buffer | null;
+  sharedKidesysHistory?: KidesysHistoryEntry[];
 };

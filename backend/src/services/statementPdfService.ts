@@ -276,7 +276,10 @@ type PageLayout = {
 /**
  * Generates a valid PDF buffer (%PDF header) for account statements.
  */
-export async function generateStatementPdfBuffer(input: StatementPdfInput): Promise<Buffer> {
+export async function generateStatementPdfBuffer(
+  input: StatementPdfInput,
+  opts?: { logoBuffer?: Buffer | null }
+): Promise<Buffer> {
   const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 0 });
   const chunks: Buffer[] = [];
 
@@ -297,7 +300,10 @@ export async function generateStatementPdfBuffer(input: StatementPdfInput): Prom
 
   let y = topContentY;
 
-  const logoBuf = await loadSchoolLogoBuffer(input.school.logoUrl);
+  const logoBuf =
+    opts && "logoBuffer" in opts
+      ? opts.logoBuffer ?? null
+      : await loadSchoolLogoBuffer(input.school.logoUrl);
 
   const drawBrandBar = () => {
     doc.save();

@@ -22,6 +22,7 @@ import {
 } from "../services/invoiceRunStatementsPdfService";
 import { undoInvoiceRun } from "../services/invoiceRunUndoService";
 import { readSchoolLedger } from "../utils/billingLedgerStore";
+import { toAsciiHttpHeaderValue } from "../utils/httpHeaderAscii";
 
 const router = Router();
 
@@ -125,14 +126,27 @@ router.get(
       }
 
       res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `inline; filename="${built.filename}"`);
+      res.setHeader(
+        "Content-Disposition",
+        `inline; filename="${toAsciiHttpHeaderValue(built.filename, "statements.pdf")}"`
+      );
       res.setHeader("Content-Length", String(built.buffer.length));
       res.setHeader("Cache-Control", "no-store");
       res.setHeader("X-EduClear-Statement-Count", String(built.statementCount));
       res.setHeader("X-EduClear-Invoice-Count", String(built.detail.totalInvoices));
-      res.setHeader("X-EduClear-Statement-Period", built.statementPeriod);
-      res.setHeader("X-EduClear-Statement-Window", built.statementWindowLabel);
-      res.setHeader("X-EduClear-Statement-Cutoff-Note", built.statementCutoffNote);
+      res.setHeader(
+        "X-EduClear-Statement-Period",
+        toAsciiHttpHeaderValue(built.statementPeriod, "Last 3 Months")
+      );
+      // ASCII-only ISO window — human en-dash labels belong in the PDF body, not headers.
+      res.setHeader(
+        "X-EduClear-Statement-Window",
+        toAsciiHttpHeaderValue(built.statementWindowHeader, "All Time")
+      );
+      res.setHeader(
+        "X-EduClear-Statement-Cutoff-Note",
+        toAsciiHttpHeaderValue(built.statementCutoffNote, "ok")
+      );
       // Send only after the full combined PDF is built — never stream a partial merge.
       return res.status(200).send(built.buffer);
     } catch (error) {

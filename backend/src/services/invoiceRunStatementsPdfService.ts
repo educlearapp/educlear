@@ -10,15 +10,19 @@ import {
   type InvoiceRunDetail,
   type InvoiceRunFamilyAccountSummary,
 } from "./invoiceRunListService";
-import { buildAndGenerateStatementPdf } from "./statementPdfData";
+import { buildAndGenerateStatementPdf, loadSchoolBrandingForBulk } from "./statementPdfData";
 import {
   DEFAULT_STATEMENT_PERIOD,
   formatStatementPeriodHeaderLabel,
+  formatStatementPeriodHttpWindow,
   normalizeStatementPeriod,
   resolveStatementPeriodCutoff,
   type StatementPeriodOption,
 } from "../utils/statementPeriod";
 import type { BillingLedgerEntry } from "../utils/billingLedgerStore";
+import { readSchoolLedger } from "../utils/billingLedgerStore";
+import { readSchoolKidesysHistory } from "../utils/kidesysTransactionHistoryStore";
+import { loadSchoolLogoBuffer } from "../utils/schoolLogo";
 
 /** Default for invoice-run bulk print when the client omits period. */
 export const INVOICE_RUN_STATEMENT_DEFAULT_PERIOD: StatementPeriodOption = "Last 3 Months";
@@ -42,6 +46,8 @@ export type InvoiceRunStatementsPdfResult = {
   statementPeriod: string;
   statementCutoffNote: string;
   statementWindowLabel: string;
+  /** ASCII-safe window for HTTP headers (ISO dates). */
+  statementWindowHeader: string;
 };
 
 export function resolveInvoiceRunStatementPeriod(raw?: string | null): StatementPeriodOption {
@@ -62,10 +68,11 @@ export function invoiceRunStatementCutoffNote(
 ): string {
   const runPeriod = String(invoicePeriod || "").trim() || "the selected run";
   const period = normalizeStatementPeriod(statementPeriod || INVOICE_RUN_STATEMENT_DEFAULT_PERIOD);
-  const windowLabel = formatStatementPeriodHeaderLabel(period);
+  // Use ASCII window in notes that may also be copied into HTTP headers.
+  const windowLabel = formatStatementPeriodHttpWindow(period);
   return (
     `Accounts are limited to unique family accounts on invoice run ${runPeriod}. ` +
-    `Transaction history uses statement period ${windowLabel}. ` +
+    `Transaction history uses statement period ${period} (${windowLabel}). ` +
     `Opening balances for Last N Months are ledger activity before the period start. ` +
     `Closing balances are period-end ledger totals (opening + in-period net), not the current Age Analysis snapshot. ` +
     `Balances are not reconstructed as of the invoice-run posting date alone.`
@@ -84,14 +91,21 @@ export async function buildInvoiceRunStatementsPdf(opts: {
   if (!schoolId || !runId) return null;
 
   const statementPeriod = resolveInvoiceRunStatementPeriod(opts.period);
-  const detail = getInvoiceRunDetailFromLedger(schoolId, runId, { ledger: opts.ledger });
+  const ledger = opts.ledger ?? readSchoolLedger(schoolId);
+  const detail = getInvoiceRunDetailFromLedger(schoolId, runId, { ledger });
   if (!detail || !detail.familyAccounts.length) return null;
+
+  // Request-scoped shared reads — avoid re-parsing multi-MB JSON and re-fetching branding
+  // once per family (root cause of ~5 minute production runs).
+  const sharedSchoolBranding = await loadSchoolBrandingForBulk(schoolId);
+  const sharedLogoBuffer = await loadSchoolLogoBuffer(sharedSchoolBranding.logoUrl);
+  const sharedKidesysHistory = readSchoolKidesysHistory(schoolId);
 
   const familyAccounts = detail.familyAccounts;
   const expectedCount = familyAccounts.length;
   const merged = await PdfLibDocument.create();
   const includedAccountNos: string[] = [];
-  let firstPageIndexByAccount: number[] = [];
+  const firstPageIndexByAccount: number[] = [];
 
   for (let i = 0; i < familyAccounts.length; i += 1) {
     const account = familyAccounts[i];
@@ -99,7 +113,13 @@ export async function buildInvoiceRunStatementsPdf(opts: {
       schoolId,
       account,
       statementPeriod,
-      opts.statementNote
+      opts.statementNote,
+      {
+        sharedLedger: ledger,
+        sharedSchoolBranding,
+        sharedLogoBuffer,
+        sharedKidesysHistory,
+      }
     );
     if (!pdf || pdf.length < 8) {
       throw new Error(
@@ -117,7 +137,6 @@ export async function buildInvoiceRunStatementsPdf(opts: {
     const pages = await merged.copyPages(donor, pageIndices);
     for (const page of pages) merged.addPage(page);
     includedAccountNos.push(String(account.accountNo || account.anchorLearnerId || "").trim());
-    // Donor released when leaving this iteration; merged retains copied pages only.
   }
 
   if (merged.getPageCount() === 0 || includedAccountNos.length === 0) return null;
@@ -126,7 +145,6 @@ export async function buildInvoiceRunStatementsPdf(opts: {
       `Combined statement PDF incomplete: expected ${expectedCount} family statements, built ${includedAccountNos.length}.`
     );
   }
-  // Each family statement must begin on a new page (first statement at page 0; subsequent after prior pages).
   for (let i = 1; i < firstPageIndexByAccount.length; i += 1) {
     if (firstPageIndexByAccount[i] <= firstPageIndexByAccount[i - 1]) {
       throw new Error("Family statements are not separated onto new pages.");
@@ -151,6 +169,7 @@ export async function buildInvoiceRunStatementsPdf(opts: {
       statementPeriod
     ),
     statementWindowLabel: formatStatementPeriodHeaderLabel(statementPeriod),
+    statementWindowHeader: formatStatementPeriodHttpWindow(statementPeriod),
   };
 }
 
@@ -158,7 +177,13 @@ async function generateOneAccountStatementPdf(
   schoolId: string,
   account: InvoiceRunFamilyAccountSummary,
   period: StatementPeriodOption,
-  statementNote?: string
+  statementNote: string | undefined,
+  shared: {
+    sharedLedger: BillingLedgerEntry[];
+    sharedSchoolBranding: Awaited<ReturnType<typeof loadSchoolBrandingForBulk>>;
+    sharedLogoBuffer: Buffer | null;
+    sharedKidesysHistory: ReturnType<typeof readSchoolKidesysHistory>;
+  }
 ): Promise<Buffer | null> {
   const accountNo = String(account.accountNo || "").trim();
   const learnerId = String(account.anchorLearnerId || "").trim();
@@ -171,6 +196,10 @@ async function generateOneAccountStatementPdf(
       period: period || DEFAULT_STATEMENT_PERIOD,
       statementNote,
       closingBalanceSource: "period-ledger",
+      sharedLedger: shared.sharedLedger,
+      sharedSchoolBranding: shared.sharedSchoolBranding,
+      sharedLogoBuffer: shared.sharedLogoBuffer,
+      sharedKidesysHistory: shared.sharedKidesysHistory,
     });
     return buffer;
   } catch (error) {

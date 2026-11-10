@@ -114,6 +114,8 @@ type BuildStatementTransactionsInput = {
   openingBalance?: number;
   /** When true, include undone rows and correction journals (admin audit). */
   showCorrectionsAudit?: boolean;
+  /** Optional preloaded Kid-e-Sys history for the school (bulk PDF reuse). */
+  kidesysHistory?: import("../utils/kidesysTransactionHistoryStore").KidesysHistoryEntry[];
 };
 
 function resolveEntryLearnerLabel(
@@ -209,7 +211,9 @@ export function buildStatementTransactions(
     });
   });
 
-  const kidesysAll = filterHistoryForAccount(readSchoolKidesysHistory(schoolId), accountRef);
+  const kidesysSource =
+    input.kidesysHistory != null ? input.kidesysHistory : readSchoolKidesysHistory(schoolId);
+  const kidesysAll = filterHistoryForAccount(kidesysSource, accountRef);
   const filteredKidesys = withoutHistoryShownByLedgerCopy(
     filterKidesysHistoryByStatementPeriod(kidesysAll, period),
     shownLedgerEntries
@@ -319,7 +323,9 @@ export function buildStatementManageTransactions(
     });
   });
 
-  const kidesysAll = filterHistoryForAccount(readSchoolKidesysHistory(schoolId), accountRef);
+  const kidesysSource =
+    input.kidesysHistory != null ? input.kidesysHistory : readSchoolKidesysHistory(schoolId);
+  const kidesysAll = filterHistoryForAccount(kidesysSource, accountRef);
   const filteredKidesys = withoutHistoryShownByLedgerCopy(
     filterKidesysHistoryByStatementPeriod(kidesysAll, period),
     shownLedgerEntries

@@ -47,6 +47,8 @@ function main() {
   assert.match(note, /period-end ledger/);
   assert.match(note, /Opening balances/);
   assert.match(note, /not the current Age Analysis/);
+  assert.doesNotMatch(note, /\u2013/); // no en-dash in header-bound note text
+  assert.match(note, /\d{4}-\d{2}-\d{2} to \d{4}-\d{2}-\d{2}/);
 
   // Prior debt must not become a silent zero opening balance for Last N Months.
   const ledger: BillingLedgerEntry[] = [
