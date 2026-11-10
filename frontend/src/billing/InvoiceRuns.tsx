@@ -7024,6 +7024,12 @@ export default function InvoiceRuns(props: any) {
                   alert(result.error || invoiceRunPrintEmptyMessage("statements"));
                   return;
                 }
+                const count = result.statementCount || uniqueStatementCount;
+                alert(
+                  `Downloaded ${count} combined statement PDF` +
+                    (result.filename ? ` (${result.filename})` : "") +
+                    ". Check your Downloads folder."
+                );
                 setStatementsDialog(null);
               } finally {
                 setStatementPrintBusy(false);
@@ -7486,6 +7492,14 @@ export default function InvoiceRuns(props: any) {
                 alert(result.error || invoiceRunPrintEmptyMessage("statements"));
                 return;
               }
+              const count =
+                result.statementCount ||
+                Number(completedRunDetail?.uniqueFamilyAccountCount || completedStatementRows.length || 0);
+              alert(
+                `Downloaded ${count} combined statement PDF` +
+                  (result.filename ? ` (${result.filename})` : "") +
+                  ". Check your Downloads folder."
+              );
               setStatementsDialog(null);
             } finally {
               setStatementPrintBusy(false);

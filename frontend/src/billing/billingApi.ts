@@ -946,66 +946,97 @@ function filenameFromContentDisposition(header: string | null): string {
   return plain?.[2]?.trim() || "invoice-run-statements.pdf";
 }
 
+/** Prevents duplicate combined-PDF downloads while one request is in flight. */
+const invoiceRunStatementsPdfInflight = new Map<
+  string,
+  Promise<{
+    opened: boolean;
+    statementCount: number;
+    period?: string;
+    filename?: string;
+    error?: string;
+  }>
+>();
+
 /**
  * Combined printable PDF for unique family accounts on a completed invoice run.
  * Uses a direct <a download> blob save — works with Safari/Chrome pop-up blocking enabled.
+ * Never opens a pop-up window for download.
  */
 export async function openInvoiceRunStatementsPdfPrint(
   schoolId: string,
   runId: string,
   period = "Last 3 Months"
-): Promise<{ opened: boolean; statementCount: number; period?: string; error?: string }> {
+): Promise<{
+  opened: boolean;
+  statementCount: number;
+  period?: string;
+  filename?: string;
+  error?: string;
+}> {
   const sid = String(schoolId || "").trim();
   const rid = String(runId || "").trim();
   const statementPeriod = String(period || "Last 3 Months").trim() || "Last 3 Months";
   if (!sid || !rid) return { opened: false, statementCount: 0, error: "Missing school or run" };
 
+  const inflightKey = `${sid}|${rid}|${statementPeriod}`;
+  const existing = invoiceRunStatementsPdfInflight.get(inflightKey);
+  if (existing) return existing;
+
   const url =
     `${API_URL}/api/invoice-runs/${encodeURIComponent(rid)}/statements.pdf` +
     `?schoolId=${encodeURIComponent(sid)}` +
     `&period=${encodeURIComponent(statementPeriod)}`;
-  try {
-    const response = await authenticatedFetch(url, {
-      method: "GET",
-      headers: { ...staffAuthHeaders() },
-      cache: "no-store",
-    });
-    if (response.status === 404) {
-      return { opened: false, statementCount: 0, error: "No statements found for this run" };
-    }
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({}));
+
+  const work = (async () => {
+    try {
+      const response = await authenticatedFetch(url, {
+        method: "GET",
+        headers: { ...staffAuthHeaders() },
+        cache: "no-store",
+      });
+      if (response.status === 404) {
+        return { opened: false, statementCount: 0, error: "No statements found for this run" };
+      }
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        return {
+          opened: false,
+          statementCount: 0,
+          error: String((body as { error?: string }).error || "Failed to generate statements PDF"),
+        };
+      }
+      const statementCount = Number(response.headers.get("X-EduClear-Statement-Count") || 0);
+      const resolvedPeriod = String(
+        response.headers.get("X-EduClear-Statement-Period") || statementPeriod
+      );
+      const filename = filenameFromContentDisposition(response.headers.get("Content-Disposition"));
+      const blob = await response.blob();
+      const head = await blob.slice(0, 5).arrayBuffer();
+      const magic = new TextDecoder().decode(head);
+      if (!magic.startsWith("%PDF") && !String(blob.type || "").includes("pdf")) {
+        return {
+          opened: false,
+          statementCount,
+          period: resolvedPeriod,
+          error: "Server did not return a valid PDF",
+        };
+      }
+      triggerInvoiceRunStatementsDownload(blob, filename);
+      return { opened: true, statementCount, period: resolvedPeriod, filename };
+    } catch (error) {
       return {
         opened: false,
         statementCount: 0,
-        error: String((body as { error?: string }).error || "Failed to generate statements PDF"),
+        error: error instanceof Error ? error.message : "Failed to download statements PDF",
       };
+    } finally {
+      invoiceRunStatementsPdfInflight.delete(inflightKey);
     }
-    const statementCount = Number(response.headers.get("X-EduClear-Statement-Count") || 0);
-    const resolvedPeriod = String(
-      response.headers.get("X-EduClear-Statement-Period") || statementPeriod
-    );
-    const filename = filenameFromContentDisposition(response.headers.get("Content-Disposition"));
-    const blob = await response.blob();
-    const head = await blob.slice(0, 5).arrayBuffer();
-    const magic = new TextDecoder().decode(head);
-    if (!magic.startsWith("%PDF") && !String(blob.type || "").includes("pdf")) {
-      return {
-        opened: false,
-        statementCount,
-        period: resolvedPeriod,
-        error: "Server did not return a valid PDF",
-      };
-    }
-    triggerInvoiceRunStatementsDownload(blob, filename);
-    return { opened: true, statementCount, period: resolvedPeriod };
-  } catch (error) {
-    return {
-      opened: false,
-      statementCount: 0,
-      error: error instanceof Error ? error.message : "Failed to download statements PDF",
-    };
-  }
+  })();
+
+  invoiceRunStatementsPdfInflight.set(inflightKey, work);
+  return work;
 }
 
 async function postInvoiceRunEndpoint(
