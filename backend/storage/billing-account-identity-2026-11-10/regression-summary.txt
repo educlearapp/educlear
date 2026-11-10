@@ -1,0 +1,13 @@
+PASS billingAccountIdentity.unit
+PASS statementAccountIdentity
+PASS statementAccounts.balance
+PASS statementTransactionBuilder
+PASS invoiceRunStatementsPdfService
+PASS invoiceRunStatementsPdf.stress
+PASS invoiceRunExecute
+PASS emails.send-statement.src_routes
+PASS billingAccountIdentity.releaseVerify
+PASS statementAccountIdentity.fe
+PASS statementSourceAgnostic
+PASS phase2AuthStabilisation
+PASS postInvoiceStatementWorkflowContract

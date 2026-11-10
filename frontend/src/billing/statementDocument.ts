@@ -741,16 +741,23 @@ export async function fetchSchoolStatementPdfBlob(
   learnerId: string,
   period = DEFAULT_STATEMENT_PERIOD,
   statementNote?: string,
-  accountNo?: string
+  accountNo?: string,
+  familyAccountId?: string
 ): Promise<Blob> {
   const params = new URLSearchParams({
     schoolId,
     period: normalizeStatementPeriod(period),
   });
   const billingRef = String(accountNo || "").trim();
+  const faId = String(familyAccountId || "").trim();
+  if (faId) params.set("familyAccountId", faId);
   if (billingRef) params.set("accountNo", billingRef);
-  if (learnerId) params.set("learnerId", learnerId);
+  // Never send a FamilyAccount id in learnerId — only a real learner id (or omit).
+  if (learnerId && learnerId !== faId) params.set("learnerId", learnerId);
   if (statementNote) params.set("statementNote", statementNote);
+  if (!faId && !billingRef && !learnerId) {
+    throw new Error("Missing account identity for statement PDF");
+  }
   const res = await authenticatedFetch(`/api/statements/pdf?${params.toString()}`);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -769,11 +776,26 @@ export async function downloadSchoolStatementPdf(
   filename: string,
   period = DEFAULT_STATEMENT_PERIOD,
   statementNote?: string,
-  accountNo?: string
+  accountNo?: string,
+  familyAccountId?: string
 ): Promise<void> {
-  const key = ["school", schoolId, learnerId, normalizeStatementPeriod(period), accountNo || ""].join("|");
+  const key = [
+    "school",
+    schoolId,
+    learnerId,
+    normalizeStatementPeriod(period),
+    accountNo || "",
+    familyAccountId || "",
+  ].join("|");
   return runSingleStatementPdfDownload(key, async () => {
-    const blob = await fetchSchoolStatementPdfBlob(schoolId, learnerId, period, statementNote, accountNo);
+    const blob = await fetchSchoolStatementPdfBlob(
+      schoolId,
+      learnerId,
+      period,
+      statementNote,
+      accountNo,
+      familyAccountId
+    );
     triggerBlobDownload(blob, filename);
   });
 }
@@ -783,9 +805,17 @@ export async function openSchoolStatementPdfPrint(
   learnerId: string,
   period = DEFAULT_STATEMENT_PERIOD,
   statementNote?: string,
-  accountNo?: string
+  accountNo?: string,
+  familyAccountId?: string
 ): Promise<boolean> {
-  const blob = await fetchSchoolStatementPdfBlob(schoolId, learnerId, period, statementNote, accountNo);
+  const blob = await fetchSchoolStatementPdfBlob(
+    schoolId,
+    learnerId,
+    period,
+    statementNote,
+    accountNo,
+    familyAccountId
+  );
   const url = URL.createObjectURL(blob);
   const win = window.open(url, "_blank");
   if (!win) {
@@ -870,8 +900,11 @@ export async function sendStatementEmail(payload: {
   to: string;
   subject: string;
   html: string;
-  learnerId: string;
+  learnerId?: string;
   accountNo?: string;
+  familyAccountId?: string;
+  accountIdentityType?: "familyAccountId" | "accountRef" | "accountNo" | "learnerId";
+  accountIdentityValue?: string;
   period?: string;
   statementNote?: string;
   filename?: string;

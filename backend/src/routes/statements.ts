@@ -5,6 +5,7 @@ import {
   calculateBillingSummary,
 } from "../services/billingSummary";
 import { buildAccountStatementTransactions } from "../services/statementAccountTransactions";
+import { BillingAccountResolutionError } from "../services/billingAccountIdentity";
 import { buildAndGenerateStatementPdf } from "../services/statementPdfData";
 import { buildAccountsFromAgeAnalysisSnapshots } from "../services/statementAccounts";
 import {
@@ -36,28 +37,56 @@ function sendPdfAttachment(res: import("express").Response, buffer: Buffer, file
   return res.send(buffer);
 }
 
-// GET /api/statements/pdf?schoolId=&learnerId=&accountNo=&period=
+// GET /api/statements/pdf?schoolId=&learnerId=&accountNo=&familyAccountId=&accountIdentityType=&accountIdentityValue=&period=
 router.get("/pdf", async (req, res) => {
   try {
     const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId).trim() : "";
     const learnerId = typeof req.query?.learnerId === "string" ? String(req.query.learnerId).trim() : "";
     const accountNo = typeof req.query?.accountNo === "string" ? String(req.query.accountNo).trim() : "";
+    const familyAccountId =
+      typeof req.query?.familyAccountId === "string" ? String(req.query.familyAccountId).trim() : "";
+    const accountIdentityType =
+      typeof req.query?.accountIdentityType === "string"
+        ? String(req.query.accountIdentityType).trim()
+        : "";
+    const accountIdentityValue =
+      typeof req.query?.accountIdentityValue === "string"
+        ? String(req.query.accountIdentityValue).trim()
+        : "";
     const period = normalizeStatementPeriod(
       typeof req.query?.period === "string" ? String(req.query.period).trim() : undefined
     );
     const statementNote =
       typeof req.query?.statementNote === "string" ? String(req.query.statementNote) : undefined;
 
-    if (!schoolId || (!learnerId && !accountNo)) {
-      return res.status(400).json({ success: false, error: "Missing schoolId and learnerId or accountNo" });
+    if (
+      !schoolId ||
+      (!learnerId && !accountNo && !familyAccountId && !(accountIdentityType && accountIdentityValue))
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing schoolId and account identity (familyAccountId, accountNo, learnerId, or accountIdentity)",
+      });
     }
 
-    console.log("[PDF] generating", accountNo || learnerId, { schoolId, period });
+    console.log("[PDF] generating", familyAccountId || accountNo || learnerId || accountIdentityValue, {
+      schoolId,
+      period,
+    });
 
     const { buffer, filename } = await buildAndGenerateStatementPdf({
       schoolId,
       learnerId: learnerId || "",
       accountNo: accountNo || undefined,
+      familyAccountId: familyAccountId || undefined,
+      accountIdentityType: accountIdentityType
+        ? (accountIdentityType as
+            | "familyAccountId"
+            | "accountRef"
+            | "accountNo"
+            | "learnerId")
+        : undefined,
+      accountIdentityValue: accountIdentityValue || undefined,
       period,
       statementNote,
     });
@@ -65,8 +94,12 @@ router.get("/pdf", async (req, res) => {
     return sendPdfAttachment(res, buffer, filename);
   } catch (error) {
     console.error("[statements] GET /pdf failed:", error);
+    if (error instanceof BillingAccountResolutionError) {
+      return res.status(error.status).json({ success: false, error: error.message, code: error.code });
+    }
     const message = error instanceof Error ? error.message : "Server error";
-    return res.status(500).json({ success: false, error: message });
+    const status = message.includes("Account not found") ? 404 : 500;
+    return res.status(status).json({ success: false, error: message });
   }
 });
 
@@ -103,7 +136,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET /api/statements/transactions?schoolId=&accountNo=&learnerId=&period=&showCorrections=
+// GET /api/statements/transactions?schoolId=&accountNo=&learnerId=&familyAccountId=&period=&showCorrections=
 router.get("/transactions", async (req, res) => {
   try {
     const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId).trim() : "";
@@ -111,6 +144,16 @@ router.get("/transactions", async (req, res) => {
       typeof req.query?.accountNo === "string" ? String(req.query.accountNo).trim() : "";
     const learnerId =
       typeof req.query?.learnerId === "string" ? String(req.query.learnerId).trim() : "";
+    const familyAccountId =
+      typeof req.query?.familyAccountId === "string" ? String(req.query.familyAccountId).trim() : "";
+    const accountIdentityType =
+      typeof req.query?.accountIdentityType === "string"
+        ? String(req.query.accountIdentityType).trim()
+        : "";
+    const accountIdentityValue =
+      typeof req.query?.accountIdentityValue === "string"
+        ? String(req.query.accountIdentityValue).trim()
+        : "";
     const period = normalizeStatementPeriod(
       typeof req.query?.period === "string" ? String(req.query.period).trim() : undefined
     );
@@ -120,10 +163,14 @@ router.get("/transactions", async (req, res) => {
       req.query?.showCorrectionsAudit === "true" ||
       req.query?.showCorrectionsAudit === "1";
 
-    if (!schoolId || (!accountNo && !learnerId)) {
+    if (
+      !schoolId ||
+      (!accountNo && !learnerId && !familyAccountId && !(accountIdentityType && accountIdentityValue))
+    ) {
       return res.status(400).json({
         success: false,
-        error: "Missing schoolId and accountNo or learnerId",
+        error:
+          "Missing schoolId and account identity (familyAccountId, accountNo, learnerId, or accountIdentity)",
       });
     }
 
@@ -131,6 +178,11 @@ router.get("/transactions", async (req, res) => {
       schoolId,
       accountNo: accountNo || undefined,
       learnerId: learnerId || undefined,
+      familyAccountId: familyAccountId || undefined,
+      accountIdentityType: accountIdentityType
+        ? (accountIdentityType as "familyAccountId" | "accountRef" | "accountNo" | "learnerId")
+        : undefined,
+      accountIdentityValue: accountIdentityValue || undefined,
       period,
       showCorrectionsAudit: showCorrections,
     });
@@ -142,6 +194,9 @@ router.get("/transactions", async (req, res) => {
     return res.json({ success: true, ...result });
   } catch (error) {
     console.error("[statements] GET /transactions failed:", error);
+    if (error instanceof BillingAccountResolutionError) {
+      return res.status(error.status).json({ success: false, error: error.message, code: error.code });
+    }
     const message = error instanceof Error ? error.message : "Server error";
     return res.status(500).json({ success: false, error: message });
   }

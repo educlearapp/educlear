@@ -5,6 +5,11 @@ import { buildAccountsFromAgeAnalysisSnapshots } from "./statementAccounts";
 import { readSchoolFamilyAccountAgeAnalysisSnapshots } from "../utils/familyAccountAgeAnalysisStore";
 import { resolveBillingAccountRef } from "./resolveBillingAccountRef";
 import {
+  BillingAccountResolutionError,
+  preferExplicitBillingIdentity,
+  resolveCanonicalBillingAccount,
+} from "./billingAccountIdentity";
+import {
   isSasamsNumericAccount,
   resolveStatementLedgerJoinFromFamilies,
 } from "./resolveStatementLedgerJoin";
@@ -428,14 +433,47 @@ export async function loadSchoolBrandingForBulk(schoolId: string) {
 
 export async function resolveAccountStatementScope(
   schoolId: string,
-  opts: { accountNo?: string; learnerId?: string }
+  opts: {
+    accountNo?: string;
+    learnerId?: string;
+    familyAccountId?: string;
+    accountIdentityType?: string;
+    accountIdentityValue?: string;
+  }
 ) {
   const sid = String(schoolId || "").trim();
   const learnerId = String(opts.learnerId || "").trim();
   const accountNo = String(opts.accountNo || "").trim();
-  if (!sid || (!accountNo && !learnerId)) return null;
+  const familyAccountId = String(opts.familyAccountId || "").trim();
+  if (!sid) return null;
 
-  const accountRef = await resolveStatementAccountRef(sid, { accountNo, learnerId });
+  // Explicit typed / familyAccountId path — never reinterpret untyped learnerId as FA id.
+  const useExplicitPath = Boolean(familyAccountId || opts.accountIdentityType);
+  let accountRef: string | null = null;
+  if (useExplicitPath) {
+    const explicit = preferExplicitBillingIdentity({
+      identityType: opts.accountIdentityType,
+      identityValue: opts.accountIdentityValue,
+      familyAccountId: familyAccountId || undefined,
+    });
+    if (!explicit) {
+      throw new BillingAccountResolutionError({
+        ok: false,
+        status: 400,
+        code: "MISSING_IDENTITY",
+        error: "Missing account identity",
+      });
+    }
+    const resolved = await resolveCanonicalBillingAccount({
+      authorizedSchoolId: sid,
+      identity: explicit,
+    });
+    if (!resolved.ok) throw new BillingAccountResolutionError(resolved);
+    accountRef = resolved.account.accountRef;
+  } else {
+    if (!accountNo && !learnerId) return null;
+    accountRef = await resolveStatementAccountRef(sid, { accountNo, learnerId });
+  }
   if (!accountRef) return null;
 
   const learners = await loadLearnersForAccountRef(sid, accountRef);
@@ -450,14 +488,25 @@ export async function buildStatementPdfInput(
 ): Promise<StatementPdfInput> {
   const schoolId = String(options.schoolId || "").trim();
   const learnerId = String(options.learnerId || "").trim();
-  const accountNo = String((options as any)?.accountNo || "").trim();
+  const accountNo = String(options.accountNo || "").trim();
+  const familyAccountId = String(options.familyAccountId || "").trim();
+  const accountIdentityType = options.accountIdentityType;
+  const accountIdentityValue = String(options.accountIdentityValue || "").trim();
   const period = normalizeStatementPeriod(options.period || DEFAULT_STATEMENT_PERIOD);
 
-  if (!schoolId || (!accountNo && !learnerId)) {
-    throw new Error("Missing schoolId and accountNo or learnerId for statement PDF");
+  if (!schoolId || (!accountNo && !learnerId && !familyAccountId && !accountIdentityValue)) {
+    throw new Error(
+      "Missing schoolId and account identity (familyAccountId, accountNo, learnerId, or accountIdentity)"
+    );
   }
 
-  const resolved = await resolveAccountStatementScope(schoolId, { accountNo, learnerId });
+  const resolved = await resolveAccountStatementScope(schoolId, {
+    accountNo,
+    learnerId,
+    familyAccountId: familyAccountId || undefined,
+    accountIdentityType,
+    accountIdentityValue: accountIdentityValue || undefined,
+  });
   if (!resolved) throw new Error("Account not found for statement PDF");
   const { scope } = resolved;
 

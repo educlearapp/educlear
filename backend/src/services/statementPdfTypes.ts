@@ -59,6 +59,14 @@ export type BuildStatementPdfOptions = {
   learnerId?: string;
   /** Kid-e-Sys billing identity (FamilyAccount.accountRef). Preferred over learnerId. */
   accountNo?: string;
+  /**
+   * Explicit FamilyAccount primary key. Preferred for family billing accounts
+   * (including zero-learner migrated accounts). Never send this as learnerId.
+   */
+  familyAccountId?: string;
+  /** Optional typed identity envelope (accountIdentity.type / .value). */
+  accountIdentityType?: "familyAccountId" | "accountRef" | "accountNo" | "learnerId";
+  accountIdentityValue?: string;
   period?: string;
   statementNote?: string;
   /**

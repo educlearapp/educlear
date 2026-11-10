@@ -1,0 +1,44 @@
+  school   | family_accounts | zero_learner 
+-----------+-----------------+--------------
+ da_silva  |             352 |            4
+ fly_eagle |             527 |           90
+(2 rows)
+
+            id             |        accountRef         | accountNo | learner_count 
+---------------------------+---------------------------+-----------+---------------
+ cmt7tn3ws0010ilmlqxdx82xi | ATISANG LESEDI            |           |             0
+ cmt7tn4aq001kilmllt65sh3z | BOPAPE BONOLO             |           |             0
+ cmt7tn4c5001milmlcu2rrfeq | BOPAPE TSHEGOFATSO NATHAN |           |             0
+ cmt7tn4dk001oilmlmnibndqy | BOTLHOKO ORATILE PEARL    |           |             0
+ cmt7tn4ui002cilml622k12g1 | DAANJIES SIBUSISO KWANELE |           |             0
+(5 rows)
+
+            id             | accountRef | accountNo | learner_count 
+---------------------------+------------+-----------+---------------
+ cmpozc7gn00eb106s10oyg5xg | ADA004     |           |             2
+ cmpozbttn007h106sevg6sgcz | AFR002     |           |             1
+ cmpozc3ib00cd106sm7w2k4cp | ALI002     |           |             1
+ cmpozbt6q0075106sh60i8gm9 | BAN001     |           |             1
+ cmpozbuxa0081106s0daj7eds | BOG005     |           |             1
+(5 rows)
+
+            id             |           name           
+---------------------------+--------------------------
+ cmpideqeq0000108xb6ouv9zi | Da Silva Academy
+ cmt1e8bjp0jo8lcjeketlynhl | Fly Eagle Primary School
+(2 rows)
+
+ with_edu_no | without_edu_no 
+-------------+----------------
+         447 |             80
+(1 row)
+
+            id             |          accountRef          | accountNo | lc 
+---------------------------+------------------------------+-----------+----
+ cmt7tn3sf000wilmleog2x7a6 | ABAYE TUMO ASHANAFY          | ABA001    |  1
+ cmt7tni8000lgilmlrkbe0t3y | NAORE GADON                  | ABO001    |  0
+ cmt7tn5v6003silmlw800ml91 | GROOM ADEBO                  | ADD001    |  0
+ cmt7tndc400egilml1jbv4z77 | MENTSNOTE AMARE              | AMA001    |  1
+ cmt7tn3vd000yilmlxq6e2nou | ARFICHO VICTORY ABIDE DEBEDE | ARF001    |  1
+(5 rows)
+

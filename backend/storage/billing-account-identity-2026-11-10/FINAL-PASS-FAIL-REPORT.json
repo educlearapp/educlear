@@ -1,0 +1,77 @@
+{
+  "title": "EduClear Billing Account Identity \u2014 Final Release Preparation",
+  "preparedAt": "2026-11-10T12:40:00Z",
+  "deploy": "NOT_AUTHORISED",
+  "verdict": "PASS",
+  "productionBaseline": {
+    "backend": {
+      "commit": "684e0a73814f38d7a523c6b47510f3491c0ec308",
+      "deployId": "dep-dbpfp5gm7kps73aqa3n0",
+      "status": "live"
+    },
+    "frontend": {
+      "commit": "684e0a73814f38d7a523c6b47510f3491c0ec308",
+      "deployId": "dep-dbpg96etlv9c73fg831g",
+      "status": "live"
+    },
+    "bulkPdfPerformanceRelease365fe31": {
+      "deployed": false,
+      "note": "555ad21 build_failed on BE; FE briefly live then rolled back to 684e0a7; 365fe31 never deployed"
+    }
+  },
+  "releaseIsolation": {
+    "worktree": "/Users/tony-/Development/educlear-fix-billing-account-identity",
+    "branch": "fix/billing-account-identity-contract",
+    "basedOn": "684e0a7",
+    "includesBulkPdf365fe31": false,
+    "migrations": false,
+    "financialDataChanges": false,
+    "originalWorkspaceUntouched": "feature/homesafe-collections-v2 @ 2a72be1"
+  },
+  "builds": {
+    "backend_npm_run_build": "PASS",
+    "frontend_npm_run_build": "PASS",
+    "backend_tsc_noEmit": "PASS",
+    "frontend_tsc_app_noEmit": "PASS"
+  },
+  "regressionTests": {
+    "billingAccountIdentity.unit": "PASS",
+    "statementAccountIdentity": "PASS",
+    "statementAccounts.balance": "PASS",
+    "statementTransactionBuilder.kidesysHistoryDuplicate": "PASS",
+    "invoiceRunStatementsPdfService": "PASS",
+    "invoiceRunStatementsPdf.stress": "PASS",
+    "invoiceRunExecute": "PASS",
+    "emails.send-statement.route": "PASS",
+    "billingAccountIdentity.releaseVerify": "PASS",
+    "statementAccountIdentity.fe": "PASS",
+    "statementSourceAgnostic": "PASS",
+    "phase2AuthStabilisation": "PASS",
+    "postInvoiceStatementWorkflowContract": "PASS"
+  },
+  "flyEagleDaSilva": {
+    "prodReadOnlySql": {
+      "fly_eagle": {
+        "familyAccounts": 527,
+        "zeroLearner": 90,
+        "withEduClearAccountNo": 447
+      },
+      "da_silva": {
+        "familyAccounts": 352,
+        "zeroLearner": 4
+      },
+      "result": "PASS"
+    },
+    "localShapeMirrorResolver": {
+      "express_accountRef": "PASS",
+      "familyAccountId": "PASS",
+      "zero_learner": "PASS",
+      "preview_pdf_txn_parity": "PASS",
+      "fa_id_as_learnerId_rejected": "PASS",
+      "cross_school_no_leak": "PASS",
+      "da_silva_kid_esys": "PASS"
+    }
+  },
+  "rollbackSha": "684e0a73814f38d7a523c6b47510f3491c0ec308",
+  "releaseSha": "4040b2c17be2b5a4d2b6e57eb0f148568fbcfd28"
+}

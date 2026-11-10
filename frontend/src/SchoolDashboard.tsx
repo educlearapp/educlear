@@ -2604,11 +2604,15 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       }
       const resolvedLearnerId = String(normalized.learnerId || "").trim();
       const familyAccountId = String(normalized.familyAccountId || "").trim();
+      // Never put FamilyAccount.id or accountNo into learnerId — statements/payments
+      // must use familyAccountId (or a real learner id) explicitly.
+      const safeLearnerId =
+        resolvedLearnerId && resolvedLearnerId !== familyAccountId ? resolvedLearnerId : "";
       const payload: PaymentAccountContext = {
         ...normalized,
         familyAccountId: familyAccountId || undefined,
-        learnerId: resolvedLearnerId || String(normalized.accountNo || "").trim(),
-        id: resolvedLearnerId || String(normalized.accountNo || "").trim(),
+        learnerId: safeLearnerId || undefined,
+        id: safeLearnerId || familyAccountId || String(normalized.accountNo || "").trim(),
       };
       setActiveBillingAccountState(payload);
       persistPaymentAccount(payload);

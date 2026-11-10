@@ -83,21 +83,25 @@ export default function FinanceHubPage({
 
   const handleDownloadStatement = async (snapshot: FinanceAccountSnapshot) => {
     const accountNo = String(snapshot.row.accountNo || "").trim();
-    const learnerId = String(snapshot.row.learnerId || snapshot.row.id || "").trim();
-    if (!schoolId || !accountNo) {
+    const familyAccountId = String(snapshot.row.familyAccountId || "").trim();
+    const rawLearnerId = String(snapshot.row.learnerId || "").trim();
+    const learnerId =
+      rawLearnerId && rawLearnerId !== familyAccountId ? rawLearnerId : "";
+    if (!schoolId || (!accountNo && !familyAccountId)) {
       setStatementNotice("This account does not have enough detail to generate a statement.");
       return;
     }
     setStatementNotice("");
-    setStatementBusyAccount(accountNo);
+    setStatementBusyAccount(accountNo || familyAccountId);
     try {
       await downloadSchoolStatementPdf(
         schoolId,
         learnerId,
-        buildStatementPdfFilename(accountNo, DEFAULT_STATEMENT_PERIOD),
+        buildStatementPdfFilename(accountNo || familyAccountId, DEFAULT_STATEMENT_PERIOD),
         DEFAULT_STATEMENT_PERIOD,
         undefined,
-        accountNo
+        accountNo || undefined,
+        familyAccountId || undefined
       );
       setStatementNotice(`Latest statement downloaded for account ${accountNo}.`);
     } catch (error) {

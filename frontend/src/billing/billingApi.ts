@@ -197,6 +197,7 @@ export const fetchStatementAccountTransactions = async (
   options: {
     accountNo?: string;
     learnerId?: string;
+    familyAccountId?: string;
     period?: string;
     showCorrectionsAudit?: boolean;
   }
@@ -204,11 +205,13 @@ export const fetchStatementAccountTransactions = async (
   const sid = String(schoolId || "").trim();
   const accountNo = String(options.accountNo || "").trim();
   const learnerId = String(options.learnerId || "").trim();
-  if (!sid || (!accountNo && !learnerId)) return [];
+  const familyAccountId = String(options.familyAccountId || "").trim();
+  if (!sid || (!accountNo && !learnerId && !familyAccountId)) return [];
 
   const params = new URLSearchParams({ schoolId: sid });
+  if (familyAccountId) params.set("familyAccountId", familyAccountId);
   if (accountNo) params.set("accountNo", accountNo);
-  if (learnerId) params.set("learnerId", learnerId);
+  if (learnerId && learnerId !== familyAccountId) params.set("learnerId", learnerId);
   if (options.period) params.set("period", String(options.period));
   if (options.showCorrectionsAudit) params.set("showCorrections", "true");
 

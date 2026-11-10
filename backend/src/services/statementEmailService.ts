@@ -12,6 +12,10 @@ export type SendStatementEmailInput = {
   learnerId?: string;
   /** Kid-e-Sys FamilyAccount.accountRef (preferred over learnerId). */
   accountNo?: string;
+  /** Explicit FamilyAccount id — preferred for family / zero-learner accounts. */
+  familyAccountId?: string;
+  accountIdentityType?: "familyAccountId" | "accountRef" | "accountNo" | "learnerId";
+  accountIdentityValue?: string;
   period?: string;
   statementNote?: string;
   /** Invoice-run bulk email should pass period-ledger; individual statements keep default. */
@@ -44,11 +48,17 @@ export async function sendStatementEmail(input: SendStatementEmailInput) {
 
   const learnerId = String(input.learnerId || "").trim();
   const accountNo = String(input.accountNo || "").trim();
-  if (learnerId || accountNo) {
+  const familyAccountId = String(input.familyAccountId || "").trim();
+  const accountIdentityType = input.accountIdentityType;
+  const accountIdentityValue = String(input.accountIdentityValue || "").trim();
+  if (learnerId || accountNo || familyAccountId || accountIdentityValue) {
     const generated = await buildAndGenerateStatementPdf({
       schoolId,
       learnerId: learnerId || "",
       accountNo: accountNo || undefined,
+      familyAccountId: familyAccountId || undefined,
+      accountIdentityType,
+      accountIdentityValue: accountIdentityValue || undefined,
       period: input.period,
       statementNote: input.statementNote,
       closingBalanceSource: input.closingBalanceSource,

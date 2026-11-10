@@ -24,7 +24,10 @@ import {
 } from "./billingLedger";
 import {
   normalizeKidESysAccountRef,
+  normalizeStatementAccountRef,
   resolveKidESysAccountRefFromLearner,
+  resolveStatementAccountRefFromLearner,
+  resolveStatementAccountRefFromRow,
 } from "./billingAccountRef";
 import {
   accountChildrenFromBillingRow,
@@ -117,23 +120,54 @@ type PendingModal = {
 };
 
 function persistBillingAccount(storageKey: string, account: any) {
+  const familyAccountId = String(account?.familyAccountId || "").trim();
+  const realLearnerId = String(account?.learnerId || "").trim();
+  // Never promote FamilyAccount.id or accountNo into learnerId.
   const payload = {
     ...account,
-    learnerId: account.learnerId || account.id || account.accountNo,
-    id: account.id || account.learnerId || account.accountNo,
+    familyAccountId: familyAccountId || account?.familyAccountId || undefined,
+    learnerId: realLearnerId || undefined,
+    id: realLearnerId || familyAccountId || account?.id || account?.accountNo,
   };
   localStorage.setItem(storageKey, JSON.stringify(payload));
 }
 
 function resolveLearnerAccountRef(learner: any): string {
-  return resolveKidESysAccountRefFromLearner(learner);
+  return (
+    resolveStatementAccountRefFromLearner(learner) ||
+    resolveKidESysAccountRefFromLearner(learner)
+  );
 }
 
 function resolveSelectedAccountRef(selected: any): string {
+  // Source-agnostic: Kid-e-Sys codes AND migrated Express / other join refs.
   return (
-    normalizeKidESysAccountRef(selected?.accountNo) ||
+    resolveStatementAccountRefFromRow(selected) ||
+    normalizeStatementAccountRef(selected?.sourceAccountRef) ||
+    normalizeStatementAccountRef(selected?.accountNo) ||
+    normalizeKidESysAccountRef(selected?.eduClearAccountNo) ||
+    resolveStatementAccountRefFromLearner(selected) ||
     resolveKidESysAccountRefFromLearner(selected)
   );
+}
+
+/** Only return a learner id when it is not the family account id. */
+function resolveStatementLearnerId(selected: any, learners: any[]): string {
+  const familyAccountId = String(selected?.familyAccountId || "").trim();
+  const candidates = [
+    String(selected?.learnerId || "").trim(),
+    String(selected?.id || "").trim(),
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    if (familyAccountId && candidate === familyAccountId) continue;
+    if ((learners || []).some((l) => String(l?.id || l?.learnerId || "").trim() === candidate)) {
+      return candidate;
+    }
+  }
+  // Trust explicit learnerId when it differs from familyAccountId (member list may still be loading).
+  const explicit = String(selected?.learnerId || "").trim();
+  if (explicit && explicit !== familyAccountId) return explicit;
+  return "";
 }
 
 function resolveFamilyAccountId(learner: any): string {
@@ -267,8 +301,8 @@ export default function StatementManage({
   schoolEmail: schoolEmailProp = "",
 }: Props) {
   const schoolId = localStorage.getItem("schoolId") || "";
-  const learnerId = String(selected?.learnerId || selected?.id || "").trim();
   const accountNo = String(selected?.accountNo || "").trim();
+  const learnerId = resolveStatementLearnerId(selected, learners);
 
   const [period, setPeriod] = useState(DEFAULT_STATEMENT_PERIOD);
   const [statementNote, setStatementNote] = useState("");
@@ -554,13 +588,13 @@ export default function StatementManage({
 
   const loadAccountTransactions = useCallback(async () => {
     const ref = accountRef || accountNo;
-    if (!schoolId || !ref) {
+    if (!schoolId || (!ref && !familyAccountId)) {
       setAccountTransactions([]);
       hasTransactionsRef.current = false;
       setTransactionsError("");
       return;
     }
-    const fetchKey = `${schoolId}|${ref}|${learnerId}|${period}|${showCorrectionsAudit}`;
+    const fetchKey = `${schoolId}|${ref}|${familyAccountId}|${learnerId}|${period}|${showCorrectionsAudit}`;
     const inflight = txnInflightRef.current.get(fetchKey);
     if (inflight) {
       setTransactionsLoading(true);
@@ -584,8 +618,9 @@ export default function StatementManage({
     setTransactionsLoading(true);
     setTransactionsError("");
     const promise = fetchStatementAccountTransactions(schoolId, {
-      accountNo: ref,
-      learnerId,
+      accountNo: ref || undefined,
+      learnerId: learnerId || undefined,
+      familyAccountId: familyAccountId || undefined,
       period,
       showCorrectionsAudit,
     });
@@ -608,7 +643,7 @@ export default function StatementManage({
       txnInflightRef.current.delete(fetchKey);
       setTransactionsLoading(false);
     }
-  }, [schoolId, accountRef, accountNo, learnerId, period, showCorrectionsAudit]);
+  }, [schoolId, accountRef, accountNo, familyAccountId, learnerId, period, showCorrectionsAudit]);
 
   useEffect(() => {
     setAccountTransactions([]);
@@ -998,8 +1033,8 @@ export default function StatementManage({
   const runPrintStatement = async (selectedPeriod: string) => {
     setActionNotice("");
     const anchorId = familyLearnerIds[0] || learnerId;
-    if (!schoolId || !anchorId) {
-      setActionNotice("School or learner context is missing.");
+    if (!schoolId || (!anchorId && !accountRef && !familyAccountId)) {
+      setActionNotice("School or account context is missing.");
       return;
     }
     const opened = await openSchoolStatementPdfPrint(
@@ -1007,7 +1042,8 @@ export default function StatementManage({
       anchorId,
       selectedPeriod,
       statementNote,
-      accountRef || undefined
+      accountRef || undefined,
+      familyAccountId || undefined
     );
     if (!opened) {
       setActionNotice("Please allow pop-ups to print the statement.");
@@ -1022,8 +1058,8 @@ export default function StatementManage({
   const runDownloadStatement = async (selectedPeriod: string) => {
     setActionNotice("");
     const anchorId = familyLearnerIds[0] || learnerId;
-    if (!schoolId || !anchorId) {
-      setActionNotice("School or learner context is missing.");
+    if (!schoolId || (!anchorId && !accountRef && !familyAccountId)) {
+      setActionNotice("School or account context is missing.");
       return;
     }
     const filename = buildStatementPdfFilename(accountRef || accountNo || "statement", selectedPeriod);
@@ -1035,7 +1071,8 @@ export default function StatementManage({
         filename,
         selectedPeriod,
         statementNote,
-        accountRef || undefined
+        accountRef || undefined,
+        familyAccountId || undefined
       );
     } catch (e: unknown) {
       setActionNotice((e as Error).message || "Could not download statement PDF.");
@@ -1338,14 +1375,19 @@ export default function StatementManage({
         messagePlain: sendMessage || "",
       });
       const anchorId = familyLearnerIds[0] || learnerId;
-      if (!anchorId) throw new Error("Learner context missing for statement PDF.");
+      if (!anchorId && !accountRef && !familyAccountId) {
+        throw new Error("Account context missing for statement PDF.");
+      }
       await sendStatementEmail({
         schoolId,
         to: sendContact.email,
         subject: sendSubject.trim(),
         html: emailHtml,
-        learnerId: anchorId,
+        learnerId: anchorId || undefined,
         accountNo: accountRef || undefined,
+        familyAccountId: familyAccountId || undefined,
+        accountIdentityType: familyAccountId ? "familyAccountId" : undefined,
+        accountIdentityValue: familyAccountId || undefined,
         period: periodForSend,
         statementNote,
         filename: buildStatementPdfFilename(accountRef || accountNo || "statement", periodForSend),

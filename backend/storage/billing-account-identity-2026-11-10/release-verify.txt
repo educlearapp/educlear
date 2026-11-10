@@ -1,0 +1,20 @@
+PASS  local_database_only — localhost
+PASS  no_silent_type_reinterpretation
+PASS  fly_eagle_zero_learner_familyAccountId
+PASS  fly_eagle_express_accountRef_resolves
+PASS  fly_eagle_eduClear_accountNo_resolves
+PASS  fly_eagle_familyAccountId_resolves
+PASS  fly_eagle_fa_id_as_learnerId_rejected
+PASS  fly_eagle_zero_learner_preview_pdf_same_account — ref=ATISANG LESEDI txCount=0
+PASS  fly_eagle_learnerId_resolves
+PASS  da_silva_familyAccountId_resolves
+PASS  da_silva_learnerId_resolves
+PASS  da_silva_accountRef_resolves
+PASS  da_silva_preview_pdf_txn_parity — count=0
+PASS  da_silva_fa_id_as_learnerId_rejected
+PASS  cross_school_no_existence_leak
+PASS  prod_shape_fly_eagle_527_fa — prod SQL: FA=527 zeroLearner=90
+PASS  prod_shape_da_silva_352_fa — prod SQL: FA=352 zeroLearner=4
+
+=== RELEASE VERIFY SUMMARY ===
+total=17 pass=17 fail=0

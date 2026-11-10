@@ -20,6 +20,9 @@ export type BuildAccountStatementTransactionsOptions = {
   schoolId: string;
   accountNo?: string;
   learnerId?: string;
+  familyAccountId?: string;
+  accountIdentityType?: "familyAccountId" | "accountRef" | "accountNo" | "learnerId";
+  accountIdentityValue?: string;
   period?: string;
   showCorrectionsAudit?: boolean;
 };
@@ -42,25 +45,39 @@ export async function buildAccountStatementTransactions(
   const schoolId = String(options.schoolId || "").trim();
   const accountNo = String(options.accountNo || "").trim();
   const learnerId = String(options.learnerId || "").trim();
+  const familyAccountId = String(options.familyAccountId || "").trim();
+  const accountIdentityType = options.accountIdentityType;
+  const accountIdentityValue = String(options.accountIdentityValue || "").trim();
   const period = normalizeStatementPeriod(options.period);
   const showCorrectionsAudit = Boolean(options.showCorrectionsAudit);
 
-  if (!schoolId || (!accountNo && !learnerId)) return null;
+  if (
+    !schoolId ||
+    (!accountNo && !learnerId && !familyAccountId && !accountIdentityValue)
+  ) {
+    return null;
+  }
 
   await relinkSchoolBillingLedger(schoolId);
 
-  const resolved = await resolveAccountStatementScope(schoolId, { accountNo, learnerId });
+  const resolved = await resolveAccountStatementScope(schoolId, {
+    accountNo,
+    learnerId,
+    familyAccountId: familyAccountId || undefined,
+    accountIdentityType,
+    accountIdentityValue: accountIdentityValue || undefined,
+  });
   let accountRef = resolved?.accountRef || "";
   let nameByLearnerId = new Map<string, string>();
-
   if (resolved?.scope) {
     nameByLearnerId = new Map(
       resolved.scope.learners.map((l) => [l.id, `${l.firstName} ${l.lastName}`.trim()])
     );
   }
 
-  if (!accountRef) {
-    const billingRef = await resolveBillingAccountRef(schoolId, accountNo || learnerId);
+  // Legacy ledger-only join: accountNo/accountRef only — never treat learnerId as an accountRef.
+  if (!accountRef && accountNo) {
+    const billingRef = await resolveBillingAccountRef(schoolId, accountNo);
     accountRef = String(billingRef?.accountRef || "").trim();
   }
 

@@ -84,9 +84,14 @@ function assertSourceLocks() {
 
   const sendFnStart = statementDoc.indexOf("export async function sendStatementEmail");
   assert.ok(sendFnStart >= 0, "sendStatementEmail export present");
-  const sendFn = statementDoc.slice(sendFnStart, sendFnStart + 900);
-  assert.match(sendFn, /staffAuthHeaders\(\)/, "sendStatementEmail still authenticates with staffAuthHeaders");
+  const sendFn = statementDoc.slice(sendFnStart, sendFnStart + 1400);
+  assert.match(
+    sendFn,
+    /authenticatedFetch\(/,
+    "sendStatementEmail still authenticates via authenticatedFetch (Bearer)"
+  );
   assert.match(sendFn, /\/api\/emails\/send-statement/, "sendStatementEmail posts send-statement");
+  assert.match(sendFn, /familyAccountId\?/, "sendStatementEmail accepts explicit familyAccountId");
 
   assert.match(invoiceRuns, /previewInvoiceRun\(/, "Invoice Run preview call present");
   assert.match(
