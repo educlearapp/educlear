@@ -2,15 +2,22 @@
  * Combined printable statements for one completed invoice run.
  * Read-only against the billing ledger + existing statement PDF engine.
  * Does not create invoices, mutate ledger rows, or email statements.
+ *
+ * Architecture (perf):
+ * 1. Load school ledger / branding / logo / DB indexes once.
+ * 2. Calculate each family statement with trusted financial helpers.
+ * 3. Render all statements into one PDFKit document (shared logo/fonts).
+ * 4. Each family starts on a new page — no per-family pdf-lib merge.
  */
-import { PDFDocument as PdfLibDocument } from "pdf-lib";
-
 import {
   getInvoiceRunDetailFromLedger,
   type InvoiceRunDetail,
-  type InvoiceRunFamilyAccountSummary,
 } from "./invoiceRunListService";
-import { buildAndGenerateStatementPdf, loadSchoolBrandingForBulk } from "./statementPdfData";
+import { generateCombinedStatementsPdfBuffer } from "./statementPdfService";
+import {
+  buildStatementPdfInputFromBulkContext,
+  loadBulkStatementSchoolContext,
+} from "./statementBulkPdfContext";
 import {
   DEFAULT_STATEMENT_PERIOD,
   formatStatementPeriodHeaderLabel,
@@ -23,6 +30,7 @@ import type { BillingLedgerEntry } from "../utils/billingLedgerStore";
 import { readSchoolLedger } from "../utils/billingLedgerStore";
 import { readSchoolKidesysHistory } from "../utils/kidesysTransactionHistoryStore";
 import { loadSchoolLogoBuffer } from "../utils/schoolLogo";
+import type { StatementPdfInput } from "./statementPdfTypes";
 
 /** Default for invoice-run bulk print when the client omits period. */
 export const INVOICE_RUN_STATEMENT_DEFAULT_PERIOD: StatementPeriodOption = "Last 3 Months";
@@ -48,6 +56,15 @@ export type InvoiceRunStatementsPdfResult = {
   statementWindowLabel: string;
   /** ASCII-safe window for HTTP headers (ISO dates). */
   statementWindowHeader: string;
+  /** Optional timing diagnostics (local/profile only). */
+  timings?: {
+    loadMs: number;
+    dataMs: number;
+    renderMs: number;
+    totalMs: number;
+    pdfBytes: number;
+    pageCount: number;
+  };
 };
 
 export function resolveInvoiceRunStatementPeriod(raw?: string | null): StatementPeriodOption {
@@ -85,84 +102,99 @@ export async function buildInvoiceRunStatementsPdf(opts: {
   period?: string | null;
   ledger?: BillingLedgerEntry[];
   statementNote?: string;
+  /** When true, attach timing diagnostics on the result. */
+  includeTimings?: boolean;
 }): Promise<InvoiceRunStatementsPdfResult | null> {
   const schoolId = String(opts.schoolId || "").trim();
   const runId = String(opts.runId || "").trim();
   if (!schoolId || !runId) return null;
 
+  const t0 = performance.now();
   const statementPeriod = resolveInvoiceRunStatementPeriod(opts.period);
   const ledger = opts.ledger ?? readSchoolLedger(schoolId);
   const detail = getInvoiceRunDetailFromLedger(schoolId, runId, { ledger });
   if (!detail || !detail.familyAccounts.length) return null;
 
-  // Request-scoped shared reads — avoid re-parsing multi-MB JSON and re-fetching branding
-  // once per family (root cause of ~5 minute production runs).
-  const sharedSchoolBranding = await loadSchoolBrandingForBulk(schoolId);
-  const sharedLogoBuffer = await loadSchoolLogoBuffer(sharedSchoolBranding.logoUrl);
   const sharedKidesysHistory = readSchoolKidesysHistory(schoolId);
+  const ctx = await loadBulkStatementSchoolContext(schoolId, {
+    ledger,
+    kidesysHistory: sharedKidesysHistory,
+  });
+  // Prefer logo from context; fall back to explicit load if branding URL present but buffer null.
+  if (!ctx.logoBuffer && ctx.branding.logoUrl) {
+    ctx.logoBuffer = await loadSchoolLogoBuffer(ctx.branding.logoUrl);
+  }
+  const loadMs = performance.now() - t0;
 
   const familyAccounts = detail.familyAccounts;
   const expectedCount = familyAccounts.length;
-  const merged = await PdfLibDocument.create();
+
+  const tData0 = performance.now();
+  const inputs: StatementPdfInput[] = [];
   const includedAccountNos: string[] = [];
-  const firstPageIndexByAccount: number[] = [];
 
   for (let i = 0; i < familyAccounts.length; i += 1) {
     const account = familyAccounts[i];
-    const pdf = await generateOneAccountStatementPdf(
-      schoolId,
-      account,
-      statementPeriod,
-      opts.statementNote,
-      {
-        sharedLedger: ledger,
-        sharedSchoolBranding,
-        sharedLogoBuffer,
-        sharedKidesysHistory,
-      }
+    const accountNo = String(account.accountNo || "").trim();
+    const learnerId = String(account.anchorLearnerId || "").trim();
+    if (!accountNo && !learnerId) {
+      throw new Error(
+        `Incomplete statement identity for family account at index ${i + 1}/${expectedCount}. Combined download aborted.`
+      );
+    }
+    try {
+      const input = buildStatementPdfInputFromBulkContext(ctx, {
+        accountNo: accountNo || undefined,
+        learnerId: learnerId || undefined,
+        period: statementPeriod || DEFAULT_STATEMENT_PERIOD,
+        statementNote: opts.statementNote,
+      });
+      inputs.push(input);
+      includedAccountNos.push(String(input.accountNo || accountNo || learnerId).trim());
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Failed to generate statement for ${accountNo || learnerId}: ${message}`
+      );
+    }
+  }
+  const dataMs = performance.now() - tData0;
+
+  if (inputs.length !== expectedCount || includedAccountNos.length !== expectedCount) {
+    throw new Error(
+      `Combined statement PDF incomplete: expected ${expectedCount} family statements, built ${inputs.length}.`
     );
-    if (!pdf || pdf.length < 8) {
-      throw new Error(
-        `Incomplete statement PDF for family account ${account.accountNo || account.anchorLearnerId || i + 1} (${i + 1}/${expectedCount}). Combined download aborted to prevent a corrupted file.`
-      );
-    }
-    const donor = await PdfLibDocument.load(pdf);
-    const pageIndices = donor.getPageIndices();
-    if (!pageIndices.length) {
-      throw new Error(
-        `Empty statement PDF page set for family account ${account.accountNo || account.anchorLearnerId || i + 1}. Combined download aborted.`
-      );
-    }
-    firstPageIndexByAccount.push(merged.getPageCount());
-    const pages = await merged.copyPages(donor, pageIndices);
-    for (const page of pages) merged.addPage(page);
-    includedAccountNos.push(String(account.accountNo || account.anchorLearnerId || "").trim());
   }
 
-  if (merged.getPageCount() === 0 || includedAccountNos.length === 0) return null;
-  if (includedAccountNos.length !== expectedCount) {
+  const tRender0 = performance.now();
+  const combined = await generateCombinedStatementsPdfBuffer(inputs, {
+    logoBuffer: ctx.logoBuffer,
+  });
+  const renderMs = performance.now() - tRender0;
+
+  if (!combined.buffer.length || combined.buffer.subarray(0, 4).toString("latin1") !== "%PDF") {
+    throw new Error("Combined statement PDF failed integrity check (missing %PDF header).");
+  }
+  if (combined.statementCount !== expectedCount) {
     throw new Error(
-      `Combined statement PDF incomplete: expected ${expectedCount} family statements, built ${includedAccountNos.length}.`
+      `Combined statement PDF incomplete: expected ${expectedCount} family statements, rendered ${combined.statementCount}.`
     );
   }
-  for (let i = 1; i < firstPageIndexByAccount.length; i += 1) {
-    if (firstPageIndexByAccount[i] <= firstPageIndexByAccount[i - 1]) {
+  for (let i = 1; i < combined.firstPageIndexByStatement.length; i += 1) {
+    if (combined.firstPageIndexByStatement[i] <= combined.firstPageIndexByStatement[i - 1]) {
       throw new Error("Family statements are not separated onto new pages.");
     }
   }
 
-  const buffer = Buffer.from(await merged.save());
-  if (!buffer.length || buffer.subarray(0, 4).toString("latin1") !== "%PDF") {
-    throw new Error("Combined statement PDF failed integrity check (missing %PDF header).");
-  }
-
   const safeRun = runId.replace(/[^\w.-]+/g, "_").slice(0, 80) || "run";
   const safePeriod = statementPeriod.toLowerCase().replace(/\s+/g, "");
+  const totalMs = performance.now() - t0;
+
   return {
-    buffer,
+    buffer: combined.buffer,
     filename: `invoice-run-${safeRun}-statements-${safePeriod}.pdf`,
     detail,
-    statementCount: includedAccountNos.length,
+    statementCount: combined.statementCount,
     statementPeriod,
     statementCutoffNote: invoiceRunStatementCutoffNote(
       detail.invoicePeriod || detail.period,
@@ -170,44 +202,17 @@ export async function buildInvoiceRunStatementsPdf(opts: {
     ),
     statementWindowLabel: formatStatementPeriodHeaderLabel(statementPeriod),
     statementWindowHeader: formatStatementPeriodHttpWindow(statementPeriod),
+    timings: opts.includeTimings
+      ? {
+          loadMs: Math.round(loadMs),
+          dataMs: Math.round(dataMs),
+          renderMs: Math.round(renderMs),
+          totalMs: Math.round(totalMs),
+          pdfBytes: combined.buffer.length,
+          pageCount: combined.pageCount,
+        }
+      : undefined,
   };
-}
-
-async function generateOneAccountStatementPdf(
-  schoolId: string,
-  account: InvoiceRunFamilyAccountSummary,
-  period: StatementPeriodOption,
-  statementNote: string | undefined,
-  shared: {
-    sharedLedger: BillingLedgerEntry[];
-    sharedSchoolBranding: Awaited<ReturnType<typeof loadSchoolBrandingForBulk>>;
-    sharedLogoBuffer: Buffer | null;
-    sharedKidesysHistory: ReturnType<typeof readSchoolKidesysHistory>;
-  }
-): Promise<Buffer | null> {
-  const accountNo = String(account.accountNo || "").trim();
-  const learnerId = String(account.anchorLearnerId || "").trim();
-  if (!accountNo && !learnerId) return null;
-  try {
-    const { buffer } = await buildAndGenerateStatementPdf({
-      schoolId,
-      accountNo: accountNo || undefined,
-      learnerId: learnerId || undefined,
-      period: period || DEFAULT_STATEMENT_PERIOD,
-      statementNote,
-      closingBalanceSource: "period-ledger",
-      sharedLedger: shared.sharedLedger,
-      sharedSchoolBranding: shared.sharedSchoolBranding,
-      sharedLogoBuffer: shared.sharedLogoBuffer,
-      sharedKidesysHistory: shared.sharedKidesysHistory,
-    });
-    return buffer;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(
-      `Failed to generate statement for ${accountNo || learnerId}: ${message}`
-    );
-  }
 }
 
 /** Test helper: rolling window start for confirmation / headers. */

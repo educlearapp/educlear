@@ -914,7 +914,42 @@ export async function fetchInvoiceRunDetail(
   }
 }
 
-/** Combined printable PDF for unique family accounts on a completed invoice run. */
+function sanitizeInvoiceRunStatementsFilename(filename: string): string {
+  const safe = filename.replace(/[^\w.-]+/g, "_").trim();
+  return safe.endsWith(".pdf") ? safe : `${safe || "statements"}.pdf`;
+}
+
+function triggerInvoiceRunStatementsDownload(blob: Blob, filename: string) {
+  const safe = sanitizeInvoiceRunStatementsFilename(filename);
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = safe;
+  anchor.rel = "noopener";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function filenameFromContentDisposition(header: string | null): string {
+  const raw = String(header || "");
+  const star = raw.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
+  if (star?.[1]) {
+    try {
+      return decodeURIComponent(star[1].trim().replace(/^["']|["']$/g, ""));
+    } catch {
+      /* fall through */
+    }
+  }
+  const plain = raw.match(/filename\s*=\s*("?)([^";]+)\1/i);
+  return plain?.[2]?.trim() || "invoice-run-statements.pdf";
+}
+
+/**
+ * Combined printable PDF for unique family accounts on a completed invoice run.
+ * Uses a direct <a download> blob save — works with Safari/Chrome pop-up blocking enabled.
+ */
 export async function openInvoiceRunStatementsPdfPrint(
   schoolId: string,
   runId: string,
@@ -950,33 +985,25 @@ export async function openInvoiceRunStatementsPdfPrint(
     const resolvedPeriod = String(
       response.headers.get("X-EduClear-Statement-Period") || statementPeriod
     );
+    const filename = filenameFromContentDisposition(response.headers.get("Content-Disposition"));
     const blob = await response.blob();
-    const objectUrl = URL.createObjectURL(blob);
-    const win = window.open(objectUrl, "_blank");
-    if (!win) {
-      URL.revokeObjectURL(objectUrl);
+    const head = await blob.slice(0, 5).arrayBuffer();
+    const magic = new TextDecoder().decode(head);
+    if (!magic.startsWith("%PDF") && !String(blob.type || "").includes("pdf")) {
       return {
         opened: false,
         statementCount,
         period: resolvedPeriod,
-        error: "Please allow pop-ups to print the combined statements PDF.",
+        error: "Server did not return a valid PDF",
       };
     }
-    win.addEventListener("load", () => {
-      try {
-        win.focus();
-        win.print();
-      } catch {
-        /* ignore */
-      }
-    });
-    setTimeout(() => URL.revokeObjectURL(objectUrl), 120000);
+    triggerInvoiceRunStatementsDownload(blob, filename);
     return { opened: true, statementCount, period: resolvedPeriod };
   } catch (error) {
     return {
       opened: false,
       statementCount: 0,
-      error: error instanceof Error ? error.message : "Failed to open statements PDF",
+      error: error instanceof Error ? error.message : "Failed to download statements PDF",
     };
   }
 }

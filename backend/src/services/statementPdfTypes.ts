@@ -82,4 +82,9 @@ export type BuildStatementPdfOptions = {
   sharedSchoolBranding?: StatementPdfSchoolBranding;
   sharedLogoBuffer?: Buffer | null;
   sharedKidesysHistory?: KidesysHistoryEntry[];
+  /**
+   * Optional pre-resolved statement inputs (bulk single-pass).
+   * When set, buildAndGenerateStatementPdf / bulk builders skip per-account Prisma.
+   */
+  prebuiltInput?: StatementPdfInput;
 };
