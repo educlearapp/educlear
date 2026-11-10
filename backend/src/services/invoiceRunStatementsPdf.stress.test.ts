@@ -6,9 +6,9 @@
  */
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
-import { PDFDocument as PdfLibDocument } from "pdf-lib";
+import fs from "fs";
 
-import { generateStatementPdfBuffer } from "./statementPdfService";
+import { generateCombinedStatementsPdfBuffer } from "./statementPdfService";
 import type { StatementPdfInput } from "./statementPdfTypes";
 import { getInvoiceRunDetailFromLedger } from "./invoiceRunListService";
 import {
@@ -75,80 +75,53 @@ function syntheticInput(index: number, accountNo: string): StatementPdfInput {
   };
 }
 
-async function mergeStatementBuffers(buffers: Buffer[]): Promise<{
-  buffer: Buffer;
-  pageCount: number;
-  firstPageByStatement: number[];
-}> {
-  const merged = await PdfLibDocument.create();
-  const firstPageByStatement: number[] = [];
-  for (const pdf of buffers) {
-    assert.ok(pdf.length >= 8, "empty donor PDF");
-    assert.equal(pdf.subarray(0, 4).toString("latin1"), "%PDF");
-    firstPageByStatement.push(merged.getPageCount());
-    const donor = await PdfLibDocument.load(pdf);
-    const pages = await merged.copyPages(donor, donor.getPageIndices());
-    assert.ok(pages.length >= 1, "each statement must contribute >=1 page");
-    for (const page of pages) merged.addPage(page);
-  }
-  const buffer = Buffer.from(await merged.save());
-  assert.equal(buffer.subarray(0, 4).toString("latin1"), "%PDF");
-  return { buffer, pageCount: merged.getPageCount(), firstPageByStatement };
-}
-
-async function runBatch(label: string, count: number) {
+async function runBatch(label: string, count: number, logoBuffer: Buffer | null) {
   global.gc?.();
   const heapStart = peakHeapMb();
   const t0 = performance.now();
   const accountNos: string[] = [];
-  const buffers: Buffer[] = [];
+  const inputs: StatementPdfInput[] = [];
   for (let i = 0; i < count; i += 1) {
     const accountNo = `ST${String(i + 1).padStart(4, "0")}`;
     accountNos.push(accountNo);
-    buffers.push(await generateStatementPdfBuffer(syntheticInput(i + 1, accountNo)));
+    inputs.push(syntheticInput(i + 1, accountNo));
   }
-  const genMs = performance.now() - t0;
-  const heapAfterGen = peakHeapMb();
+  const combined = await generateCombinedStatementsPdfBuffer(inputs, { logoBuffer });
+  const totalMs = performance.now() - t0;
+  const heapAfter = peakHeapMb();
 
-  const t1 = performance.now();
-  const merged = await mergeStatementBuffers(buffers);
-  const mergeMs = performance.now() - t1;
-  const heapAfterMerge = peakHeapMb();
-
-  // Uniqueness + order
   assert.equal(new Set(accountNos).size, count);
-  assert.equal(merged.firstPageByStatement.length, count);
-  assert.equal(merged.firstPageByStatement[0], 0);
+  assert.equal(combined.statementCount, count);
+  assert.equal(combined.firstPageIndexByStatement.length, count);
+  assert.equal(combined.firstPageIndexByStatement[0], 0);
   for (let i = 1; i < count; i += 1) {
     assert.ok(
-      merged.firstPageByStatement[i] > merged.firstPageByStatement[i - 1],
+      combined.firstPageIndexByStatement[i] > combined.firstPageIndexByStatement[i - 1],
       `${label}: statement ${i} must start on a new page`
     );
   }
-  assert.ok(merged.pageCount >= count, `${label}: pageCount >= statement count`);
-  assert.ok(merged.buffer.length > 1000);
+  assert.ok(combined.pageCount >= count, `${label}: pageCount >= statement count`);
+  assert.ok(combined.buffer.length > 1000);
+  assert.equal(combined.buffer.subarray(0, 4).toString("latin1"), "%PDF");
 
-  const peak = Math.max(heapStart, heapAfterGen, heapAfterMerge);
   console.log(
     JSON.stringify(
       {
         label,
         count,
-        genMs: Math.round(genMs),
-        mergeMs: Math.round(mergeMs),
-        totalMs: Math.round(genMs + mergeMs),
-        pdfBytes: merged.buffer.length,
-        pageCount: merged.pageCount,
+        totalMs: Math.round(totalMs),
+        pdfBytes: combined.buffer.length,
+        pdfMb: Math.round((combined.buffer.length / (1024 * 1024)) * 100) / 100,
+        pageCount: combined.pageCount,
         heapStartMb: heapStart,
-        heapAfterGenMb: heapAfterGen,
-        heapAfterMergeMb: heapAfterMerge,
-        peakHeapMb: peak,
+        heapAfterMb: heapAfter,
+        peakHeapMb: Math.max(heapStart, heapAfter),
       },
       null,
       2
     )
   );
-  return { totalMs: genMs + mergeMs, peakHeapMb: peak, pdfBytes: merged.buffer.length };
+  return { totalMs, peakHeapMb: Math.max(heapStart, heapAfter), pdfBytes: combined.buffer.length };
 }
 
 function reconcileDaSilvaFamilyStatements() {
@@ -210,33 +183,39 @@ function reconcileDaSilvaFamilyStatements() {
 
 async function main() {
   reconcileDaSilvaFamilyStatements();
-  const batch340 = await runBatch("stress-340", 340);
-  const batch500 = await runBatch("stress-500", 500);
+  const logoPath = "uploads/school-logos/da-silva-academy-logo.png";
+  const logoBuffer = fs.existsSync(logoPath) ? fs.readFileSync(logoPath) : null;
 
-  // Sync HTTP guidance threshold (no infra added): flag when wall time suggests proxy risk.
-  const syncUnsuitable = batch340.totalMs > 45000 || batch500.totalMs > 60000;
+  await runBatch("stress-1", 1, logoBuffer);
+  await runBatch("stress-3", 3, logoBuffer);
+  const batch340 = await runBatch("stress-340", 340, logoBuffer);
+  const batch500 = await runBatch("stress-500", 500, logoBuffer);
+
+  // Single-pass should stay well under former sync-proxy risk thresholds.
+  assert.ok(batch340.totalMs < 10000, `340-family render exceeded 10s: ${batch340.totalMs}ms`);
+  assert.ok(batch500.totalMs < 15000, `500-family render exceeded 15s: ${batch500.totalMs}ms`);
+  assert.ok(
+    batch340.pdfBytes < 10 * 1024 * 1024,
+    `340-family PDF exceeded 10MB: ${batch340.pdfBytes}`
+  );
+
   console.log(
     JSON.stringify(
       {
-        label: "sync-suitability",
-        syncUnsuitable,
-        reason: syncUnsuitable
-          ? "Combined generation exceeded safe synchronous window; prefer async job + download once complete (in-memory job map / temp file, no new DB)."
-          : "Synthetic PDF path completed within a synchronous-friendly window; production still includes Prisma/ledger load per account — re-measure on staging before enable.",
+        label: "stress-summary",
         batch340Ms: Math.round(batch340.totalMs),
         batch500Ms: Math.round(batch500.totalMs),
-        batch340PeakMb: batch340.peakHeapMb,
-        batch500PeakMb: batch500.peakHeapMb,
+        batch340Mb: Math.round((batch340.pdfBytes / (1024 * 1024)) * 100) / 100,
+        batch500Mb: Math.round((batch500.pdfBytes / (1024 * 1024)) * 100) / 100,
+        pass: true,
       },
       null,
       2
     )
   );
-
-  console.log("invoiceRunStatementsPdf.stress.test.ts: OK");
 }
 
-main().catch((err) => {
-  console.error(err);
+main().catch((error) => {
+  console.error(error);
   process.exit(1);
 });

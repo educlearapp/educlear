@@ -126,9 +126,10 @@ router.get(
       }
 
       res.setHeader("Content-Type", "application/pdf");
+      // attachment → direct download in Safari/Chrome without a pop-up window.
       res.setHeader(
         "Content-Disposition",
-        `inline; filename="${toAsciiHttpHeaderValue(built.filename, "statements.pdf")}"`
+        `attachment; filename="${toAsciiHttpHeaderValue(built.filename, "statements.pdf")}"`
       );
       res.setHeader("Content-Length", String(built.buffer.length));
       res.setHeader("Cache-Control", "no-store");

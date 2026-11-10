@@ -273,15 +273,39 @@ type PageLayout = {
   bottomLimit: number;
 };
 
-/**
- * Generates a valid PDF buffer (%PDF header) for account statements.
- */
-export async function generateStatementPdfBuffer(
-  input: StatementPdfInput,
-  opts?: { logoBuffer?: Buffer | null }
-): Promise<Buffer> {
-  const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 0 });
+type PdfKitImage = ReturnType<InstanceType<typeof PDFDocument>["openImage"]>;
+
+function finalizePdfDocument(doc: InstanceType<typeof PDFDocument>): Promise<Buffer> {
   const chunks: Buffer[] = [];
+  return new Promise((resolve, reject) => {
+    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+    doc.on("end", () => {
+      const buffer = Buffer.concat(chunks);
+      if (!buffer.subarray(0, 5).toString("utf8").startsWith("%PDF")) {
+        reject(new Error("PDF generation failed"));
+        return;
+      }
+      resolve(buffer);
+    });
+    doc.on("error", reject);
+    doc.end();
+  });
+}
+
+/**
+ * Draws one family statement into an existing PDFKit document.
+ * Callers must position on a fresh page (first page of a new doc, or after addPage).
+ * Pass a shared openImage() handle so bulk PDFs embed the school logo once.
+ */
+export function drawStatementOntoDocument(
+  doc: InstanceType<typeof PDFDocument>,
+  input: StatementPdfInput,
+  opts?: { logoImage?: PdfKitImage | null; logoBuffer?: Buffer | null }
+): { startPageIndex: number; endPageIndex: number } {
+  const pageRangeBefore = typeof doc.bufferedPageRange === "function" ? doc.bufferedPageRange() : null;
+  const startIndex = pageRangeBefore
+    ? pageRangeBefore.start + pageRangeBefore.count - 1
+    : 0;
 
   const layout: PageLayout = {
     pageW: doc.page.width,
@@ -300,10 +324,15 @@ export async function generateStatementPdfBuffer(
 
   let y = topContentY;
 
-  const logoBuf =
-    opts && "logoBuffer" in opts
-      ? opts.logoBuffer ?? null
-      : await loadSchoolLogoBuffer(input.school.logoUrl);
+  let logoImage: PdfKitImage | null = opts?.logoImage ?? null;
+  if (!logoImage && opts?.logoBuffer) {
+    try {
+      logoImage = doc.openImage(opts.logoBuffer);
+    } catch (err) {
+      console.warn("[statement-pdf] school logo openImage failed:", err);
+      logoImage = null;
+    }
+  }
 
   const drawBrandBar = () => {
     doc.save();
@@ -318,7 +347,12 @@ export async function generateStatementPdfBuffer(
     doc.text(schoolName, leftX, y, { width: layout.contentW * 0.6 });
     doc.text("STATEMENT (continued)", rightX, y, { width: rightW, align: "right" });
     y += 12;
-    doc.strokeColor(GOLD).lineWidth(0.75).moveTo(layout.margin, y).lineTo(layout.pageW - layout.margin, y).stroke();
+    doc
+      .strokeColor(GOLD)
+      .lineWidth(0.75)
+      .moveTo(layout.margin, y)
+      .lineTo(layout.pageW - layout.margin, y)
+      .stroke();
     y += 6;
     y = drawTableHeader(doc, headers, colWidths, layout.margin, y);
   };
@@ -327,9 +361,9 @@ export async function generateStatementPdfBuffer(
     let leftY = topContentY;
     let rightY = topContentY;
 
-    if (logoBuf) {
+    if (logoImage) {
       try {
-        doc.image(logoBuf, leftX, leftY, { fit: [STATEMENT_LOGO_MAX_PT, STATEMENT_LOGO_MAX_PT] });
+        doc.image(logoImage, leftX, leftY, { fit: [STATEMENT_LOGO_MAX_PT, STATEMENT_LOGO_MAX_PT] });
         leftY += STATEMENT_LOGO_MAX_PT + STATEMENT_LOGO_GAP_PT;
       } catch (err) {
         console.warn("[statement-pdf] school logo embed failed:", err);
@@ -338,11 +372,15 @@ export async function generateStatementPdfBuffer(
 
     const schoolName = String(input.school.name || "School").trim() || "School";
     doc.fillColor(INK).font("Helvetica-Bold").fontSize(SCHOOL_NAME_FONT_SIZE);
-    leftY = drawStackedTextLine(doc, schoolName, leftX, leftY, leftW, SCHOOL_NAME_LINE_GAP_PT, { bold: true });
+    leftY = drawStackedTextLine(doc, schoolName, leftX, leftY, leftW, SCHOOL_NAME_LINE_GAP_PT, {
+      bold: true,
+    });
 
     doc.font("Helvetica").fontSize(CONTACT_FONT_SIZE).fillColor(MUTED);
     for (const line of schoolHeaderContactLines(input.school)) {
-      leftY = drawStackedTextLine(doc, line, leftX, leftY, leftW, CONTACT_LINE_GAP_PT, { color: MUTED });
+      leftY = drawStackedTextLine(doc, line, leftX, leftY, leftW, CONTACT_LINE_GAP_PT, {
+        color: MUTED,
+      });
     }
 
     doc.fillColor(INK).font("Helvetica-Bold").fontSize(STATEMENT_TITLE_FONT_SIZE);
@@ -350,21 +388,35 @@ export async function generateStatementPdfBuffer(
     rightY += 18;
 
     doc.font("Helvetica").fontSize(8).fillColor(MUTED);
-    doc.text(`Account number: ${input.accountNo}`, rightX, rightY, { width: rightW, align: "right" });
+    doc.text(`Account number: ${input.accountNo}`, rightX, rightY, {
+      width: rightW,
+      align: "right",
+    });
     rightY += 8;
-    doc.text(`Statement period: ${input.period}`, rightX, rightY, { width: rightW, align: "right" });
+    doc.text(`Statement period: ${input.period}`, rightX, rightY, {
+      width: rightW,
+      align: "right",
+    });
     rightY += 8;
-    doc.text(`Statement date: ${input.statementDate}`, rightX, rightY, { width: rightW, align: "right" });
+    doc.text(`Statement date: ${input.statementDate}`, rightX, rightY, {
+      width: rightW,
+      align: "right",
+    });
     rightY += 8;
 
     y = Math.max(leftY, rightY) + 6;
-    doc.strokeColor(GOLD).lineWidth(0.85).moveTo(layout.margin, y).lineTo(layout.pageW - layout.margin, y).stroke();
+    doc
+      .strokeColor(GOLD)
+      .lineWidth(0.85)
+      .moveTo(layout.margin, y)
+      .lineTo(layout.pageW - layout.margin, y)
+      .stroke();
     y += 8;
   };
 
   const ensureSpace = (needed: number, repeatTableHeader = true) => {
     if (y + needed <= layout.bottomLimit) return;
-    doc.addPage();
+    doc.addPage({ size: "A4", layout: "portrait", margin: 0 });
     y = layout.margin;
     if (repeatTableHeader) {
       drawCompactContinuationHeader();
@@ -440,19 +492,33 @@ export async function generateStatementPdfBuffer(
   const totalW = Math.min(180, layout.contentW * 0.42);
   const totalX = layout.pageW - layout.margin - totalW;
   doc.save();
-  doc.roundedRect(totalX, y, totalW, closingCardH, 3).fill("#fff8e6").strokeColor(GOLD).lineWidth(1).stroke();
+  doc
+    .roundedRect(totalX, y, totalW, closingCardH, 3)
+    .fill("#fff8e6")
+    .strokeColor(GOLD)
+    .lineWidth(1)
+    .stroke();
   doc.restore();
   doc.fillColor(INK).font("Helvetica-Bold").fontSize(8.5);
   doc.text("Closing balance", totalX + 8, y + 9);
   doc.font("Helvetica-Bold").fontSize(10).fillColor("#991b1b");
-  doc.text(formatMoney(input.balance), totalX + 8, y + 9, { width: totalW - 16, align: "right" });
+  doc.text(formatMoney(input.balance), totalX + 8, y + 9, {
+    width: totalW - 16,
+    align: "right",
+  });
   y += closingCardH + 8;
 
   if (input.statementNote) {
     ensureSpace(24, false);
     doc.fillColor(INK).font("Helvetica").fontSize(8);
-    const noteH = doc.heightOfString(input.statementNote, { width: layout.contentW, lineGap: 0.5 });
-    doc.text(input.statementNote, layout.margin, y, { width: layout.contentW, lineGap: 0.5 });
+    const noteH = doc.heightOfString(input.statementNote, {
+      width: layout.contentW,
+      lineGap: 0.5,
+    });
+    doc.text(input.statementNote, layout.margin, y, {
+      width: layout.contentW,
+      lineGap: 0.5,
+    });
     y += noteH + 8;
   }
 
@@ -464,17 +530,96 @@ export async function generateStatementPdfBuffer(
     { width: layout.contentW, align: "center" }
   );
 
-  return new Promise((resolve, reject) => {
-    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
-    doc.on("end", () => {
-      const buffer = Buffer.concat(chunks);
-      if (!buffer.subarray(0, 5).toString("utf8").startsWith("%PDF")) {
-        reject(new Error("PDF generation failed"));
-        return;
-      }
-      resolve(buffer);
-    });
-    doc.on("error", reject);
-    doc.end();
+  const pageRangeAfter = typeof doc.bufferedPageRange === "function" ? doc.bufferedPageRange() : null;
+  const endIndex = pageRangeAfter
+    ? pageRangeAfter.start + pageRangeAfter.count - 1
+    : startIndex;
+  return { startPageIndex: startIndex, endPageIndex: endIndex };
+}
+
+/**
+ * Generates a valid PDF buffer (%PDF header) for a single account statement.
+ */
+export async function generateStatementPdfBuffer(
+  input: StatementPdfInput,
+  opts?: { logoBuffer?: Buffer | null }
+): Promise<Buffer> {
+  const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 0, autoFirstPage: true, bufferPages: true });
+
+  const logoBuf =
+    opts && "logoBuffer" in opts
+      ? opts.logoBuffer ?? null
+      : await loadSchoolLogoBuffer(input.school.logoUrl);
+
+  let logoImage: PdfKitImage | null = null;
+  if (logoBuf) {
+    try {
+      logoImage = doc.openImage(logoBuf);
+    } catch (err) {
+      console.warn("[statement-pdf] school logo openImage failed:", err);
+    }
+  }
+
+  drawStatementOntoDocument(doc, input, { logoImage, logoBuffer: logoBuf });
+  return finalizePdfDocument(doc);
+}
+
+/**
+ * Single-pass combined statements PDF — one PDFKit document, shared logo/fonts.
+ * Each family statement starts on a new page. No per-family merge.
+ */
+export async function generateCombinedStatementsPdfBuffer(
+  inputs: StatementPdfInput[],
+  opts?: { logoBuffer?: Buffer | null }
+): Promise<{
+  buffer: Buffer;
+  pageCount: number;
+  statementCount: number;
+  firstPageIndexByStatement: number[];
+}> {
+  if (!inputs.length) {
+    throw new Error("No statement inputs for combined PDF");
+  }
+
+  const doc = new PDFDocument({
+    size: "A4",
+    layout: "portrait",
+    margin: 0,
+    autoFirstPage: false,
+    bufferPages: true,
   });
+
+  const logoBuf = opts && "logoBuffer" in opts ? opts.logoBuffer ?? null : null;
+  let logoImage: PdfKitImage | null = null;
+  const firstPageIndexByStatement: number[] = [];
+
+  for (let i = 0; i < inputs.length; i += 1) {
+    doc.addPage({ size: "A4", layout: "portrait", margin: 0 });
+    if (!logoImage && logoBuf) {
+      try {
+        logoImage = doc.openImage(logoBuf);
+      } catch (err) {
+        console.warn("[statement-pdf] school logo openImage failed:", err);
+      }
+    }
+    const drawn = drawStatementOntoDocument(doc, inputs[i], { logoImage, logoBuffer: logoBuf });
+    firstPageIndexByStatement.push(drawn.startPageIndex);
+  }
+
+  for (let i = 1; i < firstPageIndexByStatement.length; i += 1) {
+    if (firstPageIndexByStatement[i] <= firstPageIndexByStatement[i - 1]) {
+      throw new Error("Family statements are not separated onto new pages.");
+    }
+  }
+
+  const range = doc.bufferedPageRange();
+  const pageCount = range.count;
+  const buffer = await finalizePdfDocument(doc);
+
+  return {
+    buffer,
+    pageCount: Math.max(pageCount, inputs.length),
+    statementCount: inputs.length,
+    firstPageIndexByStatement,
+  };
 }
