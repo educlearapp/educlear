@@ -273,7 +273,28 @@ type PageLayout = {
   bottomLimit: number;
 };
 
-type PdfKitImage = ReturnType<InstanceType<typeof PDFDocument>["openImage"]>;
+/**
+ * PDFKit runtime exposes openImage() for reusable image XObjects, but @types/pdfkit
+ * only types image(). Keep a narrow local type so bulk PDFs embed the logo once.
+ */
+type PdfKitImageHandle = object;
+type PdfKitDocWithOpenImage = InstanceType<typeof PDFDocument> & {
+  openImage: (src: Buffer | string) => PdfKitImageHandle;
+};
+
+function openPdfKitImage(
+  doc: InstanceType<typeof PDFDocument>,
+  src: Buffer
+): PdfKitImageHandle | null {
+  const openImage = (doc as PdfKitDocWithOpenImage).openImage;
+  if (typeof openImage !== "function") return null;
+  try {
+    return openImage.call(doc, src);
+  } catch (err) {
+    console.warn("[statement-pdf] school logo openImage failed:", err);
+    return null;
+  }
+}
 
 function finalizePdfDocument(doc: InstanceType<typeof PDFDocument>): Promise<Buffer> {
   const chunks: Buffer[] = [];
@@ -300,7 +321,7 @@ function finalizePdfDocument(doc: InstanceType<typeof PDFDocument>): Promise<Buf
 export function drawStatementOntoDocument(
   doc: InstanceType<typeof PDFDocument>,
   input: StatementPdfInput,
-  opts?: { logoImage?: PdfKitImage | null; logoBuffer?: Buffer | null }
+  opts?: { logoImage?: PdfKitImageHandle | null; logoBuffer?: Buffer | null }
 ): { startPageIndex: number; endPageIndex: number } {
   const pageRangeBefore = typeof doc.bufferedPageRange === "function" ? doc.bufferedPageRange() : null;
   const startIndex = pageRangeBefore
@@ -324,14 +345,9 @@ export function drawStatementOntoDocument(
 
   let y = topContentY;
 
-  let logoImage: PdfKitImage | null = opts?.logoImage ?? null;
+  let logoImage: PdfKitImageHandle | null = opts?.logoImage ?? null;
   if (!logoImage && opts?.logoBuffer) {
-    try {
-      logoImage = doc.openImage(opts.logoBuffer);
-    } catch (err) {
-      console.warn("[statement-pdf] school logo openImage failed:", err);
-      logoImage = null;
-    }
+    logoImage = openPdfKitImage(doc, opts.logoBuffer);
   }
 
   const drawBrandBar = () => {
@@ -361,9 +377,12 @@ export function drawStatementOntoDocument(
     let leftY = topContentY;
     let rightY = topContentY;
 
-    if (logoImage) {
+    if (logoImage || opts?.logoBuffer) {
       try {
-        doc.image(logoImage, leftX, leftY, { fit: [STATEMENT_LOGO_MAX_PT, STATEMENT_LOGO_MAX_PT] });
+        // Prefer shared openImage handle; fall back to raw buffer when unavailable.
+        doc.image((logoImage || opts?.logoBuffer) as Buffer, leftX, leftY, {
+          fit: [STATEMENT_LOGO_MAX_PT, STATEMENT_LOGO_MAX_PT],
+        });
         leftY += STATEMENT_LOGO_MAX_PT + STATEMENT_LOGO_GAP_PT;
       } catch (err) {
         console.warn("[statement-pdf] school logo embed failed:", err);
@@ -551,14 +570,7 @@ export async function generateStatementPdfBuffer(
       ? opts.logoBuffer ?? null
       : await loadSchoolLogoBuffer(input.school.logoUrl);
 
-  let logoImage: PdfKitImage | null = null;
-  if (logoBuf) {
-    try {
-      logoImage = doc.openImage(logoBuf);
-    } catch (err) {
-      console.warn("[statement-pdf] school logo openImage failed:", err);
-    }
-  }
+  const logoImage = logoBuf ? openPdfKitImage(doc, logoBuf) : null;
 
   drawStatementOntoDocument(doc, input, { logoImage, logoBuffer: logoBuf });
   return finalizePdfDocument(doc);
@@ -590,17 +602,13 @@ export async function generateCombinedStatementsPdfBuffer(
   });
 
   const logoBuf = opts && "logoBuffer" in opts ? opts.logoBuffer ?? null : null;
-  let logoImage: PdfKitImage | null = null;
+  let logoImage: PdfKitImageHandle | null = null;
   const firstPageIndexByStatement: number[] = [];
 
   for (let i = 0; i < inputs.length; i += 1) {
     doc.addPage({ size: "A4", layout: "portrait", margin: 0 });
     if (!logoImage && logoBuf) {
-      try {
-        logoImage = doc.openImage(logoBuf);
-      } catch (err) {
-        console.warn("[statement-pdf] school logo openImage failed:", err);
-      }
+      logoImage = openPdfKitImage(doc, logoBuf);
     }
     const drawn = drawStatementOntoDocument(doc, inputs[i], { logoImage, logoBuffer: logoBuf });
     firstPageIndexByStatement.push(drawn.startPageIndex);
