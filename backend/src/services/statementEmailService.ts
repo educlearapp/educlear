@@ -1,5 +1,6 @@
 import { sendEmailWithAttachment, type SendEmailWithAttachmentInput } from "../routes/emailService";
 import { buildAndGenerateStatementPdf } from "./statementPdfData";
+import type { StatementClosingBalanceSource } from "./statementPdfTypes";
 
 export type SendStatementEmailInput = {
   schoolId: string;
@@ -13,6 +14,8 @@ export type SendStatementEmailInput = {
   accountNo?: string;
   period?: string;
   statementNote?: string;
+  /** Invoice-run bulk email should pass period-ledger; individual statements keep default. */
+  closingBalanceSource?: StatementClosingBalanceSource;
   /** Legacy: client-supplied base64 (ignored when learnerId is set). */
   pdfBase64?: string;
   /** Provider idempotency key for this logical statement delivery (bulk jobs). */
@@ -48,6 +51,7 @@ export async function sendStatementEmail(input: SendStatementEmailInput) {
       accountNo: accountNo || undefined,
       period: input.period,
       statementNote: input.statementNote,
+      closingBalanceSource: input.closingBalanceSource,
     });
     pdfBuffer = generated.buffer;
     filename = generated.filename;

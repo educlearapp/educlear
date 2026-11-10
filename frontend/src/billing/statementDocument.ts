@@ -875,6 +875,8 @@ export async function sendStatementEmail(payload: {
   period?: string;
   statementNote?: string;
   filename?: string;
+  /** Invoice-run bulk email uses period-ledger closing balances. */
+  closingBalanceSource?: "age-analysis" | "period-ledger";
 }): Promise<{ messageId?: string }> {
   const response = await authenticatedFetch(`/api/emails/send-statement`, {
     method: "POST",

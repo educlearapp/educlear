@@ -26,6 +26,11 @@ router.post("/send-statement", async (req, res) => {
       req.body?.statementNote != null ? String(req.body.statementNote) : undefined;
     const filename = req.body?.filename != null ? String(req.body.filename) : undefined;
     const pdfBase64 = req.body?.pdfBase64 != null ? String(req.body.pdfBase64).trim() : undefined;
+    const closingBalanceRaw = String(req.body?.closingBalanceSource || "").trim();
+    const closingBalanceSource =
+      closingBalanceRaw === "period-ledger" || closingBalanceRaw === "age-analysis"
+        ? (closingBalanceRaw as "period-ledger" | "age-analysis")
+        : undefined;
 
     if (!schoolId) {
       return res.status(400).json({
@@ -51,6 +56,7 @@ router.post("/send-statement", async (req, res) => {
       statementNote,
       filename,
       pdfBase64,
+      closingBalanceSource,
     });
 
     return res.json({

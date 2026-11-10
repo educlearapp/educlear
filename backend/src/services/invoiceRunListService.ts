@@ -216,3 +216,160 @@ export function countInvoicesByPeriod(
   }
   return counts;
 }
+
+export type InvoiceRunDetailInvoice = {
+  id: string;
+  learnerId: string;
+  billedLearnerId?: string;
+  accountNo: string;
+  familyAccountId?: string;
+  amount: number;
+  date: string;
+  dueDate?: string;
+  reference: string;
+  description: string;
+  invoicePeriod?: string;
+  runId?: string;
+};
+
+export type InvoiceRunFamilyAccountSummary = {
+  /** Stable unique key for de-duplication (familyAccountId when present, else accountNo). */
+  key: string;
+  accountNo: string;
+  familyAccountId?: string;
+  learnerIds: string[];
+  invoiceCount: number;
+  invoiceAmount: number;
+  /** Learner id used as statement PDF anchor. */
+  anchorLearnerId: string;
+};
+
+export type InvoiceRunDetail = {
+  schoolId: string;
+  runId: string;
+  source: InvoiceRunListSource;
+  description: string;
+  invoicePeriod: string;
+  period: string;
+  invoiceDate: string;
+  dueDate: string;
+  totalInvoices: number;
+  totalAmount: number;
+  uniqueFamilyAccountCount: number;
+  invoices: InvoiceRunDetailInvoice[];
+  familyAccounts: InvoiceRunFamilyAccountSummary[];
+};
+
+function familyAccountKey(entry: Pick<BillingLedgerEntry, "familyAccountId" | "accountNo">): string {
+  const familyId = String(entry.familyAccountId || "").trim();
+  if (familyId) return `family:${familyId}`;
+  const accountNo = String(entry.accountNo || "").trim();
+  if (accountNo) return `account:${accountNo}`;
+  return "";
+}
+
+function collectInvoicesForRunId(
+  invoices: BillingLedgerEntry[],
+  runId: string
+): BillingLedgerEntry[] {
+  const rid = String(runId || "").trim();
+  if (!rid) return [];
+
+  const byRunId = invoices.filter((entry) => String(entry.runId || "").trim() === rid);
+  if (byRunId.length) return byRunId;
+
+  // Legacy list ids are group keys (legacy:period:date:description) when runId was absent.
+  return invoices.filter((entry) => resolveGroupKey(entry) === rid);
+}
+
+/**
+ * Read-only detail for one completed invoice run.
+ * Invoice count may exceed unique family accounts (siblings share one statement).
+ */
+export function getInvoiceRunDetailFromLedger(
+  schoolId: string,
+  runId: string,
+  opts: { ledger?: BillingLedgerEntry[] } = {}
+): InvoiceRunDetail | null {
+  const sid = String(schoolId || "").trim();
+  const rid = String(runId || "").trim();
+  if (!sid || !rid) return null;
+
+  const schoolInvoices = (opts.ledger ?? listInvoices(sid))
+    .filter((entry) => String(entry.schoolId || "").trim() === sid)
+    .filter(isInvoiceRunListEntry);
+  const invoices = collectInvoicesForRunId(schoolInvoices, rid);
+  if (!invoices.length) return null;
+
+  const invoicePeriod = resolveInvoicePeriod(invoices[0]);
+  const periodLabel = formatInvoicePeriodLabel(invoicePeriod);
+  const invoiceDate = pickInvoiceDate(invoices);
+  const dueDate = pickDueDate(invoices);
+  const description = pickDescription(invoices);
+  const totalAmount = roundMoney(
+    invoices.reduce((sum, entry) => sum + normaliseAmount(entry.amount), 0)
+  );
+
+  const detailInvoices: InvoiceRunDetailInvoice[] = invoices.map((entry) => ({
+    id: String(entry.id || ""),
+    learnerId: String(entry.learnerId || ""),
+    billedLearnerId: entry.billedLearnerId ? String(entry.billedLearnerId) : undefined,
+    accountNo: String(entry.accountNo || ""),
+    familyAccountId: entry.familyAccountId ? String(entry.familyAccountId) : undefined,
+    amount: normaliseAmount(entry.amount),
+    date: normaliseIsoDate(entry.date),
+    dueDate: entry.dueDate ? normaliseIsoDate(entry.dueDate) : undefined,
+    reference: String(entry.reference || ""),
+    description: String(entry.description || ""),
+    invoicePeriod: resolveInvoicePeriod(entry),
+    runId: entry.runId ? String(entry.runId) : undefined,
+  }));
+
+  const familyMap = new Map<string, InvoiceRunFamilyAccountSummary>();
+  for (const entry of invoices) {
+    const key = familyAccountKey(entry);
+    if (!key) continue;
+    const accountNo = String(entry.accountNo || "").trim();
+    const familyAccountId = String(entry.familyAccountId || "").trim() || undefined;
+    const learnerId = String(entry.billedLearnerId || entry.learnerId || "").trim();
+    const existing = familyMap.get(key);
+    if (!existing) {
+      familyMap.set(key, {
+        key,
+        accountNo,
+        familyAccountId,
+        learnerIds: learnerId ? [learnerId] : [],
+        invoiceCount: 1,
+        invoiceAmount: normaliseAmount(entry.amount),
+        anchorLearnerId: learnerId,
+      });
+      continue;
+    }
+    existing.invoiceCount += 1;
+    existing.invoiceAmount = roundMoney(existing.invoiceAmount + normaliseAmount(entry.amount));
+    if (learnerId && !existing.learnerIds.includes(learnerId)) {
+      existing.learnerIds.push(learnerId);
+    }
+    if (!existing.anchorLearnerId && learnerId) existing.anchorLearnerId = learnerId;
+  }
+
+  const familyAccounts = Array.from(familyMap.values()).sort((a, b) =>
+    a.accountNo.localeCompare(b.accountNo)
+  );
+
+  return {
+    schoolId: sid,
+    runId: resolveRunIdFromGroupKey(rid, invoices) || rid,
+    source: "ledger",
+    description,
+    invoicePeriod,
+    period: periodLabel,
+    invoiceDate,
+    dueDate,
+    totalInvoices: invoices.length,
+    totalAmount,
+    uniqueFamilyAccountCount: familyAccounts.length,
+    invoices: detailInvoices,
+    familyAccounts,
+  };
+}

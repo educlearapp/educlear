@@ -5,6 +5,7 @@
 import {
   countInvoicesByPeriod,
   formatInvoicePeriodLabel,
+  getInvoiceRunDetailFromLedger,
   listInvoiceRunsFromLedger,
 } from "./invoiceRunListService";
 import type { BillingLedgerEntry } from "../utils/billingLedgerStore";
@@ -120,6 +121,80 @@ function runTests() {
 
   const otherSchool = listInvoiceRunsFromLedger("other-school", { ledger: flyEagleStyle });
   assert(otherSchool.length === 2, "list grouping is in-memory; schoolId only gates empty id");
+
+  // Completed-run detail: invoice count != unique family accounts; tenant isolation.
+  const siblingLedger: BillingLedgerEntry[] = [
+    invoice({
+      id: "sib-1",
+      runId: "draft:school-a:2026-11",
+      schoolId: "school-a",
+      invoicePeriod: "2026-11",
+      date: "2026-10-15",
+      description: "Invoice Run For November 2026",
+      accountNo: "FAM001",
+      familyAccountId: "fa-1",
+      learnerId: "l-a",
+      amount: 1000,
+    }),
+    invoice({
+      id: "sib-2",
+      runId: "draft:school-a:2026-11",
+      schoolId: "school-a",
+      invoicePeriod: "2026-11",
+      date: "2026-10-15",
+      description: "Invoice Run For November 2026",
+      accountNo: "FAM001",
+      familyAccountId: "fa-1",
+      learnerId: "l-b",
+      amount: 500,
+    }),
+    invoice({
+      id: "sib-3",
+      runId: "draft:school-a:2026-11",
+      schoolId: "school-a",
+      invoicePeriod: "2026-11",
+      date: "2026-10-15",
+      description: "Invoice Run For November 2026",
+      accountNo: "FAM002",
+      familyAccountId: "fa-2",
+      learnerId: "l-c",
+      amount: 800,
+    }),
+    invoice({
+      id: "other-1",
+      runId: "draft:school-a:2026-11",
+      schoolId: "school-b",
+      invoicePeriod: "2026-11",
+      date: "2026-10-15",
+      description: "Invoice Run For November 2026",
+      accountNo: "OTHER1",
+      familyAccountId: "fa-x",
+      learnerId: "l-x",
+      amount: 999,
+    }),
+  ];
+
+  const detail = getInvoiceRunDetailFromLedger("school-a", "draft:school-a:2026-11", {
+    ledger: siblingLedger,
+  });
+  assert(!!detail, "detail present");
+  assert(detail!.totalInvoices === 3, `expected 3 invoices, got ${detail!.totalInvoices}`);
+  assert(
+    detail!.uniqueFamilyAccountCount === 2,
+    `expected 2 family accounts, got ${detail!.uniqueFamilyAccountCount}`
+  );
+  assert(detail!.totalAmount === 2300, `expected total 2300, got ${detail!.totalAmount}`);
+  assert(detail!.invoiceDate === "2026-10-15", "invoice date");
+  assert(detail!.invoicePeriod === "2026-11", "invoice period");
+
+  const isolated = getInvoiceRunDetailFromLedger("school-b", "draft:school-a:2026-11", {
+    ledger: siblingLedger,
+  });
+  assert(isolated === null || isolated.totalInvoices === 1, "school-b only sees its own rows");
+  const wrongSchool = getInvoiceRunDetailFromLedger("school-a", "draft:school-b:2026-11", {
+    ledger: siblingLedger,
+  });
+  assert(wrongSchool === null, "missing run for school returns null");
 
   console.log("invoiceRunListService.test.ts: OK");
 }

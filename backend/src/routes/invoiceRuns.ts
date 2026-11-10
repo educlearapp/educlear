@@ -12,8 +12,14 @@ import {
 import { executeInvoiceRun } from "../services/invoiceRunExecuteService";
 import {
   countInvoicesByPeriod,
+  getInvoiceRunDetailFromLedger,
   listInvoiceRunsFromLedger,
 } from "../services/invoiceRunListService";
+import {
+  INVOICE_RUN_STATEMENT_DEFAULT_PERIOD,
+  buildInvoiceRunStatementsPdf,
+  invoiceRunStatementCutoffNote,
+} from "../services/invoiceRunStatementsPdfService";
 import { undoInvoiceRun } from "../services/invoiceRunUndoService";
 import { readSchoolLedger } from "../utils/billingLedgerStore";
 
@@ -43,6 +49,104 @@ router.get("/", async (req, res) => {
     return res.status(500).json({ success: false, error: message });
   }
 });
+
+/**
+ * GET /api/invoice-runs/:runId/invoices?schoolId=
+ * Read-only completed-run detail (invoices + unique family accounts).
+ */
+router.get(
+  "/:runId/invoices",
+  requireInvoiceRunPreviewAuth,
+  async (req: InvoiceRunExecuteAuthRequest, res) => {
+    try {
+      const schoolId = String(req.invoiceRunExecuteAuth?.authorizedSchoolId || "").trim();
+      const runId = decodeURIComponent(String(req.params?.runId || "").trim());
+      if (!schoolId || !runId) {
+        return res.status(400).json({ success: false, error: "Missing schoolId or runId" });
+      }
+
+      const ledger = readSchoolLedger(schoolId);
+      const detail = getInvoiceRunDetailFromLedger(schoolId, runId, { ledger });
+      if (!detail) {
+        return res.status(404).json({
+          success: false,
+          error: "Invoice run not found for this school",
+          errorCode: "NOT_FOUND",
+        });
+      }
+
+      return res.json({
+        ...detail,
+        success: true,
+        source: "billing-ledger.json",
+        statementCutoffNote: invoiceRunStatementCutoffNote(
+          detail.invoicePeriod || detail.period,
+          INVOICE_RUN_STATEMENT_DEFAULT_PERIOD
+        ),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Server error";
+      console.error("[invoice-runs] GET /:runId/invoices failed:", error);
+      return res.status(500).json({ success: false, error: message });
+    }
+  }
+);
+
+/**
+ * GET /api/invoice-runs/:runId/statements.pdf?schoolId=
+ * Combined printable PDF — one statement per unique family account on the run.
+ */
+router.get(
+  "/:runId/statements.pdf",
+  requireInvoiceRunPreviewAuth,
+  async (req: InvoiceRunExecuteAuthRequest, res) => {
+    try {
+      const schoolId = String(req.invoiceRunExecuteAuth?.authorizedSchoolId || "").trim();
+      const runId = decodeURIComponent(String(req.params?.runId || "").trim());
+      const periodRaw =
+        typeof req.query?.period === "string" ? String(req.query.period).trim() : "";
+      if (!schoolId || !runId) {
+        return res.status(400).json({ success: false, error: "Missing schoolId or runId" });
+      }
+
+      const ledger = readSchoolLedger(schoolId);
+      const built = await buildInvoiceRunStatementsPdf({
+        schoolId,
+        runId,
+        period: periodRaw || undefined,
+        ledger,
+      });
+      if (!built) {
+        return res.status(404).json({
+          success: false,
+          error: "No family account statements found for this invoice run",
+          errorCode: "NOT_FOUND",
+        });
+      }
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="${built.filename}"`);
+      res.setHeader("Content-Length", String(built.buffer.length));
+      res.setHeader("Cache-Control", "no-store");
+      res.setHeader("X-EduClear-Statement-Count", String(built.statementCount));
+      res.setHeader("X-EduClear-Invoice-Count", String(built.detail.totalInvoices));
+      res.setHeader("X-EduClear-Statement-Period", built.statementPeriod);
+      res.setHeader("X-EduClear-Statement-Window", built.statementWindowLabel);
+      res.setHeader("X-EduClear-Statement-Cutoff-Note", built.statementCutoffNote);
+      // Send only after the full combined PDF is built — never stream a partial merge.
+      return res.status(200).send(built.buffer);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Server error";
+      const unsupported = /Unsupported statement period/i.test(message);
+      console.error("[invoice-runs] GET /:runId/statements.pdf failed:", error);
+      return res.status(unsupported ? 400 : 500).json({
+        success: false,
+        error: message,
+        errorCode: unsupported ? "UNSUPPORTED_PERIOD" : "SERVER_ERROR",
+      });
+    }
+  }
+);
 
 async function handleExecute(req: InvoiceRunExecuteAuthRequest, res: any, dryRun: boolean) {
   try {

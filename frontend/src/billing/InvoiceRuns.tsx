@@ -15,6 +15,8 @@ import {
 } from "./billingSettingsEngine";
 import {
   fetchInvoiceRuns,
+  fetchInvoiceRunDetail,
+  openInvoiceRunStatementsPdfPrint,
   previewInvoiceRun,
   executeInvoiceRun,
   applyInvoiceRunExecuteResponse,
@@ -40,6 +42,16 @@ import {
   type InvoiceRunExtraFee,
   type InvoiceRunListRow,
 } from "./invoiceRunList";
+import {
+  canLaunchInvoiceRunPrint,
+  invoiceRunPrintEmptyMessage,
+  mapInvoiceRunDetailToManageRows,
+  mapInvoiceRunFamilyAccountsToStatementRows,
+  shouldLoadCompletedInvoiceRunDetail,
+  type InvoiceRunCompletedDetail,
+} from "./invoiceRunCompletedDetail";
+import InvoiceRunStatementsDialog from "./InvoiceRunStatementsDialog";
+import { INVOICE_RUN_STATEMENT_DEFAULT_PERIOD } from "./invoiceRunStatementPeriod";
 import InvoiceRunOnceOffFeeModal from "./InvoiceRunOnceOffFeeModal";
 import { resolveStatementBillingContact } from "./statementBillingContact";
 
@@ -162,6 +174,18 @@ export default function InvoiceRuns(props: any) {
   >({});
   const [serverRunsLoading, setServerRunsLoading] = useState(false);
   const [serverRunsError, setServerRunsError] = useState("");
+  const [completedRunDetail, setCompletedRunDetail] = useState<InvoiceRunCompletedDetail | null>(
+    null
+  );
+  const [completedRunDetailLoading, setCompletedRunDetailLoading] = useState(false);
+  const [completedRunDetailError, setCompletedRunDetailError] = useState("");
+  const [statementPrintBusy, setStatementPrintBusy] = useState(false);
+  const [statementsDialog, setStatementsDialog] = useState<null | {
+    mode: "pdf" | "email";
+  }>(null);
+  const [invoiceRunStatementPeriod, setInvoiceRunStatementPeriod] = useState<string>(
+    INVOICE_RUN_STATEMENT_DEFAULT_PERIOD
+  );
   const [statementEmailOpen, setStatementEmailOpen] = useState(false);
   const [statementEmailRows, setStatementEmailRows] = useState<any[]>([]);
   const [statementEmailSubject, setStatementEmailSubject] = useState("");
@@ -1161,14 +1185,69 @@ export default function InvoiceRuns(props: any) {
 
 
 
+  const completedManageRows = useMemo(
+    () => mapInvoiceRunDetailToManageRows(completedRunDetail),
+    [completedRunDetail]
+  );
+  const completedStatementRows = useMemo(
+    () => mapInvoiceRunFamilyAccountsToStatementRows(completedRunDetail),
+    [completedRunDetail]
+  );
+
   const runRows = useMemo(
     () => {
       if (Array.isArray(selectedRows) && selectedRows.length) return selectedRows;
+      if (completedManageRows.length) return completedManageRows;
       if (Array.isArray(selectedRun?.rows) && selectedRun.rows.length) return selectedRun.rows;
       return [];
     },
-    [selectedRun, selectedRows]
+    [selectedRun, selectedRows, completedManageRows]
   );
+
+  const loadCompletedInvoiceRunDetail = useCallback(async (run: any) => {
+    const schoolId = localStorage.getItem("schoolId") || "";
+    const runId = String(run?.runId || run?.id || "").trim();
+    if (!schoolId || !runId || !shouldLoadCompletedInvoiceRunDetail(run)) {
+      setCompletedRunDetail(null);
+      setCompletedRunDetailError("");
+      return null;
+    }
+    setCompletedRunDetailLoading(true);
+    setCompletedRunDetailError("");
+    try {
+      const detail = await fetchInvoiceRunDetail(schoolId, runId);
+      if (!detail) {
+        setCompletedRunDetail(null);
+        setCompletedRunDetailError("Could not load invoices for this run from the server.");
+        return null;
+      }
+      const mapped: InvoiceRunCompletedDetail = {
+        schoolId: String(detail.schoolId || schoolId),
+        runId: String(detail.runId || runId),
+        description: String(detail.description || ""),
+        invoicePeriod: String(detail.invoicePeriod || ""),
+        period: String(detail.period || ""),
+        invoiceDate: String(detail.invoiceDate || ""),
+        dueDate: String(detail.dueDate || ""),
+        totalInvoices: Number(detail.totalInvoices || 0),
+        totalAmount: Number(detail.totalAmount || 0),
+        uniqueFamilyAccountCount: Number(detail.uniqueFamilyAccountCount || 0),
+        invoices: Array.isArray(detail.invoices) ? (detail.invoices as any) : [],
+        familyAccounts: Array.isArray(detail.familyAccounts)
+          ? (detail.familyAccounts as any)
+          : [],
+        statementCutoffNote: detail.statementCutoffNote,
+      };
+      setCompletedRunDetail(mapped);
+      return mapped;
+    } catch {
+      setCompletedRunDetail(null);
+      setCompletedRunDetailError("Could not load invoices for this run from the server.");
+      return null;
+    } finally {
+      setCompletedRunDetailLoading(false);
+    }
+  }, []);
 
 
 
@@ -1697,6 +1776,7 @@ export default function InvoiceRuns(props: any) {
 
 
     setInvoiceRunView("manage");
+    void loadCompletedInvoiceRunDetail(run);
 
 
 
@@ -2914,7 +2994,9 @@ export default function InvoiceRuns(props: any) {
                 : `${schoolName} Statement - ${row.learnerName}`,
             html: emailHtml,
             learnerId: rowLearnerId,
-            period: "All Time",
+            accountNo: String(row.accountNo || "").trim() || undefined,
+            period: invoiceRunStatementPeriod || INVOICE_RUN_STATEMENT_DEFAULT_PERIOD,
+            closingBalanceSource: "period-ledger",
           });
         } catch (sendErr: unknown) {
           const err = sendErr as Error & { setupRequired?: boolean };
@@ -6887,6 +6969,13 @@ export default function InvoiceRuns(props: any) {
 
 
     const isInvoices = invoiceRunView === "printInvoices";
+    const printRows = isInvoices
+      ? filteredRows
+      : completedStatementRows.length
+        ? completedStatementRows
+        : filteredRows;
+    const printCount = printRows.length;
+    const uniqueStatementCount = Number(completedRunDetail?.uniqueFamilyAccountCount || printCount || 0);
 
 
 
@@ -6895,6 +6984,53 @@ export default function InvoiceRuns(props: any) {
 
 
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        {!isInvoices ? (
+          <InvoiceRunStatementsDialog
+            open={Boolean(statementsDialog)}
+            busy={statementPrintBusy || completedRunDetailLoading}
+            mode={statementsDialog?.mode || "pdf"}
+            runDescription={String(
+              completedRunDetail?.description ||
+                selectedRun?.description ||
+                `Invoice Run For ${selectedRun?.period || selectedRun?.month || ""}`
+            )}
+            invoiceDate={String(
+              completedRunDetail?.invoiceDate || selectedRun?.invoiceDate || ""
+            )}
+            invoiceCount={Number(
+              completedRunDetail?.totalInvoices || selectedRun?.totalInvoices || runRows.length || 0
+            )}
+            uniqueFamilyAccountCount={uniqueStatementCount}
+            initialPeriod={invoiceRunStatementPeriod}
+            onClose={() => setStatementsDialog(null)}
+            onConfirm={async (enginePeriod) => {
+              setInvoiceRunStatementPeriod(enginePeriod);
+              const schoolId = localStorage.getItem("schoolId") || "";
+              const runId = String(
+                completedRunDetail?.runId || selectedRun?.runId || selectedRun?.id || ""
+              ).trim();
+              if (!schoolId || !runId) {
+                alert("Missing school or invoice run.");
+                return;
+              }
+              setStatementPrintBusy(true);
+              try {
+                const result = await openInvoiceRunStatementsPdfPrint(
+                  schoolId,
+                  runId,
+                  enginePeriod
+                );
+                if (!result.opened) {
+                  alert(result.error || invoiceRunPrintEmptyMessage("statements"));
+                  return;
+                }
+                setStatementsDialog(null);
+              } finally {
+                setStatementPrintBusy(false);
+              }
+            }}
+          />
+        ) : null}
 
 
 
@@ -6922,11 +7058,18 @@ export default function InvoiceRuns(props: any) {
 
 
 
-              Preview batch before printing.
+              {isInvoices
+                ? `Preview ${printCount} invoice line(s) before printing.`
+                : `Preview ${uniqueStatementCount} unique family statement(s) before printing. Invoice lines on this run: ${Number(completedRunDetail?.totalInvoices || runRows.length || 0)}. Selected period: ${invoiceRunStatementPeriod}.`}
 
 
 
             </div>
+            {!isInvoices && completedRunDetail?.statementCutoffNote ? (
+              <div style={{ fontSize: 12, color: "#92400e", marginTop: 8, maxWidth: 720 }}>
+                {completedRunDetail.statementCutoffNote}
+              </div>
+            ) : null}
 
 
 
@@ -6950,11 +7093,29 @@ export default function InvoiceRuns(props: any) {
 
 
 
-            <button style={goldBtn} onClick={() => window.print()}>
+            <button
+              style={goldBtn}
+              disabled={statementPrintBusy || completedRunDetailLoading}
+              onClick={() => {
+                if (!canLaunchInvoiceRunPrint(printCount)) {
+                  alert(invoiceRunPrintEmptyMessage(isInvoices ? "invoices" : "statements"));
+                  return;
+                }
+                if (isInvoices) {
+                  window.print();
+                  return;
+                }
+                setStatementsDialog({ mode: "pdf" });
+              }}
+            >
 
 
 
-              View / Print
+              {statementPrintBusy
+                ? "Preparing…"
+                : isInvoices
+                  ? "View / Print"
+                  : `Choose Period / Print (${uniqueStatementCount})`}
 
 
 
@@ -6998,7 +7159,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-          {filteredRows.length === 0 ? (
+          {printCount === 0 ? (
 
 
 
@@ -7034,7 +7195,9 @@ export default function InvoiceRuns(props: any) {
 
 
 
-              No records found to print.
+              {completedRunDetailLoading
+                ? "Loading invoice run…"
+                : invoiceRunPrintEmptyMessage(isInvoices ? "invoices" : "statements")}
 
 
 
@@ -7094,7 +7257,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-                {filteredRows.map((row: any, index: number) => (
+                {printRows.map((row: any, index: number) => (
 
 
 
@@ -7271,6 +7434,64 @@ export default function InvoiceRuns(props: any) {
 
 
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+        <InvoiceRunStatementsDialog
+          open={Boolean(statementsDialog)}
+          busy={statementPrintBusy || statementEmailSending || completedRunDetailLoading}
+          mode={statementsDialog?.mode || "pdf"}
+          runDescription={
+            String(
+              completedRunDetail?.description ||
+                selectedRun?.description ||
+                invoiceRunSettings?.description ||
+                `Invoice Run For ${selectedRun?.period || selectedRun?.month || ""}`
+            )
+          }
+          invoiceDate={String(
+            completedRunDetail?.invoiceDate ||
+              selectedRun?.invoiceDate ||
+              invoiceRunSettings?.invoiceDate ||
+              ""
+          )}
+          invoiceCount={Number(
+            completedRunDetail?.totalInvoices || selectedRun?.totalInvoices || runRows.length || 0
+          )}
+          uniqueFamilyAccountCount={Number(
+            completedRunDetail?.uniqueFamilyAccountCount || completedStatementRows.length || 0
+          )}
+          initialPeriod={invoiceRunStatementPeriod}
+          onClose={() => setStatementsDialog(null)}
+          onConfirm={async (enginePeriod) => {
+            setInvoiceRunStatementPeriod(enginePeriod);
+            if (statementsDialog?.mode === "email") {
+              setStatementsDialog(null);
+              setInvoiceRunView("emailStatements");
+              return;
+            }
+            const schoolId = localStorage.getItem("schoolId") || "";
+            const runId = String(
+              completedRunDetail?.runId || selectedRun?.runId || selectedRun?.id || ""
+            ).trim();
+            if (!schoolId || !runId) {
+              alert("Missing school or invoice run.");
+              return;
+            }
+            if (!canLaunchInvoiceRunPrint(Number(completedRunDetail?.uniqueFamilyAccountCount || 0))) {
+              alert(invoiceRunPrintEmptyMessage("statements"));
+              return;
+            }
+            setStatementPrintBusy(true);
+            try {
+              const result = await openInvoiceRunStatementsPdfPrint(schoolId, runId, enginePeriod);
+              if (!result.opened) {
+                alert(result.error || invoiceRunPrintEmptyMessage("statements"));
+                return;
+              }
+              setStatementsDialog(null);
+            } finally {
+              setStatementPrintBusy(false);
+            }
+          }}
+        />
 
 
 
@@ -7446,7 +7667,9 @@ export default function InvoiceRuns(props: any) {
 
 
 
-              if (value === "emailStatements") setInvoiceRunView("emailStatements");
+              if (value === "emailStatements") {
+                setStatementsDialog({ mode: "email" });
+              }
 
 
 
@@ -7458,7 +7681,9 @@ export default function InvoiceRuns(props: any) {
 
 
 
-              if (value === "printStatements") setInvoiceRunView("printStatements");
+              if (value === "printStatements") {
+                setStatementsDialog({ mode: "pdf" });
+              }
 
 
 
@@ -7814,7 +8039,27 @@ export default function InvoiceRuns(props: any) {
 
 
 
-            <input style={input} value={runRows.length} readOnly />
+            <input
+              style={input}
+              value={
+                completedRunDetailLoading
+                  ? "Loading…"
+                  : completedRunDetail
+                    ? completedRunDetail.totalInvoices
+                    : runRows.length
+              }
+              readOnly
+            />
+            {completedRunDetail ? (
+              <div style={{ fontSize: 12, color: "#64748b", marginTop: 6 }}>
+                Unique family accounts for statements: {completedRunDetail.uniqueFamilyAccountCount}
+              </div>
+            ) : null}
+            {completedRunDetailError ? (
+              <div style={{ fontSize: 12, color: "#991b1b", marginTop: 6 }}>
+                {completedRunDetailError}
+              </div>
+            ) : null}
 
 
 
@@ -7822,7 +8067,13 @@ export default function InvoiceRuns(props: any) {
 
 
 
-            <input style={input} value={money(runTotalAmount)} readOnly />
+            <input
+              style={input}
+              value={money(
+                completedRunDetail ? completedRunDetail.totalAmount : runTotalAmount
+              )}
+              readOnly
+            />
 
 
 

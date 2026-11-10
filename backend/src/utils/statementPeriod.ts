@@ -167,3 +167,31 @@ export function computeStatementOpeningBalance(
   }
   return balance;
 }
+
+/**
+ * Period-end closing balance from the posting ledger (statement-visible rows only).
+ * Identity: opening + in-period net = closing.
+ * Does not use Age Analysis snapshots — those are current aging, not historical period-end.
+ */
+export function computeStatementClosingBalance(
+  entries: BillingLedgerEntry[],
+  period: string,
+  options?: { showCorrectionsAudit?: boolean }
+): number {
+  const normalized = normalizeStatementPeriod(period);
+  const showCorrectionsAudit = Boolean(options?.showCorrectionsAudit);
+  const opening = computeStatementOpeningBalance(entries, normalized, options);
+  const periodEntries = filterLedgerByStatementPeriod(entries, normalized);
+
+  let net = 0;
+  for (const entry of periodEntries) {
+    if (!shouldShowLedgerEntryOnStatement(entry, showCorrectionsAudit)) continue;
+    if (!shouldShowOpeningBalanceMigration(normalized, entry) && isKidesysOpeningBalanceEntry(entry)) {
+      continue;
+    }
+    const amount = normaliseAmount(entry.amount);
+    const isDebit = entry.type === "invoice" || entry.type === "penalty";
+    net += isDebit ? amount : -amount;
+  }
+  return normaliseAmount(opening + net);
+}

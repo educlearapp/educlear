@@ -45,6 +45,13 @@ export type StatementPdfInput = {
   isFamilyAccount: boolean;
 };
 
+/**
+ * Closing-balance source for the statement PDF header box.
+ * - age-analysis: current Age Analysis snapshot (legacy individual Statement Manage / print).
+ * - period-ledger: opening + in-period ledger net (period-end identity; required for bulk).
+ */
+export type StatementClosingBalanceSource = "age-analysis" | "period-ledger";
+
 export type BuildStatementPdfOptions = {
   schoolId: string;
   /** Optional when accountNo (Kid-e-Sys accountRef) is supplied. */
@@ -53,4 +60,9 @@ export type BuildStatementPdfOptions = {
   accountNo?: string;
   period?: string;
   statementNote?: string;
+  /**
+   * Defaults to age-analysis so existing individual statement PDFs are unchanged.
+   * Invoice-run bulk print must pass period-ledger.
+   */
+  closingBalanceSource?: StatementClosingBalanceSource;
 };

@@ -870,6 +870,114 @@ export async function fetchInvoiceRuns(schoolId: string): Promise<{
   }
 }
 
+export type InvoiceRunCompletedDetailResponse = {
+  success: boolean;
+  schoolId: string;
+  runId: string;
+  description: string;
+  invoicePeriod: string;
+  period: string;
+  invoiceDate: string;
+  dueDate: string;
+  totalInvoices: number;
+  totalAmount: number;
+  uniqueFamilyAccountCount: number;
+  invoices: Array<Record<string, unknown>>;
+  familyAccounts: Array<Record<string, unknown>>;
+  statementCutoffNote?: string;
+  error?: string;
+};
+
+/** Read-only completed-run invoices + unique family accounts. */
+export async function fetchInvoiceRunDetail(
+  schoolId: string,
+  runId: string
+): Promise<InvoiceRunCompletedDetailResponse | null> {
+  const sid = String(schoolId || "").trim();
+  const rid = String(runId || "").trim();
+  if (!sid || !rid) return null;
+  const url =
+    `${API_URL}/api/invoice-runs/${encodeURIComponent(rid)}/invoices` +
+    `?schoolId=${encodeURIComponent(sid)}`;
+  try {
+    const data = await getJson(url, staffAuthHeaders());
+    if (!data || typeof data !== "object" || (data as { success?: boolean }).success === false) {
+      return null;
+    }
+    return data as InvoiceRunCompletedDetailResponse;
+  } catch (error) {
+    console.warn(`Billing API failed: ${url}`, error);
+    return null;
+  }
+}
+
+/** Combined printable PDF for unique family accounts on a completed invoice run. */
+export async function openInvoiceRunStatementsPdfPrint(
+  schoolId: string,
+  runId: string,
+  period = "Last 3 Months"
+): Promise<{ opened: boolean; statementCount: number; period?: string; error?: string }> {
+  const sid = String(schoolId || "").trim();
+  const rid = String(runId || "").trim();
+  const statementPeriod = String(period || "Last 3 Months").trim() || "Last 3 Months";
+  if (!sid || !rid) return { opened: false, statementCount: 0, error: "Missing school or run" };
+
+  const url =
+    `${API_URL}/api/invoice-runs/${encodeURIComponent(rid)}/statements.pdf` +
+    `?schoolId=${encodeURIComponent(sid)}` +
+    `&period=${encodeURIComponent(statementPeriod)}`;
+  try {
+    const response = await authenticatedFetch(url, {
+      method: "GET",
+      headers: { ...staffAuthHeaders() },
+      cache: "no-store",
+    });
+    if (response.status === 404) {
+      return { opened: false, statementCount: 0, error: "No statements found for this run" };
+    }
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      return {
+        opened: false,
+        statementCount: 0,
+        error: String((body as { error?: string }).error || "Failed to generate statements PDF"),
+      };
+    }
+    const statementCount = Number(response.headers.get("X-EduClear-Statement-Count") || 0);
+    const resolvedPeriod = String(
+      response.headers.get("X-EduClear-Statement-Period") || statementPeriod
+    );
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const win = window.open(objectUrl, "_blank");
+    if (!win) {
+      URL.revokeObjectURL(objectUrl);
+      return {
+        opened: false,
+        statementCount,
+        period: resolvedPeriod,
+        error: "Please allow pop-ups to print the combined statements PDF.",
+      };
+    }
+    win.addEventListener("load", () => {
+      try {
+        win.focus();
+        win.print();
+      } catch {
+        /* ignore */
+      }
+    });
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 120000);
+    return { opened: true, statementCount, period: resolvedPeriod };
+  } catch (error) {
+    return {
+      opened: false,
+      statementCount: 0,
+      error: error instanceof Error ? error.message : "Failed to open statements PDF",
+    };
+  }
+}
+
 async function postInvoiceRunEndpoint(
   path: "/api/invoice-runs/preview" | "/api/invoice-runs/execute",
   payload: InvoiceRunExecutePayload,

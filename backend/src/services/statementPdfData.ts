@@ -22,6 +22,7 @@ import type {
 import { generateStatementPdfBuffer, statementPdfFilename } from "./statementPdfService";
 import { buildStatementTransactions } from "./statementTransactionBuilder";
 import {
+  computeStatementClosingBalance,
   computeStatementOpeningBalance,
   DEFAULT_STATEMENT_PERIOD,
   filterLedgerByStatementPeriod,
@@ -459,10 +460,24 @@ export async function buildStatementPdfInput(
   const scopedEntries = collectAccountRefLedgerEntries(ledger, scope.accountRef);
   const filtered = filterLedgerByStatementPeriod(scopedEntries, period);
   const openingBalance = computeStatementOpeningBalance(scopedEntries, period);
-  // Balance source of truth: Age Analysis (Kid-e-Sys accountRef) snapshot.
-  const accounts = await buildAccountsFromAgeAnalysisSnapshots(schoolId);
-  const snapshot = accounts.find((row: any) => String(row?.accountNo || "").trim() === scope.accountRef);
-  const balance = snapshot ? normaliseAmount((snapshot as any).balance) : calculateBalanceFromEntries(filtered);
+  const closingBalanceSource =
+    options.closingBalanceSource === "period-ledger" ? "period-ledger" : "age-analysis";
+
+  let balance: number;
+  if (closingBalanceSource === "period-ledger") {
+    // Period-end identity: opening + in-period statement-visible ledger net.
+    // Never substitute the current Age Analysis snapshot for a historical window.
+    balance = computeStatementClosingBalance(scopedEntries, period);
+  } else {
+    // Legacy individual statements: Age Analysis (Kid-e-Sys accountRef) snapshot.
+    const accounts = await buildAccountsFromAgeAnalysisSnapshots(schoolId);
+    const snapshot = accounts.find(
+      (row: any) => String(row?.accountNo || "").trim() === scope.accountRef
+    );
+    balance = snapshot
+      ? normaliseAmount((snapshot as any).balance)
+      : calculateBalanceFromEntries(filtered);
+  }
 
   const nameByLearnerId = new Map(
     scope.learners.map((l) => [l.id, `${l.firstName} ${l.lastName}`.trim()])
