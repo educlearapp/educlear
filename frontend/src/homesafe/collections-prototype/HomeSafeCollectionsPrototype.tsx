@@ -19,6 +19,7 @@ import {
   apiPatchRegister,
   apiRemoveLearnerFromSession,
   apiSetSessionLearners,
+  apiUpdateGroup,
   fetchCollectionsBootstrap,
 } from "./collectionsApi";
 import { classOptionsFromLearners, findOverlapWarnings, sessionsOverlap } from "./overlap";
@@ -896,25 +897,42 @@ export default function HomeSafeCollectionsPrototype({
       setFlash({ kind: "warn", text: "Group name is required." });
       return;
     }
-    setGroups((prev) =>
-      prev.map((g) =>
-        g.id === editGroup.id
-          ? {
-              ...g,
-              name,
-              ...(g.kind === "TRANSPORT"
-                ? {
-                    driverName: draftDriver.trim() || g.driverName,
-                    driverContact: draftContact.trim() || g.driverContact,
-                    vehicleReg: draftReg.trim() || g.vehicleReg,
-                  }
-                : {}),
-            }
-          : g
-      )
-    );
-    setFlash({ kind: "ok", text: "[DEMO] Group details updated (in-memory)." });
-    setModal(null);
+    const applyLocal = (next: typeof editGroup) => {
+      setGroups((prev) => prev.map((g) => (g.id === next.id ? { ...g, ...next } : g)));
+      setFlash({
+        kind: "ok",
+        text: `${isLive ? "[LIVE]" : "[DEMO]"} Group “${next.name}” updated.`,
+      });
+      setModal(null);
+    };
+    if (isLive) {
+      void (async () => {
+        try {
+          const group = await apiUpdateGroup({
+            groupId: editGroup.id,
+            name,
+            driverName: draftDriver.trim() || undefined,
+            driverContact: draftContact.trim() || undefined,
+            vehicleReg: draftReg.trim() || undefined,
+          });
+          applyLocal({ ...editGroup, ...group });
+        } catch (e: any) {
+          setFlash({ kind: "err", text: e?.message || "Failed to update group" });
+        }
+      })();
+      return;
+    }
+    applyLocal({
+      ...editGroup,
+      name,
+      ...(editGroup.kind === "TRANSPORT"
+        ? {
+            driverName: draftDriver.trim() || editGroup.driverName,
+            driverContact: draftContact.trim() || editGroup.driverContact,
+            vehicleReg: draftReg.trim() || editGroup.vehicleReg,
+          }
+        : {}),
+    });
   };
 
   const createGroup = () => {

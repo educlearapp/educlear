@@ -1297,6 +1297,211 @@
   border: 0;
 }
 
+.teacher-hs-cg-subnav {
+  margin-top: 8px;
+}
+
+.teacher-hs-cg-manage-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 12px 0 8px;
+}
+
+.teacher-hs-cg-filters {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.teacher-hs-cg-filters button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--t-border);
+  background: var(--t-page-bg);
+  font-weight: 800;
+  cursor: pointer;
+  color: var(--t-ink);
+}
+
+.teacher-hs-cg-filters button.active {
+  background: var(--t-ink);
+  color: #fff;
+  border-color: var(--t-ink);
+}
+
+.teacher-hs-cg-manage-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr);
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.teacher-hs-cg-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.teacher-hs-cg-group-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 2px solid var(--t-border);
+  background: #fff;
+  cursor: pointer;
+  color: var(--t-ink);
+}
+
+.teacher-hs-cg-group-card.active {
+  border-color: var(--t-gold);
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
+}
+
+.teacher-hs-cg-manage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.teacher-touch-btn.danger {
+  border-color: #fecaca;
+  color: #991b1b;
+  background: #fff5f5;
+}
+
+.teacher-hs-cg-subhead {
+  margin: 8px 0 4px;
+  font-size: 1.05rem;
+}
+
+.teacher-hs-cg-session-manage-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.teacher-hs-cg-session-manage-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--t-border);
+  background: #fff;
+}
+
+.teacher-hs-cg-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px;
+}
+
+.teacher-hs-cg-modal-card {
+  width: min(520px, 100%);
+  max-height: min(90vh, 760px);
+  overflow: auto;
+  background: #fff;
+  border-radius: 16px 16px 12px 12px;
+  padding: 18px 16px 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+
+.teacher-hs-cg-modal-card.wide {
+  width: min(640px, 100%);
+}
+
+.teacher-hs-cg-modal-card h3 {
+  margin: 0 0 12px;
+}
+
+.teacher-hs-cg-modal-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.teacher-hs-cg-modal-card input,
+.teacher-hs-cg-modal-card select {
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--t-border);
+  padding: 8px 10px;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.teacher-hs-cg-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.teacher-hs-cg-impact {
+  margin: 0 0 12px;
+  padding-left: 18px;
+  color: var(--t-muted);
+  font-weight: 600;
+}
+
+.teacher-hs-cg-learner-picker {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  max-height: 280px;
+  overflow: auto;
+  border: 1px solid var(--t-border);
+  border-radius: 12px;
+}
+
+.teacher-hs-cg-learner-picker li {
+  border-bottom: 1px solid var(--t-border);
+}
+
+.teacher-hs-cg-learner-picker li:last-child {
+  border-bottom: 0;
+}
+
+.teacher-hs-cg-learner-picker label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.teacher-hs-cg-learner-picker input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+}
+
 @media (max-width: 900px) {
   .teacher-hs-cg-week-grid {
     grid-template-columns: 1fr;
@@ -1313,6 +1518,14 @@
   .teacher-hs-cg-row-actions .teacher-touch-btn,
   .teacher-hs-cg-attendance select {
     width: 100%;
+  }
+
+  .teacher-hs-cg-manage-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .teacher-hs-cg-modal {
+    align-items: flex-end;
   }
 }
 

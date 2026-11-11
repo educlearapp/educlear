@@ -27,7 +27,8 @@ function mapGroup(g: {
   driverName: string | null;
   driverContact: string | null;
   vehicleReg: string | null;
-}): HsCgGroup {
+  updatedAt?: Date;
+}): HsCgGroup & { updatedAt?: string } {
   return {
     id: g.id,
     schoolId: g.schoolId,
@@ -36,6 +37,7 @@ function mapGroup(g: {
     driverName: g.driverName,
     driverContact: g.driverContact,
     vehicleReg: g.vehicleReg,
+    ...(g.updatedAt ? { updatedAt: g.updatedAt.toISOString() } : {}),
   };
 }
 
@@ -48,7 +50,8 @@ function mapSession(s: {
   endTime: string;
   responsibleAdult: string;
   location: string | null;
-}): HsCgSession {
+  updatedAt?: Date;
+}): HsCgSession & { updatedAt?: string } {
   return {
     id: s.id,
     schoolId: s.schoolId,
@@ -58,7 +61,23 @@ function mapSession(s: {
     endTime: s.endTime,
     responsibleAdult: s.responsibleAdult,
     location: s.location,
+    ...(s.updatedAt ? { updatedAt: s.updatedAt.toISOString() } : {}),
   };
+}
+
+function assertOptimisticMatch(
+  currentUpdatedAt: Date,
+  expectedUpdatedAt: string | undefined,
+  label: string
+): void {
+  const expected = String(expectedUpdatedAt || "").trim();
+  if (!expected) return;
+  if (currentUpdatedAt.toISOString() !== expected) {
+    throw new HsCgDomainError(
+      "CONFLICT",
+      `${label} changed since you loaded it. Refresh and try again.`
+    );
+  }
 }
 
 function mapRegister(r: {
@@ -169,11 +188,154 @@ export class PrismaHomeSafeCollectionsService {
     }
   }
 
-  async getGroup(schoolId: string, groupId: string): Promise<HsCgGroup> {
+  async getGroup(schoolId: string, groupId: string): Promise<HsCgGroup & { updatedAt?: string }> {
     const group = await prisma.homeSafeCollectionGroup.findUnique({ where: { id: groupId } });
     if (!group) throw new HsCgDomainError("NOT_FOUND", "Collections group not found");
     assertSameSchool(group.schoolId, schoolId, "Collections group");
     return mapGroup(group);
+  }
+
+  /** Rename / transport details only — never changes kind or schoolId; sessions & history untouched. */
+  async updateGroup(input: {
+    schoolId: string;
+    groupId: string;
+    name?: string;
+    driverName?: string;
+    driverContact?: string;
+    vehicleReg?: string;
+    expectedUpdatedAt?: string;
+  }): Promise<HsCgGroup & { updatedAt?: string }> {
+    const existing = await prisma.homeSafeCollectionGroup.findUnique({
+      where: { id: input.groupId },
+    });
+    if (!existing) throw new HsCgDomainError("NOT_FOUND", "Collections group not found");
+    assertSameSchool(existing.schoolId, input.schoolId, "Collections group");
+    assertOptimisticMatch(existing.updatedAt, input.expectedUpdatedAt, "Group");
+
+    const name =
+      input.name !== undefined ? String(input.name || "").trim() : existing.name;
+    if (!name) throw new HsCgDomainError("VALIDATION", "Group name is required");
+
+    const data: Prisma.HomeSafeCollectionGroupUpdateInput = { name };
+    if (existing.kind === "TRANSPORT") {
+      if (input.driverName !== undefined) {
+        data.driverName = String(input.driverName || "").trim() || "Driver";
+      }
+      if (input.driverContact !== undefined) {
+        data.driverContact = String(input.driverContact || "").trim() || null;
+      }
+      if (input.vehicleReg !== undefined) {
+        data.vehicleReg = String(input.vehicleReg || "").trim() || null;
+      }
+    }
+
+    try {
+      const g = await prisma.homeSafeCollectionGroup.update({
+        where: { id: existing.id },
+        data,
+      });
+      return mapGroup(g);
+    } catch (e) {
+      prismaError(e);
+    }
+  }
+
+  /**
+   * Deletion impact preview (school-scoped). Soft-delete/archive is not in the live schema yet.
+   */
+  async getGroupDeletionImpact(
+    schoolId: string,
+    groupId: string
+  ): Promise<{
+    groupId: string;
+    name: string;
+    sessionCount: number;
+    membershipCount: number;
+    registerRowCount: number;
+    canDelete: boolean;
+    blockReason: string | null;
+  }> {
+    const group = await prisma.homeSafeCollectionGroup.findUnique({
+      where: { id: groupId },
+      include: { sessions: { select: { id: true } } },
+    });
+    if (!group) throw new HsCgDomainError("NOT_FOUND", "Collections group not found");
+    assertSameSchool(group.schoolId, schoolId, "Collections group");
+    const sessionIds = group.sessions.map((s) => s.id);
+    const membershipCount = sessionIds.length
+      ? await prisma.homeSafeCollectionMembership.count({
+          where: { schoolId, sessionId: { in: sessionIds } },
+        })
+      : 0;
+    const registerRowCount = sessionIds.length
+      ? await prisma.homeSafeCollectionRegisterRow.count({
+          where: { schoolId, sessionId: { in: sessionIds } },
+        })
+      : 0;
+    const canDelete = registerRowCount === 0;
+    return {
+      groupId: group.id,
+      name: group.name,
+      sessionCount: sessionIds.length,
+      membershipCount,
+      registerRowCount,
+      canDelete,
+      blockReason: canDelete
+        ? null
+        : `Cannot delete “${group.name}”: ${registerRowCount} register history row(s) would be lost. Soft-delete/archive requires an additive schema migration.`,
+    };
+  }
+
+  /**
+   * Hard-delete only when no register history exists for any session in the group.
+   * Never silently cascade-deletes historical register rows.
+   * Requires confirmName === current group name and optional expectedUpdatedAt.
+   */
+  async deleteGroup(input: {
+    schoolId: string;
+    groupId: string;
+    confirmName: string;
+    expectedUpdatedAt?: string;
+  }): Promise<{ deleted: true; groupId: string; name: string }> {
+    const existing = await prisma.homeSafeCollectionGroup.findUnique({
+      where: { id: input.groupId },
+      include: { sessions: { select: { id: true } } },
+    });
+    if (!existing) throw new HsCgDomainError("NOT_FOUND", "Collections group not found");
+    assertSameSchool(existing.schoolId, input.schoolId, "Collections group");
+    assertOptimisticMatch(existing.updatedAt, input.expectedUpdatedAt, "Group");
+
+    const confirmName = String(input.confirmName || "").trim();
+    if (!confirmName || confirmName !== existing.name) {
+      throw new HsCgDomainError(
+        "VALIDATION",
+        `Type the exact group name “${existing.name}” to confirm deletion`
+      );
+    }
+
+    const impact = await this.getGroupDeletionImpact(input.schoolId, input.groupId);
+    if (!impact.canDelete) {
+      throw new HsCgDomainError("CONFLICT", impact.blockReason || "Group cannot be deleted");
+    }
+
+    const sessionIds = existing.sessions.map((s) => s.id);
+    try {
+      await prisma.$transaction(async (tx) => {
+        if (sessionIds.length) {
+          await tx.homeSafeCollectionMembership.deleteMany({
+            where: { schoolId: input.schoolId, sessionId: { in: sessionIds } },
+          });
+          await tx.homeSafeCollectionSession.deleteMany({
+            where: { schoolId: input.schoolId, id: { in: sessionIds } },
+          });
+        }
+        await tx.homeSafeCollectionGroup.delete({ where: { id: existing.id } });
+      });
+      return { deleted: true, groupId: existing.id, name: existing.name };
+    } catch (e) {
+      if (e instanceof HsCgDomainError) throw e;
+      prismaError(e);
+    }
   }
 
   async createSession(input: {
@@ -254,11 +416,142 @@ export class PrismaHomeSafeCollectionsService {
       .sort(sortSessions);
   }
 
-  async getSession(schoolId: string, sessionId: string): Promise<HsCgSession> {
+  async getSession(schoolId: string, sessionId: string): Promise<HsCgSession & { updatedAt?: string }> {
     const session = await prisma.homeSafeCollectionSession.findUnique({ where: { id: sessionId } });
     if (!session) throw new HsCgDomainError("NOT_FOUND", "Session not found");
     assertSameSchool(session.schoolId, schoolId, "Session");
     return mapSession(session);
+  }
+
+  async updateSession(input: {
+    schoolId: string;
+    sessionId: string;
+    weekday?: string;
+    startTime?: string;
+    endTime?: string;
+    responsibleAdult?: string;
+    location?: string;
+    expectedUpdatedAt?: string;
+  }): Promise<HsCgSession & { updatedAt?: string }> {
+    const existing = await prisma.homeSafeCollectionSession.findUnique({
+      where: { id: input.sessionId },
+      include: { group: true },
+    });
+    if (!existing) throw new HsCgDomainError("NOT_FOUND", "Session not found");
+    assertSameSchool(existing.schoolId, input.schoolId, "Session");
+    assertOptimisticMatch(existing.updatedAt, input.expectedUpdatedAt, "Session");
+
+    const weekday = input.weekday !== undefined ? String(input.weekday) : existing.weekday;
+    const startTime =
+      input.startTime !== undefined ? String(input.startTime) : existing.startTime;
+    const endTime = input.endTime !== undefined ? String(input.endTime) : existing.endTime;
+    const responsibleAdult =
+      input.responsibleAdult !== undefined
+        ? String(input.responsibleAdult)
+        : existing.responsibleAdult;
+    const validated = validateNewSessionInput({
+      weekday,
+      startTime,
+      endTime,
+      responsibleAdult,
+      kind: existing.group.kind as HsCgGroupKind,
+    });
+    try {
+      const session = await prisma.homeSafeCollectionSession.update({
+        where: { id: existing.id },
+        data: {
+          weekday: validated.weekday,
+          startTime: validated.startTime,
+          endTime: validated.endTime,
+          responsibleAdult: validated.responsibleAdult,
+          ...(input.location !== undefined
+            ? { location: String(input.location || "").trim() || null }
+            : {}),
+        },
+      });
+      return mapSession(session);
+    } catch (e) {
+      prismaError(e);
+    }
+  }
+
+  /**
+   * Delete one session only when it has no register history.
+   * Memberships for that session are removed; other sessions untouched.
+   */
+  async deleteSession(input: {
+    schoolId: string;
+    sessionId: string;
+    expectedUpdatedAt?: string;
+  }): Promise<{ deleted: true; sessionId: string }> {
+    const existing = await prisma.homeSafeCollectionSession.findUnique({
+      where: { id: input.sessionId },
+    });
+    if (!existing) throw new HsCgDomainError("NOT_FOUND", "Session not found");
+    assertSameSchool(existing.schoolId, input.schoolId, "Session");
+    assertOptimisticMatch(existing.updatedAt, input.expectedUpdatedAt, "Session");
+
+    const registerRowCount = await prisma.homeSafeCollectionRegisterRow.count({
+      where: { schoolId: input.schoolId, sessionId: existing.id },
+    });
+    if (registerRowCount > 0) {
+      throw new HsCgDomainError(
+        "CONFLICT",
+        `Cannot delete session: ${registerRowCount} register history row(s) would be lost. Soft-delete/archive requires an additive schema migration.`
+      );
+    }
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.homeSafeCollectionMembership.deleteMany({
+          where: { schoolId: input.schoolId, sessionId: existing.id },
+        });
+        await tx.homeSafeCollectionSession.delete({ where: { id: existing.id } });
+      });
+      return { deleted: true, sessionId: existing.id };
+    } catch (e) {
+      if (e instanceof HsCgDomainError) throw e;
+      prismaError(e);
+    }
+  }
+
+  /**
+   * Create the same time slot on multiple weekdays (independent sessions).
+   * Optional learnerIds apply to every created session.
+   */
+  async createSessionsForWeekdays(input: {
+    schoolId: string;
+    groupId: string;
+    weekdays: string[];
+    startTime: string;
+    endTime: string;
+    responsibleAdult?: string;
+    location?: string;
+    learnerIds?: string[];
+  }): Promise<{ sessions: HsCgSession[]; membershipsAdded: number }> {
+    const weekdays = Array.from(
+      new Set((input.weekdays || []).map((w) => String(w || "").trim()).filter(Boolean))
+    );
+    if (!weekdays.length) {
+      throw new HsCgDomainError("VALIDATION", "Select at least one weekday");
+    }
+    const sessions: HsCgSession[] = [];
+    let membershipsAdded = 0;
+    for (const weekday of weekdays) {
+      const result = await this.createSession({
+        schoolId: input.schoolId,
+        groupId: input.groupId,
+        weekday,
+        startTime: input.startTime,
+        endTime: input.endTime,
+        responsibleAdult: input.responsibleAdult,
+        location: input.location,
+        learnerIds: input.learnerIds,
+      });
+      sessions.push(result.session);
+      membershipsAdded += result.membershipsAdded;
+    }
+    return { sessions, membershipsAdded };
   }
 
   /** Replace roster for ONE session inside a transaction (other sessions untouched). */

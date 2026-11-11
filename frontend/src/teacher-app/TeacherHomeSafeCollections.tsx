@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { API_URL } from "../api";
 import { getStaffToken } from "../staffApi";
+import TeacherHomeSafeCollectionsManage from "./TeacherHomeSafeCollectionsManage";
 
 type Weekday = "Mon" | "Tue" | "Wed" | "Thu" | "Fri";
 type GroupKind = "TRANSPORT" | "ACTIVITY";
@@ -67,6 +68,8 @@ type Capabilities = {
   hasCallAckWorkflow: boolean;
   hasLearnerPhotos: boolean;
   canManageGroups: boolean;
+  hasSoftDeleteArchive?: boolean;
+  hasGroupDescription?: boolean;
 };
 
 type BootstrapResponse = {
@@ -161,6 +164,7 @@ export function progressActionLabel(kind: GroupKind, progress: Progress): string
 }
 
 export default function TeacherHomeSafeCollections() {
+  const [mode, setMode] = useState<"register" | "manage">("register");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -325,9 +329,39 @@ export default function TeacherHomeSafeCollections() {
   return (
     <div className="teacher-hs-cg">
       <p className="teacher-muted">
-        School transport and activity groups for this week. Group setup stays with management.
+        Transport and activity groups for your school. Register and group management share the same
+        live records as Admin.
       </p>
 
+      <div className="teacher-homesafe-module-nav teacher-hs-cg-subnav" role="tablist" aria-label="Collections views">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "register"}
+          className={mode === "register" ? "active" : ""}
+          onClick={() => setMode("register")}
+        >
+          Today’s Register
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "manage"}
+          className={mode === "manage" ? "active" : ""}
+          onClick={() => setMode("manage")}
+        >
+          Manage Groups
+        </button>
+      </div>
+
+      {mode === "manage" && capabilities?.canManageGroups !== false ? (
+        <TeacherHomeSafeCollectionsManage
+          onChanged={() => void load(schoolLocalDate || undefined, { soft: true })}
+        />
+      ) : null}
+
+      {mode === "register" ? (
+      <>
       <div className="teacher-hs-cg-toolbar">
         <div className="teacher-hs-cg-days" role="tablist" aria-label="Weekday">
           {WEEKDAYS.map((day) => (
@@ -374,7 +408,8 @@ export default function TeacherHomeSafeCollections() {
         <div className="teacher-hs-cg-empty" role="status">
           <p>No transport or activity groups yet.</p>
           <p className="teacher-muted">
-            When management creates Collections groups, they will appear here automatically.
+            Use Manage Groups to create a Transport or Activity group, or wait for Admin to create
+            one — both share the same school records.
           </p>
         </div>
       ) : (
@@ -553,6 +588,8 @@ export default function TeacherHomeSafeCollections() {
           </section>
         </>
       )}
+      </>
+      ) : null}
     </div>
   );
 }

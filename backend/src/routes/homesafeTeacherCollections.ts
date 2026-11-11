@@ -1,16 +1,18 @@
 /**
- * Teacher Portal HomeSafe Collections — school-scoped read + register patch.
+ * Teacher Portal HomeSafe Collections — school-scoped read + management + register patch.
  * Mounted under /api/teacher-app/homesafe/collections.
  * Uses teacherCtx.schoolId only (never client schoolId).
- * Does not expose group/session/membership management.
+ * Reuses PrismaHomeSafeCollectionsService (same records as Admin) — does not proxy Admin routes.
  */
 import { Router } from "express";
+import { prisma } from "../prisma";
 import {
   getPrismaHomeSafeCollectionsService,
 } from "../services/homesafeCollectionsPrismaService";
 import {
   HsCgDomainError,
   type HsCgAttendance,
+  type HsCgGroupKind,
   type HsCgProgress,
 } from "../services/homesafeCollectionsDomain";
 import {
@@ -82,21 +84,50 @@ function resolveDate(queryDate: unknown): string {
  */
 const TEACHER_COLLECTIONS_CAPABILITIES = {
   canViewGroupsAndSessions: true,
-  canManageGroups: false,
+  canManageGroups: true,
   canPatchRegister: true,
   hasRegisterActorAudit: false,
   hasCallAckWorkflow: false,
   hasLearnerPhotos: false,
+  hasSoftDeleteArchive: false,
+  hasGroupDescription: false,
 } as const;
+
+async function assertActiveTeacher(req: any, res: any): Promise<HomeSafeTeacherContext | null> {
+  const teacher = ctx(req);
+  if (!teacher?.schoolId || !teacher?.userId) {
+    res.status(401).json({ success: false, error: "Authentication required" });
+    return null;
+  }
+  const user = await prisma.user.findUnique({
+    where: { id: teacher.userId },
+    select: { id: true, schoolId: true, isActive: true, role: true },
+  });
+  if (!user || !user.isActive || user.schoolId !== teacher.schoolId) {
+    res.status(403).json({
+      success: false,
+      error: "Teacher account is inactive or unauthorised for this school",
+      code: "FORBIDDEN",
+    });
+    return null;
+  }
+  if (user.role === "FINANCE") {
+    res.status(403).json({
+      success: false,
+      error: "HomeSafe Collections management is not available for finance accounts",
+      code: "FORBIDDEN",
+    });
+    return null;
+  }
+  return teacher;
+}
 
 router.get("/bootstrap", async (req, res) => {
   try {
-    const { schoolId } = ctx(req);
-    if (!schoolId) {
-      return res.status(401).json({ success: false, error: "Authentication required" });
-    }
+    const teacher = await assertActiveTeacher(req, res);
+    if (!teacher) return;
     const schoolLocalDate = resolveDate(req.query.date);
-    const snapshot = await svc().getTeacherCollectionsSnapshot(schoolId, schoolLocalDate);
+    const snapshot = await svc().getTeacherCollectionsSnapshot(teacher.schoolId, schoolLocalDate);
     return res.json({
       success: true,
       schoolLocalDate,
@@ -112,14 +143,323 @@ router.get("/bootstrap", async (req, res) => {
   }
 });
 
+router.get("/learners", async (req, res) => {
+  try {
+    const teacher = await assertActiveTeacher(req, res);
+    if (!teacher) return;
+    const learners = await svc().listSchoolLearners(teacher.schoolId);
+    return res.json({
+      success: true,
+      learners,
+      capabilities: TEACHER_COLLECTIONS_CAPABILITIES,
+    });
+  } catch (e) {
+    return sendDomainError(res, e);
+  }
+});
+
+router.get("/groups", async (req, res) => {
+  try {
+    const teacher = await assertActiveTeacher(req, res);
+    if (!teacher) return;
+    return res.json({
+      success: true,
+      groups: await svc().listGroups(teacher.schoolId),
+      capabilities: TEACHER_COLLECTIONS_CAPABILITIES,
+    });
+  } catch (e) {
+    return sendDomainError(res, e);
+  }
+});
+
+router.post("/groups", async (req, res) => {
+  try {
+    const teacher = await assertActiveTeacher(req, res);
+    if (!teacher) return;
+    const kind = String(req.body?.kind || "").trim().toUpperCase() as HsCgGroupKind;
+    const group = await svc().createGroup({
+      schoolId: teacher.schoolId,
+      name: String(req.body?.name || ""),
+      kind,
+      driverName: req.body?.driverName,
+      driverContact: req.body?.driverContact,
+      vehicleReg: req.body?.vehicleReg,
+    });
+    return res.status(201).json({
+      success: true,
+      group,
+      capabilities: TEACHER_COLLECTIONS_CAPABILITIES,
+    });
+  } catch (e) {
+    return sendDomainError(res, e);
+  }
+});
+
+router.patch("/groups/:groupId", async (req, res) => {
+  try {
+    const teacher = await assertActiveTeacher(req, res);
+    if (!teacher) return;
+    const group = await svc().updateGroup({
+      schoolId: teacher.schoolId,
+      groupId: String(req.params.groupId || ""),
+      name: req.body?.name,
+      driverName: req.body?.driverName,
+      driverContact: req.body?.driverContact,
+      vehicleReg: req.body?.vehicleReg,
+      expectedUpdatedAt: req.body?.expectedUpdatedAt,
+    });
+    return res.json({
+      success: true,
+      group,
+      capabilities: TEACHER_COLLECTIONS_CAPABILITIES,
+    });
+  } catch (e) {
+    return sendDomainError(res, e);
+  }
+});
+
+router.get("/groups/:groupId/deletion-impact", async (req, res) => {
+  try {
+    const teacher = await assertActiveTeacher(req, res);
+    if (!teacher) return;
+    const impact = await svc().getGroupDeletionImpact(
+      teacher.schoolId,
+      String(req.params.groupId || "")
+    );
+    return res.json({
+      success: true,
+      impact,
+      capabilities: TEACHER_COLLECTIONS_CAPABILITIES,
+    });
+  } catch (e) {
+    return sendDomainError(res, e);
+  }
+});
+
+router.delete("/groups/:groupId", async (req, res) => {
+  try {
+    const teacher = await assertActiveTeacher(req, res);
+    if (!teacher) return;
+    const result = await svc().deleteGroup({
+      schoolId: teacher.schoolId,
+      groupId: String(req.params.groupId || ""),
+      confirmName: String(req.body?.confirmName || req.query?.confirmName || ""),
+      expectedUpdatedAt:
+        req.body?.expectedUpdatedAt !== undefined
+          ? String(req.body.expectedUpdatedAt)
+          : req.query?.expectedUpdatedAt !== undefined
+            ? String(req.query.expectedUpdatedAt)
+            : undefined,
+    });
+    return res.json({
+      success: true,
+      ...result,
+      capabilities: TEACHER_COLLECTIONS_CAPABILITIES,
+    });
+  } catch (e) {
+    return sendDomainError(res, e);
+  }
+});
+
+router.get("/groups/:groupId/sessions", async (req, res) => {
+  try {
+    const teacher = await assertActiveTeacher(req, res);
+    if (!teacher) return;
+    const sessions = await svc().listSessionsForGroup(
+      teacher.schoolId,
+      String(req.params.groupId || "")
+    );
+    return res.json({
+      success: true,
+      sessions,
+      capabilities: TEACHER_COLLECTIONS_CAPABILITIES,
+    });
+  } catch (e) {
+    return sendDomainError(res, e);
+  }
+});
+
+router.post("/groups/:groupId/sessions", async (req, res) => {
+  try {
+    const teacher = await assertActiveTeacher(req, res);
+    if (!teacher) return;
+    const weekdays = Array.isArray(req.body?.weekdays)
+      ? req.body.weekdays.map(String)
+      : req.body?.weekday
+        ? [String(req.body.weekday)]
+        : [];
+    const learnerIds = Array.isArray(req.body?.learnerIds)
+      ? req.body.learnerIds.map(String)
+      : [];
+    if (weekdays.length > 1) {
+      const result = await svc().createSessionsForWeekdays({
+        schoolId: teacher.schoolId,
+        groupId: String(req.params.groupId || ""),
+        weekdays,
+        startTime: String(req.body?.startTime || req.body?.start || ""),
+        endTime: String(req.body?.endTime || req.body?.end || ""),
+        responsibleAdult: req.body?.responsibleAdult,
+        location: req.body?.location,
+        learnerIds,
+      });
+      return res.status(201).json({
+        success: true,
+        ...result,
+        capabilities: TEACHER_COLLECTIONS_CAPABILITIES,
+      });
+    }
+    const result = await svc().createSession({
+      schoolId: teacher.schoolId,
+      groupId: String(req.params.groupId || ""),
+      weekday: weekdays[0] || String(req.body?.weekday || ""),
+      startTime: String(req.body?.startTime || req.body?.start || ""),
+      endTime: String(req.body?.endTime || req.body?.end || ""),
+      responsibleAdult: req.body?.responsibleAdult,
+      location: req.body?.location,
+      learnerIds,
+    });
+    return res.status(201).json({
+      success: true,
+      ...result,
+      capabilities: TEACHER_COLLECTIONS_CAPABILITIES,
+    });
+  } catch (e) {
+    return sendDomainError(res, e);
+  }
+});
+
+router.patch("/sessions/:sessionId", async (req, res) => {
+  try {
+    const teacher = await assertActiveTeacher(req, res);
+    if (!teacher) return;
+    const session = await svc().updateSession({
+      schoolId: teacher.schoolId,
+      sessionId: String(req.params.sessionId || ""),
+      weekday: req.body?.weekday,
+      startTime: req.body?.startTime ?? req.body?.start,
+      endTime: req.body?.endTime ?? req.body?.end,
+      responsibleAdult: req.body?.responsibleAdult,
+      location: req.body?.location,
+      expectedUpdatedAt: req.body?.expectedUpdatedAt,
+    });
+    return res.json({
+      success: true,
+      session,
+      capabilities: TEACHER_COLLECTIONS_CAPABILITIES,
+    });
+  } catch (e) {
+    return sendDomainError(res, e);
+  }
+});
+
+router.delete("/sessions/:sessionId", async (req, res) => {
+  try {
+    const teacher = await assertActiveTeacher(req, res);
+    if (!teacher) return;
+    const result = await svc().deleteSession({
+      schoolId: teacher.schoolId,
+      sessionId: String(req.params.sessionId || ""),
+      expectedUpdatedAt:
+        req.body?.expectedUpdatedAt !== undefined
+          ? String(req.body.expectedUpdatedAt)
+          : req.query?.expectedUpdatedAt !== undefined
+            ? String(req.query.expectedUpdatedAt)
+            : undefined,
+    });
+    return res.json({
+      success: true,
+      ...result,
+      capabilities: TEACHER_COLLECTIONS_CAPABILITIES,
+    });
+  } catch (e) {
+    return sendDomainError(res, e);
+  }
+});
+
+router.get("/sessions/:sessionId/learners", async (req, res) => {
+  try {
+    const teacher = await assertActiveTeacher(req, res);
+    if (!teacher) return;
+    const learnerIds = await svc().getSessionLearnerIds(
+      teacher.schoolId,
+      String(req.params.sessionId || "")
+    );
+    return res.json({
+      success: true,
+      sessionId: req.params.sessionId,
+      learnerIds,
+      capabilities: TEACHER_COLLECTIONS_CAPABILITIES,
+    });
+  } catch (e) {
+    return sendDomainError(res, e);
+  }
+});
+
+router.put("/sessions/:sessionId/learners", async (req, res) => {
+  try {
+    const teacher = await assertActiveTeacher(req, res);
+    if (!teacher) return;
+    const learnerIds = Array.isArray(req.body?.learnerIds)
+      ? req.body.learnerIds.map(String)
+      : [];
+    const result = await svc().setSessionLearners({
+      schoolId: teacher.schoolId,
+      sessionId: String(req.params.sessionId || ""),
+      learnerIds,
+    });
+    return res.json({
+      success: true,
+      ...result,
+      capabilities: TEACHER_COLLECTIONS_CAPABILITIES,
+    });
+  } catch (e) {
+    return sendDomainError(res, e);
+  }
+});
+
+router.delete("/sessions/:sessionId/learners/:learnerId", async (req, res) => {
+  try {
+    const teacher = await assertActiveTeacher(req, res);
+    if (!teacher) return;
+    await svc().removeLearnerFromSession({
+      schoolId: teacher.schoolId,
+      sessionId: String(req.params.sessionId || ""),
+      learnerId: String(req.params.learnerId || ""),
+    });
+    return res.json({
+      success: true,
+      capabilities: TEACHER_COLLECTIONS_CAPABILITIES,
+    });
+  } catch (e) {
+    return sendDomainError(res, e);
+  }
+});
+
+router.post("/assignments", async (req, res) => {
+  try {
+    const teacher = await assertActiveTeacher(req, res);
+    if (!teacher) return;
+    const result = await svc().assignLearnersToSessions({
+      schoolId: teacher.schoolId,
+      learnerIds: Array.isArray(req.body?.learnerIds) ? req.body.learnerIds.map(String) : [],
+      sessionIds: Array.isArray(req.body?.sessionIds) ? req.body.sessionIds.map(String) : [],
+    });
+    return res.json({
+      success: true,
+      ...result,
+      capabilities: TEACHER_COLLECTIONS_CAPABILITIES,
+    });
+  } catch (e) {
+    return sendDomainError(res, e);
+  }
+});
+
 router.get("/registers", async (req, res) => {
   try {
-    const { schoolId } = ctx(req);
-    if (!schoolId) {
-      return res.status(401).json({ success: false, error: "Authentication required" });
-    }
+    const teacher = await assertActiveTeacher(req, res);
+    if (!teacher) return;
     const schoolLocalDate = resolveDate(req.query.date);
-    const result = await svc().getRegistersForDate(schoolId, schoolLocalDate);
+    const result = await svc().getRegistersForDate(teacher.schoolId, schoolLocalDate);
     return res.json({
       success: true,
       date: schoolLocalDate,
@@ -135,10 +475,8 @@ router.get("/registers", async (req, res) => {
 
 router.patch("/registers", async (req, res) => {
   try {
-    const { schoolId } = ctx(req);
-    if (!schoolId) {
-      return res.status(401).json({ success: false, error: "Authentication required" });
-    }
+    const teacher = await assertActiveTeacher(req, res);
+    if (!teacher) return;
 
     const sessionId = String(req.body?.sessionId || "").trim();
     const learnerId = String(req.body?.learnerId || "").trim();
@@ -171,7 +509,7 @@ router.patch("/registers", async (req, res) => {
     }
 
     const row = await svc().patchRegisterRow({
-      schoolId,
+      schoolId: teacher.schoolId,
       sessionId,
       learnerId,
       schoolLocalDate,

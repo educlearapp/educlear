@@ -1,5 +1,5 @@
 /**
- * Teacher HomeSafe Collections route tests (isolated local DB).
+ * Teacher HomeSafe Collections — management + register route tests (isolated local DB).
  *
  * Run:
  *   DATABASE_URL=postgresql://educlear:educlearpass@localhost:5432/educlear_hs_cg_local \
@@ -76,7 +76,6 @@ async function main() {
     },
   });
 
-  // Zero-classroom authorised staff (no ClassroomTeacher rows).
   const teacherA = await prisma.user.create({
     data: {
       schoolId: schoolA.id,
@@ -85,6 +84,16 @@ async function main() {
       fullName: "Zero Class Teacher A",
       role: "STAFF",
       isActive: true,
+    },
+  });
+  const inactiveA = await prisma.user.create({
+    data: {
+      schoolId: schoolA.id,
+      email: `inactive-a-${suffix}@test.local`,
+      passwordHash,
+      fullName: "Inactive Teacher A",
+      role: "STAFF",
+      isActive: false,
     },
   });
   const teacherB = await prisma.user.create({
@@ -99,7 +108,7 @@ async function main() {
   });
 
   const learnersA = await Promise.all(
-    ["Ada", "Ben", "Cara", "Dan"].map((first, i) =>
+    ["Ada", "Ben", "Cara", "Dan", "Eve"].map((first, i) =>
       prisma.learner.create({
         data: {
           schoolId: schoolA.id,
@@ -112,7 +121,7 @@ async function main() {
       })
     )
   );
-  const [ada, ben, cara, dan] = learnersA;
+  const [ada, ben, cara, dan, eve] = learnersA;
 
   const learnerB = await prisma.learner.create({
     data: {
@@ -125,105 +134,16 @@ async function main() {
     },
   });
 
-  const transport = await prisma.homeSafeCollectionGroup.create({
-    data: {
-      schoolId: schoolA.id,
-      name: `Bus Alpha ${suffix}`,
-      kind: "TRANSPORT",
-      driverName: "Sipho Driver",
-      driverContact: "0820000001",
-      vehicleReg: "CA 123-456",
-    },
-  });
-  const activity = await prisma.homeSafeCollectionGroup.create({
-    data: {
-      schoolId: schoolA.id,
-      name: `Chess Club ${suffix}`,
-      kind: "ACTIVITY",
-    },
-  });
-  const foreignGroup = await prisma.homeSafeCollectionGroup.create({
-    data: {
-      schoolId: schoolB.id,
-      name: `Foreign Group ${suffix}`,
-      kind: "ACTIVITY",
-    },
-  });
-
-  const busTue = await prisma.homeSafeCollectionSession.create({
-    data: {
-      schoolId: schoolA.id,
-      groupId: transport.id,
-      weekday: "Tue",
-      startTime: "14:00",
-      endTime: "14:30",
-      responsibleAdult: "Sipho Driver",
-      location: "Front gate",
-    },
-  });
-  const busThu = await prisma.homeSafeCollectionSession.create({
-    data: {
-      schoolId: schoolA.id,
-      groupId: transport.id,
-      weekday: "Thu",
-      startTime: "14:00",
-      endTime: "14:30",
-      responsibleAdult: "Sipho Driver",
-      location: "Front gate",
-    },
-  });
-  const chessThuAm = await prisma.homeSafeCollectionSession.create({
-    data: {
-      schoolId: schoolA.id,
-      groupId: activity.id,
-      weekday: "Thu",
-      startTime: "10:00",
-      endTime: "10:30",
-      responsibleAdult: "Ms Grove",
-      location: "Hall",
-    },
-  });
-  const chessThuPm = await prisma.homeSafeCollectionSession.create({
-    data: {
-      schoolId: schoolA.id,
-      groupId: activity.id,
-      weekday: "Thu",
-      startTime: "14:00",
-      endTime: "14:45",
-      responsibleAdult: "Ms Grove",
-      location: "Hall",
-    },
-  });
-  const foreignSession = await prisma.homeSafeCollectionSession.create({
-    data: {
-      schoolId: schoolB.id,
-      groupId: foreignGroup.id,
-      weekday: "Thu",
-      startTime: "11:00",
-      endTime: "11:30",
-      responsibleAdult: "Other",
-    },
-  });
-
-  // Distinct Tue vs Thu transport rosters; two Thu activity sessions with different learners.
-  await prisma.homeSafeCollectionMembership.createMany({
-    data: [
-      { schoolId: schoolA.id, sessionId: busTue.id, learnerId: ada.id },
-      { schoolId: schoolA.id, sessionId: busTue.id, learnerId: ben.id },
-      { schoolId: schoolA.id, sessionId: busThu.id, learnerId: cara.id },
-      { schoolId: schoolA.id, sessionId: busThu.id, learnerId: dan.id },
-      { schoolId: schoolA.id, sessionId: chessThuAm.id, learnerId: ada.id },
-      { schoolId: schoolA.id, sessionId: chessThuAm.id, learnerId: cara.id },
-      { schoolId: schoolA.id, sessionId: chessThuPm.id, learnerId: ben.id },
-      { schoolId: schoolA.id, sessionId: chessThuPm.id, learnerId: dan.id },
-      { schoolId: schoolB.id, sessionId: foreignSession.id, learnerId: learnerB.id },
-    ],
-  });
-
   const tokenA = signToken({
     userId: teacherA.id,
     schoolId: schoolA.id,
     email: teacherA.email,
+    role: "STAFF",
+  });
+  const tokenInactive = signToken({
+    userId: inactiveA.id,
+    schoolId: schoolA.id,
+    email: inactiveA.email,
     role: "STAFF",
   });
   const tokenB = signToken({
@@ -239,60 +159,193 @@ async function main() {
     const unauth = await apiCall(baseUrl, `/bootstrap?date=${dateThu}`);
     assert(unauth.status === 401, "unauthenticated bootstrap → 401");
 
+    const inactiveCreate = await apiCall(baseUrl, "/groups", {
+      method: "POST",
+      token: tokenInactive,
+      body: { name: `Blocked ${suffix}`, kind: "ACTIVITY" },
+    });
+    assert(inactiveCreate.status === 403, "inactive teacher cannot create");
+
+    // 1–2 Create Transport + Activity
+    const transportCreate = await apiCall(baseUrl, "/groups", {
+      method: "POST",
+      token: tokenA,
+      body: {
+        name: `Bus Alpha ${suffix}`,
+        kind: "TRANSPORT",
+        driverName: "Sipho Driver",
+        driverContact: "0820000001",
+        vehicleReg: "CA 123-456",
+      },
+    });
+    assert(transportCreate.status === 201, `transport create ${transportCreate.status}`);
+    const transport = (transportCreate.json as any).group;
+    assert(transport?.kind === "TRANSPORT", "transport kind");
+
+    const activityCreate = await apiCall(baseUrl, "/groups", {
+      method: "POST",
+      token: tokenA,
+      body: { name: `Dance Mouse ${suffix}`, kind: "ACTIVITY" },
+    });
+    assert(activityCreate.status === 201, `activity create ${activityCreate.status}`);
+    const activity = (activityCreate.json as any).group;
+
+    // Duplicate name blocked
+    const dup = await apiCall(baseUrl, "/groups", {
+      method: "POST",
+      token: tokenA,
+      body: { name: `Dance Mouse ${suffix}`, kind: "ACTIVITY" },
+    });
+    assert(dup.status === 409 || dup.status === 400, "duplicate group name blocked");
+
+    // 4 Edit group name
+    const renamed = await apiCall(baseUrl, `/groups/${activity.id}`, {
+      method: "PATCH",
+      token: tokenA,
+      body: { name: `Dance Mouse Renamed ${suffix}`, expectedUpdatedAt: activity.updatedAt },
+    });
+    assert(renamed.status === 200, `rename ${renamed.status}`);
+    assert((renamed.json as any).group?.name === `Dance Mouse Renamed ${suffix}`, "name persisted");
+    const activityName = (renamed.json as any).group.name;
+    const activityUpdatedAt = (renamed.json as any).group.updatedAt;
+
+    // Stale concurrent edit
+    const stale = await apiCall(baseUrl, `/groups/${activity.id}`, {
+      method: "PATCH",
+      token: tokenA,
+      body: { name: "Should Fail", expectedUpdatedAt: activity.updatedAt },
+    });
+    assert(stale.status === 409, "stale expectedUpdatedAt → 409");
+
+    // 5–9 Sessions + distinct rosters
+    const tueSession = await apiCall(baseUrl, `/groups/${activity.id}/sessions`, {
+      method: "POST",
+      token: tokenA,
+      body: {
+        weekday: "Tue",
+        startTime: "09:00",
+        endTime: "09:45",
+        responsibleAdult: "Ms Grove",
+        learnerIds: [ada.id, ben.id, cara.id],
+      },
+    });
+    assert(tueSession.status === 201, `tue session ${tueSession.status}`);
+    const tueId = (tueSession.json as any).session.id;
+
+    const thuSessions = await apiCall(baseUrl, `/groups/${activity.id}/sessions`, {
+      method: "POST",
+      token: tokenA,
+      body: {
+        weekdays: ["Thu"],
+        startTime: "10:00",
+        endTime: "10:45",
+        responsibleAdult: "Ms Grove",
+        learnerIds: [dan.id, eve.id],
+      },
+    });
+    assert(thuSessions.status === 201, `thu session ${thuSessions.status}`);
+    const thuId =
+      (thuSessions.json as any).session?.id || (thuSessions.json as any).sessions?.[0]?.id;
+    assert(!!thuId, "thu session id");
+
+    const thuPm = await apiCall(baseUrl, `/groups/${activity.id}/sessions`, {
+      method: "POST",
+      token: tokenA,
+      body: {
+        weekday: "Thu",
+        startTime: "14:00",
+        endTime: "14:45",
+        responsibleAdult: "Ms Grove",
+        learnerIds: [ada.id],
+      },
+    });
+    assert(thuPm.status === 201, `thu pm ${thuPm.status}`);
+    const thuPmId = (thuPm.json as any).session.id;
+
+    // Once-weekly learner: Ben only Tue; Eve only Thu AM
+    // Multi-weekly: Ada on Tue + Thu PM
+    const setThuPm = await apiCall(baseUrl, `/sessions/${thuPmId}/learners`, {
+      method: "PUT",
+      token: tokenA,
+      body: { learnerIds: [ada.id, ben.id] },
+    });
+    assert(setThuPm.status === 200, "set thu pm roster");
+
+    // Changing Thu must not modify Tue
+    const tueRoster = await apiCall(baseUrl, `/sessions/${tueId}/learners`, { token: tokenA });
+    assert(
+      JSON.stringify([...((tueRoster.json as any).learnerIds || [])].sort()) ===
+        JSON.stringify([ada.id, ben.id, cara.id].sort()),
+      "Tue roster unchanged after Thu edits"
+    );
+
+    const thuRoster = await apiCall(baseUrl, `/sessions/${thuId}/learners`, { token: tokenA });
+    assert(
+      JSON.stringify([...((thuRoster.json as any).learnerIds || [])].sort()) ===
+        JSON.stringify([dan.id, eve.id].sort()),
+      "Thu AM distinct roster"
+    );
+
+    // 10–11 Remove + duplicate prevention
+    const remove = await apiCall(baseUrl, `/sessions/${tueId}/learners/${cara.id}`, {
+      method: "DELETE",
+      token: tokenA,
+    });
+    assert(remove.status === 200, "remove learner");
+    const afterRemove = await apiCall(baseUrl, `/sessions/${tueId}/learners`, { token: tokenA });
+    assert(
+      !((afterRemove.json as any).learnerIds || []).includes(cara.id),
+      "cara removed from Tue only"
+    );
+
+    const assignDup = await apiCall(baseUrl, "/assignments", {
+      method: "POST",
+      token: tokenA,
+      body: { learnerIds: [ada.id], sessionIds: [tueId] },
+    });
+    assert(assignDup.status === 200, "assign ok");
+    assert((assignDup.json as any).skippedDup >= 1, "duplicate membership skipped");
+
+    // Transport sessions for register tests
+    const busTue = await apiCall(baseUrl, `/groups/${transport.id}/sessions`, {
+      method: "POST",
+      token: tokenA,
+      body: {
+        weekday: "Tue",
+        startTime: "14:00",
+        endTime: "14:30",
+        learnerIds: [ada.id, ben.id],
+      },
+    });
+    const busThu = await apiCall(baseUrl, `/groups/${transport.id}/sessions`, {
+      method: "POST",
+      token: tokenA,
+      body: {
+        weekday: "Thu",
+        startTime: "14:00",
+        endTime: "14:30",
+        learnerIds: [cara.id, dan.id],
+      },
+    });
+    assert(busTue.status === 201 && busThu.status === 201, "bus sessions");
+    const busTueId = (busTue.json as any).session.id;
+    const busThuId = (busThu.json as any).session.id;
+
     const tue = await apiCall(baseUrl, `/bootstrap?date=${dateTue}`, { token: tokenA });
     assert(tue.status === 200, `tue bootstrap ${tue.status}`);
     const tueJson = tue.json as any;
-    assert(tueJson.success === true, "tue success");
-    assert(tueJson.weekday === "Tue", "tue weekday");
-    assert(Array.isArray(tueJson.groups) && tueJson.groups.length === 2, "school A has 2 groups");
+    assert(tueJson.capabilities?.canManageGroups === true, "canManageGroups true");
+    assert(tueJson.capabilities?.hasRegisterActorAudit === false, "no fabricated audit");
     assert(
-      !tueJson.groups.some((g: any) => g.id === foreignGroup.id),
-      "tenant isolation: no school B groups"
-    );
-    const tueBus = tueJson.groups.find((g: any) => g.id === transport.id);
-    assert(!!tueBus?.driverName && tueBus.vehicleReg === "CA 123-456", "driver/vehicle present");
-    const tueBusSession = tueBus.sessions.find((s: any) => s.id === busTue.id);
-    assert(
-      JSON.stringify([...(tueBusSession.learnerIds || [])].sort()) ===
-        JSON.stringify([ada.id, ben.id].sort()),
-      "Tue bus roster Ada+Ben only"
-    );
-    const tueRegisterIds = (tueJson.registers || []).map((r: any) => r.learnerId).sort();
-    assert(
-      JSON.stringify(tueRegisterIds) === JSON.stringify([ada.id, ben.id].sort()),
-      "Tue registers match Tue roster only"
-    );
-
-    const thu = await apiCall(baseUrl, `/bootstrap?date=${dateThu}`, { token: tokenA });
-    assert(thu.status === 200, `thu bootstrap ${thu.status}`);
-    const thuJson = thu.json as any;
-    const thuBus = thuJson.groups.find((g: any) => g.id === transport.id);
-    const thuBusSession = thuBus.sessions.find((s: any) => s.id === busThu.id);
-    assert(
-      JSON.stringify([...(thuBusSession.learnerIds || [])].sort()) ===
-        JSON.stringify([cara.id, dan.id].sort()),
-      "Thu bus roster Cara+Dan (different from Tue)"
-    );
-    const chess = thuJson.groups.find((g: any) => g.id === activity.id);
-    const am = chess.sessions.find((s: any) => s.id === chessThuAm.id);
-    const pm = chess.sessions.find((s: any) => s.id === chessThuPm.id);
-    assert(am && pm, "two Thu activity sessions");
-    assert(
-      JSON.stringify([...(am.learnerIds || [])].sort()) ===
-        JSON.stringify([ada.id, cara.id].sort()),
-      "Thu AM chess roster"
-    );
-    assert(
-      JSON.stringify([...(pm.learnerIds || [])].sort()) ===
-        JSON.stringify([ben.id, dan.id].sort()),
-      "Thu PM chess roster distinct"
+      !tueJson.groups.some((g: any) => g.schoolId && g.schoolId !== schoolA.id),
+      "only school A"
     );
 
     const patch = await apiCall(baseUrl, "/registers", {
       method: "PATCH",
       token: tokenA,
       body: {
-        sessionId: busThu.id,
+        sessionId: busThuId,
         learnerId: cara.id,
         date: dateThu,
         progress: "READY",
@@ -303,51 +356,86 @@ async function main() {
 
     const refresh = await apiCall(baseUrl, `/bootstrap?date=${dateThu}`, { token: tokenA });
     const refreshed = ((refresh.json as any).registers || []).find(
-      (r: any) => r.sessionId === busThu.id && r.learnerId === cara.id
+      (r: any) => r.sessionId === busThuId && r.learnerId === cara.id
     );
     assert(refreshed?.progress === "READY", "refresh persists READY");
 
-    const cross = await apiCall(baseUrl, "/registers", {
-      method: "PATCH",
+    // 12 Safe delete blocked when register history exists
+    const impactBlocked = await apiCall(baseUrl, `/groups/${transport.id}/deletion-impact`, {
       token: tokenA,
-      body: {
-        sessionId: foreignSession.id,
-        learnerId: learnerB.id,
-        date: dateThu,
-        progress: "READY",
-      },
     });
-    assert(cross.status === 403 || cross.status === 404, "cross-tenant patch denied");
+    assert((impactBlocked.json as any).impact?.canDelete === false, "delete blocked with history");
+    const delBlocked = await apiCall(baseUrl, `/groups/${transport.id}`, {
+      method: "DELETE",
+      token: tokenA,
+      body: { confirmName: transport.name, expectedUpdatedAt: transport.updatedAt },
+    });
+    assert(delBlocked.status === 409, "delete with history → 409");
 
-    const otherSchool = await apiCall(baseUrl, `/bootstrap?date=${dateThu}`, { token: tokenB });
-    assert(otherSchool.status === 200, "school B bootstrap ok");
-    assert(
-      ((otherSchool.json as any).groups || []).every((g: any) => g.schoolId === schoolB.id),
-      "school B only sees own groups"
-    );
-    assert(
-      !((otherSchool.json as any).groups || []).some((g: any) => g.id === transport.id),
-      "school B cannot see school A transport"
-    );
-
-    // Management endpoints must not be mounted on teacher collections.
-    const createAttempt = await apiCall(baseUrl, "/groups", {
+    // Empty group can delete
+    const emptyCreate = await apiCall(baseUrl, "/groups", {
       method: "POST",
       token: tokenA,
-      body: { name: "Should Fail", kind: "ACTIVITY" },
+      body: { name: `Temp Empty ${suffix}`, kind: "ACTIVITY" },
+    });
+    const empty = (emptyCreate.json as any).group;
+    const delEmpty = await apiCall(baseUrl, `/groups/${empty.id}`, {
+      method: "DELETE",
+      token: tokenA,
+      body: { confirmName: empty.name, expectedUpdatedAt: empty.updatedAt },
+    });
+    assert(delEmpty.status === 200, "empty group deletes");
+
+    // Session delete blocked after register history on busThu
+    const delSession = await apiCall(baseUrl, `/sessions/${busThuId}`, {
+      method: "DELETE",
+      token: tokenA,
+      body: {},
+    });
+    assert(delSession.status === 409, "session with register history blocked");
+
+    // 15 Tenant isolation
+    const cross = await apiCall(baseUrl, `/groups/${transport.id}`, {
+      method: "PATCH",
+      token: tokenB,
+      body: { name: "Hijack" },
+    });
+    assert(cross.status === 403 || cross.status === 404, "cross-tenant group edit denied");
+
+    const crossLearners = await apiCall(baseUrl, `/sessions/${busTueId}/learners`, {
+      method: "PUT",
+      token: tokenB,
+      body: { learnerIds: [learnerB.id] },
     });
     assert(
-      createAttempt.status === 404 || createAttempt.status === 405,
-      "teacher collections must not create groups"
+      crossLearners.status === 403 || crossLearners.status === 404,
+      "cross-tenant roster denied"
     );
 
+    const foreignLearner = await apiCall(baseUrl, `/sessions/${tueId}/learners`, {
+      method: "PUT",
+      token: tokenA,
+      body: { learnerIds: [ada.id, learnerB.id] },
+    });
+    assert(foreignLearner.status === 400, "foreign school learner rejected");
+
+    const otherSchool = await apiCall(baseUrl, `/bootstrap?date=${dateThu}`, { token: tokenB });
     assert(
-      (thuJson.capabilities?.canManageGroups === false &&
-        thuJson.capabilities?.canPatchRegister === true &&
-        thuJson.capabilities?.hasCallAckWorkflow === false &&
-        thuJson.capabilities?.hasRegisterActorAudit === false) as boolean,
-      "capabilities advertise gaps honestly"
+      !((otherSchool.json as any).groups || []).some((g: any) => g.id === transport.id),
+      "school B cannot see school A groups"
     );
+
+    // Shared Admin/Teacher persistence: group still visible via shared Prisma tables
+    const adminVisible = await prisma.homeSafeCollectionGroup.findUnique({
+      where: { id: activity.id },
+    });
+    assert(adminVisible?.name === activityName, "Admin/Teacher share same group row");
+    assert(adminVisible?.updatedAt.toISOString() === activityUpdatedAt, "updatedAt matches");
+
+    // Directory learners endpoint (no classroom required)
+    const dir = await apiCall(baseUrl, "/learners", { token: tokenA });
+    assert(dir.status === 200, "learners directory");
+    assert(((dir.json as any).learners || []).length >= 5, "school learners listed");
 
     console.log("homesafeTeacherCollections.route.test.ts: PASS");
   } finally {

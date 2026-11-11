@@ -65,6 +65,57 @@ router.post("/groups", async (req, res) => {
   }
 });
 
+router.patch("/groups/:groupId", async (req, res) => {
+  try {
+    const schoolId = schoolIdFromReq(req);
+    if (!schoolId) return res.status(401).json({ success: false, error: "Authentication required" });
+    const group = await svc().updateGroup({
+      schoolId,
+      groupId: String(req.params.groupId),
+      name: req.body?.name,
+      driverName: req.body?.driverName,
+      driverContact: req.body?.driverContact,
+      vehicleReg: req.body?.vehicleReg,
+      expectedUpdatedAt: req.body?.expectedUpdatedAt,
+    });
+    return res.json({ success: true, group });
+  } catch (e) {
+    return sendDomainError(res, e);
+  }
+});
+
+router.get("/groups/:groupId/deletion-impact", async (req, res) => {
+  try {
+    const schoolId = schoolIdFromReq(req);
+    if (!schoolId) return res.status(401).json({ success: false, error: "Authentication required" });
+    const impact = await svc().getGroupDeletionImpact(schoolId, String(req.params.groupId));
+    return res.json({ success: true, impact });
+  } catch (e) {
+    return sendDomainError(res, e);
+  }
+});
+
+router.delete("/groups/:groupId", async (req, res) => {
+  try {
+    const schoolId = schoolIdFromReq(req);
+    if (!schoolId) return res.status(401).json({ success: false, error: "Authentication required" });
+    const result = await svc().deleteGroup({
+      schoolId,
+      groupId: String(req.params.groupId),
+      confirmName: String(req.body?.confirmName || req.query?.confirmName || ""),
+      expectedUpdatedAt:
+        req.body?.expectedUpdatedAt !== undefined
+          ? String(req.body.expectedUpdatedAt)
+          : req.query?.expectedUpdatedAt !== undefined
+            ? String(req.query.expectedUpdatedAt)
+            : undefined,
+    });
+    return res.json({ success: true, ...result });
+  } catch (e) {
+    return sendDomainError(res, e);
+  }
+});
+
 router.get("/groups/:groupId/sessions", async (req, res) => {
   try {
     const schoolId = schoolIdFromReq(req);
@@ -91,6 +142,46 @@ router.post("/groups/:groupId/sessions", async (req, res) => {
       learnerIds: Array.isArray(req.body?.learnerIds) ? req.body.learnerIds.map(String) : [],
     });
     return res.status(201).json({ success: true, ...result });
+  } catch (e) {
+    return sendDomainError(res, e);
+  }
+});
+
+router.patch("/sessions/:sessionId", async (req, res) => {
+  try {
+    const schoolId = schoolIdFromReq(req);
+    if (!schoolId) return res.status(401).json({ success: false, error: "Authentication required" });
+    const session = await svc().updateSession({
+      schoolId,
+      sessionId: String(req.params.sessionId),
+      weekday: req.body?.weekday,
+      startTime: req.body?.startTime ?? req.body?.start,
+      endTime: req.body?.endTime ?? req.body?.end,
+      responsibleAdult: req.body?.responsibleAdult,
+      location: req.body?.location,
+      expectedUpdatedAt: req.body?.expectedUpdatedAt,
+    });
+    return res.json({ success: true, session });
+  } catch (e) {
+    return sendDomainError(res, e);
+  }
+});
+
+router.delete("/sessions/:sessionId", async (req, res) => {
+  try {
+    const schoolId = schoolIdFromReq(req);
+    if (!schoolId) return res.status(401).json({ success: false, error: "Authentication required" });
+    const result = await svc().deleteSession({
+      schoolId,
+      sessionId: String(req.params.sessionId),
+      expectedUpdatedAt:
+        req.body?.expectedUpdatedAt !== undefined
+          ? String(req.body.expectedUpdatedAt)
+          : req.query?.expectedUpdatedAt !== undefined
+            ? String(req.query.expectedUpdatedAt)
+            : undefined,
+    });
+    return res.json({ success: true, ...result });
   } catch (e) {
     return sendDomainError(res, e);
   }

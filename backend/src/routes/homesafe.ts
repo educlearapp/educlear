@@ -17,7 +17,7 @@ function ctx(req: any): HomeSafeTeacherContext {
   return req.teacherCtx as HomeSafeTeacherContext;
 }
 
-/** Collections & Groups — read + register patch only (no group management). */
+/** Collections & Groups — school-scoped teacher management + register (shared HomeSafeCollection* records). */
 router.use("/collections", homesafeTeacherCollectionsRoutes);
 
 router.get("/learners", async (req, res) => {

@@ -122,6 +122,98 @@ export async function apiCreateGroup(input: {
   };
 }
 
+export async function apiUpdateGroup(input: {
+  groupId: string;
+  name: string;
+  driverName?: string;
+  driverContact?: string;
+  vehicleReg?: string;
+  expectedUpdatedAt?: string;
+}): Promise<DemoGroup> {
+  const res = (await apiFetch(`/api/homesafe/collections/groups/${input.groupId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      name: input.name,
+      driverName: input.driverName,
+      driverContact: input.driverContact,
+      vehicleReg: input.vehicleReg,
+      expectedUpdatedAt: input.expectedUpdatedAt,
+    }),
+  })) as { group: ApiGroup };
+  const g = res.group;
+  return {
+    id: g.id,
+    kind: g.kind,
+    name: g.name,
+    driverName: g.driverName || undefined,
+    driverContact: g.driverContact || undefined,
+    vehicleReg: g.vehicleReg || undefined,
+  };
+}
+
+export async function apiDeleteGroup(input: {
+  groupId: string;
+  confirmName: string;
+  expectedUpdatedAt?: string;
+}): Promise<void> {
+  await apiFetch(`/api/homesafe/collections/groups/${input.groupId}`, {
+    method: "DELETE",
+    body: JSON.stringify({
+      confirmName: input.confirmName,
+      expectedUpdatedAt: input.expectedUpdatedAt,
+    }),
+  });
+}
+
+export async function apiUpdateSession(input: {
+  sessionId: string;
+  weekday?: Weekday;
+  start?: string;
+  end?: string;
+  responsibleAdult?: string;
+  location?: string;
+  expectedUpdatedAt?: string;
+}): Promise<DemoSession> {
+  const res = (await apiFetch(`/api/homesafe/collections/sessions/${input.sessionId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      weekday: input.weekday,
+      startTime: input.start,
+      endTime: input.end,
+      responsibleAdult: input.responsibleAdult,
+      location: input.location,
+      expectedUpdatedAt: input.expectedUpdatedAt,
+    }),
+  })) as {
+    session: {
+      id: string;
+      groupId: string;
+      weekday: Weekday;
+      startTime: string;
+      endTime: string;
+      responsibleAdult: string;
+      location?: string | null;
+    };
+  };
+  const s = res.session;
+  return {
+    id: s.id,
+    groupId: s.groupId,
+    weekday: s.weekday,
+    start: s.startTime,
+    end: s.endTime,
+    responsibleAdult: s.responsibleAdult,
+    location: s.location || undefined,
+  };
+}
+
+export async function apiDeleteSession(sessionId: string, expectedUpdatedAt?: string): Promise<void> {
+  await apiFetch(`/api/homesafe/collections/sessions/${sessionId}`, {
+    method: "DELETE",
+    body: JSON.stringify({ expectedUpdatedAt }),
+  });
+}
+
 export async function apiCreateSession(input: {
   groupId: string;
   weekday: Weekday;
