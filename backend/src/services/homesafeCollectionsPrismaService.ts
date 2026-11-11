@@ -489,6 +489,97 @@ export class PrismaHomeSafeCollectionsService {
       className: String(l.className || l.grade || "").trim() || "—",
     }));
   }
+
+  /**
+   * Teacher Portal snapshot: school-owned groups/sessions with per-session rosters,
+   * learner directory (names/classes; photos not modelled yet), and dated register rows.
+   * Read-only structure — does not create groups/memberships.
+   */
+  async getTeacherCollectionsSnapshot(
+    schoolId: string,
+    schoolLocalDate: string
+  ): Promise<{
+    weekday: HsCgWeekday;
+    groups: Array<
+      HsCgGroup & {
+        sessions: Array<HsCgSession & { learnerIds: string[] }>;
+      }
+    >;
+    learners: Array<{
+      id: string;
+      firstName: string;
+      lastName: string;
+      displayName: string;
+      className: string;
+      /** Learner photos are not stored on Learner yet — always null. */
+      photoUrl: string | null;
+    }>;
+    registers: HsCgRegisterRow[];
+    daySessions: HsCgSession[];
+  }> {
+    const weekday = weekdayForIsoDate(schoolLocalDate);
+    if (!weekday) throw new HsCgDomainError("VALIDATION", "Date must be a weekday (Mon–Fri)");
+
+    const groupsRaw = await prisma.homeSafeCollectionGroup.findMany({
+      where: { schoolId },
+      include: {
+        sessions: {
+          include: { memberships: { select: { learnerId: true } } },
+          orderBy: [{ weekday: "asc" }, { startTime: "asc" }],
+        },
+      },
+      orderBy: { name: "asc" },
+    });
+
+    const groups = groupsRaw.map((g) => ({
+      ...mapGroup(g),
+      sessions: g.sessions
+        .map((s) => ({
+          ...mapSession(s),
+          learnerIds: s.memberships.map((m) => m.learnerId),
+        }))
+        .sort(sortSessions),
+    }));
+
+    const learnerIdSet = new Set<string>();
+    for (const g of groups) {
+      for (const s of g.sessions) {
+        for (const id of s.learnerIds) learnerIdSet.add(id);
+      }
+    }
+
+    const learnerRows =
+      learnerIdSet.size === 0
+        ? []
+        : await prisma.learner.findMany({
+            where: { schoolId, id: { in: Array.from(learnerIdSet) } },
+            select: { id: true, firstName: true, lastName: true, grade: true, className: true },
+            orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+          });
+
+    const learners = learnerRows.map((l) => {
+      const firstName = String(l.firstName || "").trim();
+      const lastName = String(l.lastName || "").trim();
+      return {
+        id: l.id,
+        firstName,
+        lastName,
+        displayName: `${firstName} ${lastName}`.trim(),
+        className: String(l.className || l.grade || "").trim() || "—",
+        photoUrl: null as string | null,
+      };
+    });
+
+    const { rows, sessions: daySessions } = await this.getRegistersForDate(schoolId, schoolLocalDate);
+
+    return {
+      weekday,
+      groups,
+      learners,
+      registers: rows,
+      daySessions,
+    };
+  }
 }
 
 let sharedPrismaService: PrismaHomeSafeCollectionsService | null = null;

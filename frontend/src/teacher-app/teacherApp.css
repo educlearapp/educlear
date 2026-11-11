@@ -993,3 +993,326 @@
     width: 100%;
   }
 }
+
+/* HomeSafe module tabs (Collections | Early Departure) */
+.teacher-homesafe-module-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 18px;
+}
+
+.teacher-homesafe-module-nav button {
+  min-height: 48px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 2px solid var(--t-border);
+  background: var(--t-page-bg);
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--t-ink);
+  cursor: pointer;
+}
+
+.teacher-homesafe-module-nav button.active {
+  background: var(--t-ink);
+  color: #fff;
+  border-color: var(--t-ink);
+}
+
+/* Teacher Collections & Groups */
+.teacher-hs-cg-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.teacher-hs-cg-days {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.teacher-hs-cg-days button {
+  min-width: 48px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--t-border);
+  background: var(--t-page-bg);
+  font-weight: 800;
+  cursor: pointer;
+  color: var(--t-ink);
+}
+
+.teacher-hs-cg-days button.active {
+  background: var(--t-ink);
+  color: #fff;
+  border-color: var(--t-ink);
+}
+
+.teacher-hs-cg-refresh {
+  min-height: 44px;
+}
+
+.teacher-hs-cg-date,
+.teacher-hs-cg-gap,
+.teacher-hs-cg-loading {
+  margin-top: 10px;
+}
+
+.teacher-hs-cg-empty {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 14px;
+  border: 1px dashed var(--t-border);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.teacher-hs-cg-session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.teacher-hs-cg-session-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 2px solid var(--t-border);
+  background: var(--t-page-bg);
+  cursor: pointer;
+  color: var(--t-ink);
+}
+
+.teacher-hs-cg-session-card.active {
+  border-color: var(--t-gold);
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
+}
+
+.teacher-hs-cg-session-kind {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.teacher-hs-cg-session-name {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.teacher-hs-cg-session-meta {
+  font-size: 0.9rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.teacher-hs-cg-detail {
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--t-border);
+  background: rgba(0, 0, 0, 0.015);
+}
+
+.teacher-hs-cg-detail-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.teacher-hs-cg-detail-head h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.teacher-hs-cg-driver {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 160px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(212, 175, 55, 0.1);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  font-size: 0.9rem;
+}
+
+.teacher-hs-cg-reg {
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.teacher-hs-cg-roster {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.teacher-hs-cg-roster-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--t-border);
+  background: #fff;
+}
+
+.teacher-hs-cg-learner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.teacher-hs-cg-avatar {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
+.teacher-hs-cg-avatar.photo {
+  object-fit: cover;
+}
+
+.teacher-hs-cg-learner-name {
+  font-weight: 800;
+  font-size: 1rem;
+}
+
+.teacher-hs-cg-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.teacher-hs-cg-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.teacher-hs-cg-chip.progress {
+  background: rgba(212, 175, 55, 0.18);
+}
+
+.teacher-hs-cg-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.teacher-hs-cg-attendance select {
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--t-border);
+  padding: 8px 10px;
+  font-weight: 700;
+  background: var(--t-page-bg);
+  color: var(--t-ink);
+}
+
+.teacher-hs-cg-week {
+  margin-top: 28px;
+}
+
+.teacher-hs-cg-week h3 {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+}
+
+.teacher-hs-cg-week-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.teacher-hs-cg-week-col {
+  border: 1px solid var(--t-border);
+  border-radius: 12px;
+  padding: 10px;
+  background: #fff;
+  min-height: 80px;
+}
+
+.teacher-hs-cg-week-col h4 {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+}
+
+.teacher-hs-cg-week-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+}
+
+.teacher-hs-cg-week-slot strong {
+  font-size: 0.85rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 900px) {
+  .teacher-hs-cg-week-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .teacher-hs-cg-roster-row {
+    grid-template-columns: 1fr;
+  }
+
+  .teacher-hs-cg-row-actions {
+    justify-content: stretch;
+  }
+
+  .teacher-hs-cg-row-actions .teacher-touch-btn,
+  .teacher-hs-cg-attendance select {
+    width: 100%;
+  }
+}
+

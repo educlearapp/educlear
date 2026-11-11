@@ -4,6 +4,7 @@ import {
   normalizeHomeSafeCollectionMethod,
   searchHomeSafeLearners,
 } from "../services/homesafeService";
+import homesafeTeacherCollectionsRoutes from "./homesafeTeacherCollections";
 
 export type HomeSafeTeacherContext = {
   userId: string;
@@ -15,6 +16,9 @@ const router = Router();
 function ctx(req: any): HomeSafeTeacherContext {
   return req.teacherCtx as HomeSafeTeacherContext;
 }
+
+/** Collections & Groups — read + register patch only (no group management). */
+router.use("/collections", homesafeTeacherCollectionsRoutes);
 
 router.get("/learners", async (req, res) => {
   try {

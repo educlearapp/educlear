@@ -16,6 +16,7 @@ import {
   apiCreateGroup,
   apiCreateSession,
   apiGetRegisters,
+  apiPatchRegister,
   apiRemoveLearnerFromSession,
   apiSetSessionLearners,
   fetchCollectionsBootstrap,
@@ -398,52 +399,156 @@ export default function HomeSafeCollectionsPrototype({
   const sessionRows = registers.filter((r) => r.sessionId === activeSessionId && r.date === demoDate);
   const sessionCounts = countBucket(sessionRows);
 
-  const updateRow = (learnerId: string, sessionId: string, patch: Partial<RegisterRow>) => {
+  const applyLocalRowPatch = (
+    learnerId: string,
+    sessionId: string,
+    patch: Partial<RegisterRow>,
+    date = demoDate
+  ) => {
     setRegisters((prev) =>
       prev.map((r) =>
-        r.learnerId === learnerId && r.sessionId === sessionId && r.date === demoDate ? { ...r, ...patch } : r
+        r.learnerId === learnerId && r.sessionId === sessionId && r.date === date ? { ...r, ...patch } : r
       )
     );
+  };
+
+  /**
+   * Demo: local only. Live: persist attendance/progress/note via PATCH /registers.
+   * Concurrent edits: last successful PATCH wins; failures re-fetch the date register.
+   * No actor/audit trail is claimed.
+   */
+  const updateRow = async (
+    learnerId: string,
+    sessionId: string,
+    patch: Partial<RegisterRow>,
+    opts?: { logText?: string; okFlash?: string }
+  ) => {
+    const previous = registers.find(
+      (r) => r.learnerId === learnerId && r.sessionId === sessionId && r.date === demoDate
+    );
+    applyLocalRowPatch(learnerId, sessionId, patch);
+    if (!isLive) {
+      if (opts?.logText) pushLog(opts.logText);
+      if (opts?.okFlash) setFlash({ kind: "ok", text: opts.okFlash });
+      return;
+    }
+    try {
+      const saved = await apiPatchRegister({
+        sessionId,
+        learnerId,
+        date: demoDate,
+        attendance: patch.attendance,
+        progress: patch.progress,
+        note: patch.note,
+      });
+      applyLocalRowPatch(learnerId, sessionId, {
+        attendance: saved.attendance,
+        progress: saved.progress,
+        note: saved.note,
+        alreadyHomeDismissed: saved.alreadyHomeDismissed,
+      });
+      if (opts?.logText) pushLog(opts.logText.replace("[DEMO]", "[LIVE]"));
+      setFlash({
+        kind: "ok",
+        text:
+          opts?.okFlash?.replace("[DEMO]", "[LIVE]") ||
+          "[LIVE] Register status saved. No staff audit trail is recorded yet.",
+      });
+    } catch (e: unknown) {
+      if (previous) applyLocalRowPatch(learnerId, sessionId, previous);
+      else {
+        try {
+          const reg = await apiGetRegisters(demoDate);
+          setRegisters(reg.rows);
+        } catch {
+          /* keep optimistic rollback only */
+        }
+      }
+      setFlash({
+        kind: "err",
+        text: e instanceof Error ? e.message : "Failed to save register status",
+      });
+    }
   };
 
   const callGroup = () => {
     if (!activeSession || !activeGroup) return;
-    const classrooms = Array.from(
-      new Set(
-        sessionRows
-          .filter((r) => r.attendance !== "ABSENT")
-          .map((r) => learnersCatalog.find((l) => l.id === r.learnerId)?.className || "")
-          .filter(Boolean)
-      )
+    const targets = sessionRows.filter(
+      (r) => r.attendance !== "ABSENT" && r.progress === "WAITING"
     );
-    setTeacherCalls(
-      classrooms.map((classroom) => ({
-        sessionId: activeSession.id,
-        date: demoDate,
-        classroom,
-        teacherName:
-          classroom === "Grade 2A" ? "Ms Grove" : classroom === "Grade 2B" ? "Mr Nkosi" : "Ms Abrahams",
-        status: "PENDING",
-      }))
-    );
-    setRegisters((prev) =>
-      prev.map((r) =>
-        r.sessionId === activeSession.id &&
-        r.date === demoDate &&
-        r.attendance !== "ABSENT" &&
-        r.progress === "WAITING"
-          ? { ...r, progress: "CALLED" }
-          : r
-      )
-    );
-    setFlash({
-      kind: "info",
-      text: `[DEMO] Call sent to ${classrooms.length} teacher(s). Ack ≠ Ready ≠ Collected.`,
-    });
-    pushLog(`[DEMO] Called ${activeGroup.name} → ${classrooms.join(", ")}`);
+    if (!isLive) {
+      const classrooms = Array.from(
+        new Set(
+          sessionRows
+            .filter((r) => r.attendance !== "ABSENT")
+            .map((r) => learnersCatalog.find((l) => l.id === r.learnerId)?.className || "")
+            .filter(Boolean)
+        )
+      );
+      setTeacherCalls(
+        classrooms.map((classroom) => ({
+          sessionId: activeSession.id,
+          date: demoDate,
+          classroom,
+          teacherName:
+            classroom === "Grade 2A" ? "Ms Grove" : classroom === "Grade 2B" ? "Mr Nkosi" : "Ms Abrahams",
+          status: "PENDING",
+        }))
+      );
+      setRegisters((prev) =>
+        prev.map((r) =>
+          r.sessionId === activeSession.id &&
+          r.date === demoDate &&
+          r.attendance !== "ABSENT" &&
+          r.progress === "WAITING"
+            ? { ...r, progress: "CALLED" }
+            : r
+        )
+      );
+      setFlash({
+        kind: "info",
+        text: `[DEMO] Call sent to ${classrooms.length} teacher(s). Ack ≠ Ready ≠ Collected.`,
+      });
+      pushLog(`[DEMO] Called ${activeGroup.name} → ${classrooms.join(", ")}`);
+      return;
+    }
+    // Live: persist CALLED progress only. Classroom acknowledgement workflow does not exist.
+    void (async () => {
+      try {
+        await Promise.all(
+          targets.map((r) =>
+            apiPatchRegister({
+              sessionId: r.sessionId,
+              learnerId: r.learnerId,
+              date: demoDate,
+              progress: "CALLED",
+            })
+          )
+        );
+        const reg = await apiGetRegisters(demoDate);
+        setRegisters(reg.rows);
+        setFlash({
+          kind: "ok",
+          text: `[LIVE] Marked ${targets.length} learner(s) CALLED. Classroom ack workflow is not available.`,
+        });
+        pushLog(`[LIVE] Called ${activeGroup.name} → ${targets.length} learner(s) CALLED`);
+      } catch (e: unknown) {
+        setFlash({
+          kind: "err",
+          text: e instanceof Error ? e.message : "Failed to mark group as called",
+        });
+      }
+    })();
   };
 
   const ackTeacher = (classroom: string) => {
+    if (isLive) {
+      setFlash({
+        kind: "warn",
+        text: "[LIVE] Classroom acknowledgement is not persisted (no backend workflow).",
+      });
+      return;
+    }
     if (!activeSession) return;
     setTeacherCalls((prev) =>
       prev.map((c) =>
@@ -459,7 +564,7 @@ export default function HomeSafeCollectionsPrototype({
     if (!modal || modal.type !== "handover" || !activeSession || !activeGroup) return;
     const row = sessionRows.find((r) => r.learnerId === modal.learnerId);
     if (!row) return;
-    if (saveFailDemo) {
+    if (!isLive && saveFailDemo) {
       setFlash({ kind: "err", text: "[DEMO] Save failed — handover NOT recorded." });
       pushLog(`[DEMO] Handover save FAILED for ${displayName(modal.learnerId)}`);
       setModal(null);
@@ -467,41 +572,52 @@ export default function HomeSafeCollectionsPrototype({
     }
     if (activeGroup.kind === "TRANSPORT") {
       if (row.note?.includes("Parent collecting")) {
-        setFlash({ kind: "warn", text: "[DEMO] Blocked: parent collecting today exception." });
+        setFlash({ kind: "warn", text: `${isLive ? "[LIVE]" : "[DEMO]"} Blocked: parent collecting today exception.` });
         setModal(null);
         return;
       }
       if (!row.collectionAuthorised) {
         setFlash({
           kind: "err",
-          text: `[DEMO] Blocked: ${displayName(row.learnerId)} not authorised for this transport.`,
+          text: `${isLive ? "[LIVE]" : "[DEMO]"} Blocked: ${displayName(row.learnerId)} not authorised for this transport.`,
         });
         setModal(null);
         return;
       }
       if (row.alreadyHomeDismissed || row.progress === "COLLECTED") {
-        setFlash({ kind: "warn", text: `[DEMO] Already collected / HomeSafe dismissed.` });
+        setFlash({ kind: "warn", text: `${isLive ? "[LIVE]" : "[DEMO]"} Already collected / HomeSafe dismissed.` });
         setModal(null);
         return;
       }
       const collector = handoverName.trim() || activeGroup.driverName || "Driver";
-      updateRow(row.learnerId, row.sessionId, {
-        progress: "COLLECTED",
-        alreadyHomeDismissed: true,
-        note: `Collected by ${collector} · Demo Gate · ${nowStamp()}`,
-      });
-      setFlash({
-        kind: "ok",
-        text: `[DEMO] Would write one HomeSafe dismissal (SCHOOL_TRANSPORT) — not called here.`,
-      });
-      pushLog(`[DEMO] Transport handover ${displayName(row.learnerId)} → COLLECTED`);
+      void updateRow(
+        row.learnerId,
+        row.sessionId,
+        {
+          progress: "COLLECTED",
+          alreadyHomeDismissed: true,
+          note: `Collected by ${collector} · ${nowStamp()}`,
+        },
+        {
+          logText: `${isLive ? "[LIVE]" : "[DEMO]"} Transport handover ${displayName(row.learnerId)} → COLLECTED`,
+          okFlash: isLive
+            ? "[LIVE] Collected status saved on register (not a HomeSafe Early Departure dismissal)."
+            : "[DEMO] Would write one HomeSafe dismissal (SCHOOL_TRANSPORT) — not called here.",
+        }
+      );
     } else {
-      updateRow(row.learnerId, row.sessionId, {
-        progress: "HANDED_OVER",
-        note: `With ${handoverName.trim() || activeSession.responsibleAdult} · ${nowStamp()}`,
-      });
-      setFlash({ kind: "ok", text: "[DEMO] Activity handover — NOT home-collected." });
-      pushLog(`[DEMO] Activity handover ${displayName(row.learnerId)}`);
+      void updateRow(
+        row.learnerId,
+        row.sessionId,
+        {
+          progress: "HANDED_OVER",
+          note: `With ${handoverName.trim() || activeSession.responsibleAdult} · ${nowStamp()}`,
+        },
+        {
+          logText: `${isLive ? "[LIVE]" : "[DEMO]"} Activity handover ${displayName(row.learnerId)}`,
+          okFlash: `${isLive ? "[LIVE]" : "[DEMO]"} Activity handover — NOT home-collected.`,
+        }
+      );
     }
     setModal(null);
     setHandoverName("");
@@ -1173,10 +1289,12 @@ export default function HomeSafeCollectionsPrototype({
               Call group
             </button>
           )}
-          <label className="hs-cg-btn sm" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-            <input type="checkbox" checked={saveFailDemo} onChange={(e) => setSaveFailDemo(e.target.checked)} />
-            Simulate save failure
-          </label>
+          {!isLive && (
+            <label className="hs-cg-btn sm" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+              <input type="checkbox" checked={saveFailDemo} onChange={(e) => setSaveFailDemo(e.target.checked)} />
+              Simulate save failure
+            </label>
+          )}
         </div>
 
         {calls.length > 0 && (
@@ -1244,8 +1362,12 @@ export default function HomeSafeCollectionsPrototype({
                             type="button"
                             className="hs-cg-btn sm"
                             onClick={() => {
-                              updateRow(r.learnerId, r.sessionId, { progress: "READY" });
-                              pushLog(`[DEMO] ${displayName(r.learnerId)} → Ready`);
+                              void updateRow(
+                                r.learnerId,
+                                r.sessionId,
+                                { progress: "READY" },
+                                { logText: `${isLive ? "[LIVE]" : "[DEMO]"} ${displayName(r.learnerId)} → Ready` }
+                              );
                             }}
                           >
                             Ready
@@ -1273,7 +1395,16 @@ export default function HomeSafeCollectionsPrototype({
                             <button
                               type="button"
                               className="hs-cg-btn sm"
-                              onClick={() => updateRow(r.learnerId, r.sessionId, { progress: "PARTICIPATING" })}
+                              onClick={() => {
+                                void updateRow(
+                                  r.learnerId,
+                                  r.sessionId,
+                                  { progress: "PARTICIPATING" },
+                                  {
+                                    logText: `${isLive ? "[LIVE]" : "[DEMO]"} ${displayName(r.learnerId)} → Participating`,
+                                  }
+                                );
+                              }}
                             >
                               Participate
                             </button>
@@ -1296,14 +1427,18 @@ export default function HomeSafeCollectionsPrototype({
                             type="button"
                             className="hs-cg-btn sm gold"
                             onClick={() => {
-                              updateRow(r.learnerId, r.sessionId, {
-                                progress: "RETURNED",
-                                note: `Returned ${nowStamp()}`,
-                              });
-                              setFlash({
-                                kind: "ok",
-                                text: `[DEMO] Returned — still NOT home-collected.`,
-                              });
+                              void updateRow(
+                                r.learnerId,
+                                r.sessionId,
+                                {
+                                  progress: "RETURNED",
+                                  note: `Returned ${nowStamp()}`,
+                                },
+                                {
+                                  logText: `${isLive ? "[LIVE]" : "[DEMO]"} ${displayName(r.learnerId)} → Returned`,
+                                  okFlash: `${isLive ? "[LIVE]" : "[DEMO]"} Returned — still NOT home-collected.`,
+                                }
+                              );
                             }}
                           >
                             Return

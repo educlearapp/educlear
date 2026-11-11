@@ -232,3 +232,53 @@ export async function apiGetRegisters(date: string): Promise<{
     })),
   };
 }
+
+/**
+ * Persist one register row via existing PATCH /api/homesafe/collections/registers.
+ * Does not invent classroom Call/Ack workflows or actor audit trails.
+ */
+export async function apiPatchRegister(input: {
+  sessionId: string;
+  learnerId: string;
+  date: string;
+  attendance?: RegisterRow["attendance"];
+  progress?: RegisterRow["progress"];
+  note?: string | null;
+}): Promise<RegisterRow> {
+  const res = (await apiFetch("/api/homesafe/collections/registers", {
+    method: "PATCH",
+    body: JSON.stringify({
+      sessionId: input.sessionId,
+      learnerId: input.learnerId,
+      date: input.date,
+      schoolLocalDate: input.date,
+      ...(input.attendance !== undefined ? { attendance: input.attendance } : {}),
+      ...(input.progress !== undefined ? { progress: input.progress } : {}),
+      ...(input.note !== undefined ? { note: input.note } : {}),
+    }),
+  })) as {
+    success?: boolean;
+    error?: string;
+    row?: {
+      learnerId: string;
+      sessionId: string;
+      schoolLocalDate: string;
+      attendance: RegisterRow["attendance"];
+      progress: RegisterRow["progress"];
+      note?: string | null;
+    };
+  };
+  if (!res?.row) {
+    throw new Error(res?.error || "Failed to save register status");
+  }
+  return {
+    learnerId: res.row.learnerId,
+    sessionId: res.row.sessionId,
+    date: res.row.schoolLocalDate,
+    attendance: res.row.attendance,
+    progress: res.row.progress,
+    collectionAuthorised: true,
+    alreadyHomeDismissed: res.row.progress === "COLLECTED",
+    note: res.row.note || undefined,
+  };
+}
