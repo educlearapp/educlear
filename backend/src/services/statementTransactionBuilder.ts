@@ -74,8 +74,6 @@ export type StatementManageTransactionRow = {
   recordedLabel?: "Captured" | "Imported";
   /** Immutable invoice fee breakdown when present on the ledger entry. */
   chargeLines?: BillingInvoiceChargeLine[];
-  /** Display-only Age Analysis BBF row (not a ledger posting). */
-  isMigrationBroughtForward?: boolean;
   /** Chronological build sequence — PDF/display tie-break; not shown in UI. */
   chronoSeq?: number;
 };
