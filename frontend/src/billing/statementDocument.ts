@@ -1,7 +1,6 @@
 import jsPDF from "jspdf";
 import { authenticatedFetch } from "../api";
 import { cacheSchoolLogoUrl, resolveSchoolLogoUrl } from "../utils/schoolLogo";
-import { formatMoney } from "./billingLedger";
 import {
   loadBillingSettingsForSchool,
   resolveEmailTemplate,
@@ -9,7 +8,6 @@ import {
 } from "./billingSettingsEngine";
 import { DEFAULT_STATEMENT_PERIOD, normalizeStatementPeriod } from "./statementPeriod";
 import {
-  parentDisplayName,
   resolveStatementBillingContact,
   type StatementContact,
 } from "./statementBillingContact";
@@ -24,8 +22,9 @@ export type StatementTransaction = {
   description: string;
   amountIn: number;
   amountOut: number;
-  balance: number;
+  balance: number | null;
   learner?: string;
+  statementSection?: "historical" | "brought-forward" | "active";
 };
 
 export type StatementSchoolBranding = {
@@ -36,7 +35,39 @@ export type StatementSchoolBranding = {
   address?: string;
   postalAddress?: string;
   logoUrl?: string;
+  bankingDetails?: string;
 };
+
+function normaliseStatementNumber(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * 100) / 100;
+}
+
+function signedStatementAmount(amountIn: unknown, amountOut: unknown): number {
+  return normaliseStatementNumber(amountIn) - normaliseStatementNumber(amountOut);
+}
+
+/** Kid-e-Sys signed money: R3,190.70 owing / -R309.30 credit. */
+function formatStatementSignedMoney(value: unknown): string {
+  const n = normaliseStatementNumber(value);
+  const body = Math.abs(n).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  if (n < 0) return `-R${body}`;
+  return `R${body}`;
+}
+
+function formatStatementAmountCell(value: unknown | null | undefined): string {
+  if (value === null || value === undefined) return "";
+  return formatStatementSignedMoney(value);
+}
+
+function formatStatementBalanceCell(value: unknown | null | undefined): string {
+  if (value === null || value === undefined) return "—";
+  return formatStatementSignedMoney(value);
+}
 
 function escapeHtml(value: unknown): string {
   return String(value ?? "")
@@ -75,6 +106,7 @@ export async function loadStatementSchoolBranding(schoolId: string): Promise<Sta
       address: String(match.address || match.physicalAddress || "").trim() || undefined,
       postalAddress: String(match.postalAddress || "").trim() || undefined,
       logoUrl: logoUrl || undefined,
+      bankingDetails: String(match.bankingDetails || "").trim() || undefined,
     };
   } catch {
     return { name: fallbackName, logoUrl: fallbackLogoUrl || undefined };
@@ -199,11 +231,13 @@ export type AccountStatementDocumentInput = {
   transactions: StatementTransaction[];
   statementNote?: string;
   isFamilyAccount: boolean;
+  openingBalance?: number;
+  includeBroughtForward?: boolean;
+  broughtForwardLabel?: string;
 };
 
 const PDF_INK: [number, number, number] = [17, 24, 39];
 const PDF_MUTED: [number, number, number] = [107, 114, 128];
-const PDF_GOLD: [number, number, number] = [212, 175, 55];
 /** ~36 pt logo box — matches server PDF compact layout. */
 export const STATEMENT_LOGO_PX = 72;
 /** Matches server PDF logo box (36 pt). */
@@ -269,16 +303,67 @@ function schoolBrandingLines(school: StatementSchoolBranding): string[] {
   return lines;
 }
 
-function measureAccountBoxHeightMm(input: AccountStatementDocumentInput): number {
-  const showLearnersList = input.isFamilyAccount || input.children.length > 1;
-  if (showLearnersList) return 16 + 4 + input.children.length * 4;
-  if (input.children.length === 1) return 16 + 4;
-  return 16;
+type StatementDisplayRow = {
+  date: string;
+  type: string;
+  reference: string;
+  description: string;
+  amount: number | null;
+  balance: number | null;
+  bold?: boolean;
+};
+
+/** Presentation-only: reuse builder amounts/balances; do not invent running balances. */
+function buildFrontendStatementDisplayRows(input: AccountStatementDocumentInput): StatementDisplayRow[] {
+  const opening = normaliseStatementNumber(input.openingBalance ?? 0);
+  const chronological = [...(input.transactions || [])].sort((a, b) => {
+    const da = new Date(a.date || "").getTime();
+    const db = new Date(b.date || "").getTime();
+    const ta = Number.isNaN(da) ? 0 : da;
+    const tb = Number.isNaN(db) ? 0 : db;
+    if (ta !== tb) return ta - tb;
+    return String(a.reference || "").localeCompare(String(b.reference || ""));
+  });
+  const rows: StatementDisplayRow[] = [];
+  if (input.includeBroughtForward) {
+    rows.push({
+      date: "",
+      type: "",
+      reference: "",
+      description: input.broughtForwardLabel || "Balance Brought Forward",
+      amount: null,
+      balance: opening,
+      bold: true,
+    });
+  }
+  for (const row of chronological) {
+    const signed = signedStatementAmount(row.amountIn, row.amountOut);
+    if (row.balance === null || row.balance === undefined || Number.isNaN(Number(row.balance))) {
+      rows.push({
+        date: row.date || "",
+        type: row.type || "",
+        reference: row.reference || "",
+        description: row.description || "",
+        amount: signed,
+        balance: null,
+      });
+      continue;
+    }
+    rows.push({
+      date: row.date || "",
+      type: row.type || "",
+      reference: row.reference || "",
+      description: row.description || "",
+      amount: signed,
+      balance: normaliseStatementNumber(row.balance),
+    });
+  }
+  return rows;
 }
 
-/** Builds a valid PDF (jsPDF) matching the account statement layout used for email attachments. */
+/** Builds a valid PDF (jsPDF) matching the Kid-e-Sys account statement layout. */
 export function generateAccountStatementPdf(input: AccountStatementDocumentInput): jsPDF {
-  const { school, accountNo, accountLabel, children, contact, period, statementDate, balance, transactions, statementNote, isFamilyAccount } =
+  const { school, accountNo, accountLabel, children, contact, period, statementDate, balance, statementNote } =
     input;
   const doc = new jsPDF({
     orientation: "portrait",
@@ -293,23 +378,56 @@ export function generateAccountStatementPdf(input: AccountStatementDocumentInput
   const rightW = contentW - leftW - 3;
   const leftX = margin;
   const rightX = margin + leftW + 3;
-  const brandBarH = 5;
-  const brandGoldH = 1;
-  const topY = brandBarH + brandGoldH + 4;
-  let y = topY;
+  const bankingLines = splitNonEmptyLines(school.bankingDetails);
+  const footerReserve = Math.max(18, 8 + (bankingLines.length ? 6 + bankingLines.length * 3.6 : 0) + 6);
+  let y = margin;
 
-  const ensureSpace = (needed: number) => {
-    if (y + needed <= pageH - 12) return;
-    doc.addPage();
-    y = margin;
+  const headers = ["Date", "Type", "Ref", "Description", "Amount", "Balance"];
+  const fixedCols = [22, 18, 22, 24, 24];
+  const descW = Math.max(40, contentW - fixedCols.reduce((sum, w) => sum + w, 0));
+  const colWidths = [22, 18, 22, descW, 24, 24];
+
+  const drawTableHeader = () => {
+    doc.setFillColor(...PDF_INK);
+    doc.rect(margin, y, contentW, 5.5, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(255, 255, 255);
+    let x = margin + 1.5;
+    headers.forEach((label, i) => {
+      const alignRight = i >= headers.length - 2;
+      const w = colWidths[i];
+      doc.text(label, alignRight ? x + w - 1.5 : x, y + 3.8, { align: alignRight ? "right" : "left" });
+      x += w;
+    });
+    y += 5.5;
   };
 
-  doc.setFillColor(...PDF_INK);
-  doc.rect(0, 0, pageW, brandBarH, "F");
-  doc.setFillColor(...PDF_GOLD);
-  doc.rect(0, brandBarH, pageW, brandGoldH, "F");
+  const drawContinuationHeader = () => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...PDF_INK);
+    doc.text(String(school.name || "School"), leftX, y);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...PDF_MUTED);
+    doc.text("Statement (continued)", rightX + rightW, y, { align: "right" });
+    y += 5;
+    doc.setDrawColor(209, 213, 219);
+    doc.setLineWidth(0.3);
+    doc.line(margin, y, pageW - margin, y);
+    y += 3;
+    drawTableHeader();
+  };
 
-  let leftY = topY;
+  const ensureRowSpace = (needed: number) => {
+    if (y + needed <= pageH - footerReserve) return;
+    doc.addPage();
+    y = margin;
+    drawContinuationHeader();
+  };
+
+  let leftY = margin;
   if (school.logoUrl) {
     const logoAdvance = embedStatementLogoInPdf(doc, school.logoUrl, leftX, leftY);
     if (logoAdvance > 0) leftY += logoAdvance;
@@ -322,207 +440,162 @@ export function generateAccountStatementPdf(input: AccountStatementDocumentInput
   doc.text(schoolName, leftX, leftY);
   leftY += 5;
 
+  let rightY = margin;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(...PDF_MUTED);
   for (const line of schoolBrandingLines(school)) {
-    const wrapped = doc.splitTextToSize(line, leftW);
-    doc.text(wrapped, leftX, leftY);
-    leftY += wrapped.length * 3.5 + 0.8;
+    const wrapped = doc.splitTextToSize(line, rightW) as string[];
+    doc.text(wrapped, rightX + rightW, rightY, { align: "right" });
+    rightY += wrapped.length * 3.5 + 0.8;
   }
 
-  let rightY = topY;
+  y = Math.max(leftY, rightY) + 4;
+  doc.setDrawColor(209, 213, 219);
+  doc.setLineWidth(0.4);
+  doc.line(margin, y, pageW - margin, y);
+  y += 6;
+
   doc.setTextColor(...PDF_INK);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(15);
-  doc.text("STATEMENT", rightX + rightW, rightY, { align: "right" });
-  rightY += 7;
+  doc.text("Statement", margin, y);
+  y += 7;
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...PDF_MUTED);
-  doc.text(`Account: ${accountNo}`, rightX + rightW, rightY, { align: "right" });
-  rightY += 3.8;
-  doc.text(`Period: ${period}`, rightX + rightW, rightY, { align: "right" });
-  rightY += 3.8;
-  doc.text(`Date: ${statementDate}`, rightX + rightW, rightY, { align: "right" });
-  rightY += 3.8;
-
-  y = Math.max(leftY, rightY) + 4;
-
-  doc.setDrawColor(...PDF_GOLD);
-  doc.setLineWidth(0.5);
-  doc.line(margin, y, pageW - margin, y);
-  y += 5;
-
-  const boxH = measureAccountBoxHeightMm(input);
-  ensureSpace(boxH + 3);
-  const boxW = (contentW - 4) / 2;
-  doc.setDrawColor(229, 231, 235);
-  doc.setFillColor(250, 250, 250);
-  doc.roundedRect(margin, y, boxW, boxH, 2, 2, "FD");
-  doc.roundedRect(margin + boxW + 4, y, boxW, boxH, 2, 2, "FD");
+  doc.setFontSize(8.5);
+  const contactName = contact?.name || accountLabel;
+  const meta = [
+    `Parent / Guardian: ${contactName}`,
+    `Account number: ${accountNo}`,
+    `Statement date: ${statementDate}`,
+    `Period: ${period}`,
+  ];
+  for (const line of meta) {
+    doc.text(line, margin, y);
+    y += 4;
+  }
+  y += 2;
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
+  doc.setFontSize(9);
   doc.setTextColor(...PDF_INK);
-  doc.text("ACCOUNT", margin + 3, y + 5.5);
-  doc.text("CONTACT", margin + boxW + 7, y + 5.5);
-
+  doc.text("Learners", margin, y);
+  y += 4.5;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
-  let boxY = y + 9;
-  doc.text(`Account holder: ${accountLabel}`, margin + 3, boxY);
-  boxY += 4;
-  const showLearnersList = isFamilyAccount || children.length > 1;
-  if (showLearnersList) {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7.5);
-    doc.text("Learners:", margin + 3, boxY);
-    boxY += 3.5;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
+  if (!children.length) {
+    doc.setTextColor(...PDF_MUTED);
+    doc.text("—", margin, y);
+    y += 4;
+  } else {
     for (const child of children) {
-      doc.text(`– ${child.name} – Grade ${child.grade}`, margin + 3, boxY);
-      boxY += 3.5;
+      doc.setTextColor(...PDF_INK);
+      doc.text(`${child.name} — ${child.grade}`, margin, y);
+      y += 3.8;
     }
-  } else if (children.length === 1) {
-    const child = children[0];
-    doc.text(`– ${child.name} – Grade ${child.grade}`, margin + 3, boxY);
   }
+  y += 2;
+  doc.setDrawColor(209, 213, 219);
+  doc.line(margin, y, pageW - margin, y);
+  y += 4;
 
-  const contactName = contact?.name || accountLabel;
-  const contactEmail = contact?.email || "—";
-  const contactRel = contact?.relationship || "Parent";
-  doc.text(`Name: ${contactName}`, margin + boxW + 7, y + 9);
-  doc.text(`Email: ${contactEmail}`, margin + boxW + 7, y + 13);
-  doc.text(`Relationship: ${contactRel}`, margin + boxW + 7, y + 17);
-  y += boxH + 6;
-
-  const headers = isFamilyAccount
-    ? ["Date", "Type", "Learner", "Reference", "Description", "Amount In", "Amount Out", "Running Balance"]
-    : ["Date", "Type", "Reference", "Description", "Amount In", "Amount Out", "Running Balance"];
-  const fixedCols = isFamilyAccount ? [20, 16, 24, 22, 20, 20, 24] : [22, 16, 24, 20, 20, 24];
-  const descW = Math.max(24, contentW - fixedCols.reduce((sum, w) => sum + w, 0));
-  const colWidths = isFamilyAccount
-    ? [20, 16, 24, 22, descW, 20, 20, 24]
-    : [22, 16, 24, descW, 20, 20, 24];
-
-  const drawTableHeader = () => {
-    doc.setFillColor(...PDF_INK);
-    doc.rect(margin, y, contentW, 5.5, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(6.5);
-    doc.setTextColor(255, 255, 255);
-    let x = margin + 1.5;
-    headers.forEach((label, i) => {
-      const alignRight = i >= headers.length - 3;
-      const w = colWidths[i];
-      doc.text(label, alignRight ? x + w - 1.5 : x, y + 3.8, { align: alignRight ? "right" : "left" });
-      x += w;
-    });
-    y += 5.5;
-  };
-
-  const ensureRowSpace = (needed: number) => {
-    if (y + needed <= pageH - 12) return;
-    doc.addPage();
-    y = margin;
-    drawTableHeader();
-  };
-
-  ensureSpace(8);
   drawTableHeader();
 
-  const rowHeight = 5;
-  const cellPad = 1.5;
-
-  if (!transactions.length) {
-    ensureRowSpace(rowHeight + 2);
-    doc.setDrawColor(229, 231, 235);
-    doc.setFillColor(255, 255, 255);
-    doc.rect(margin, y, contentW, rowHeight + 2, "S");
+  const displayRows = buildFrontendStatementDisplayRows(input);
+  if (!displayRows.length) {
+    ensureRowSpace(7);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(...PDF_MUTED);
-    doc.text("No transactions for the selected period.", pageW / 2, y + 4.5, { align: "center" });
-    y += rowHeight + 4;
+    doc.text("No transactions for the selected period.", pageW / 2, y + 4, { align: "center" });
+    y += 8;
   } else {
-    transactions.forEach((row, index) => {
-      ensureRowSpace(rowHeight + 2);
+    displayRows.forEach((row, index) => {
+      const values = [
+        row.date,
+        row.type,
+        row.reference,
+        row.description,
+        formatStatementAmountCell(row.amount),
+        formatStatementBalanceCell(row.balance),
+      ];
+      const descLines = doc.splitTextToSize(String(row.description || ""), colWidths[3] - 2) as string[];
+      const rowH = Math.max(5.2, descLines.length * 3.4 + 1.5);
+      ensureRowSpace(rowH + 1);
       if (index % 2 === 1) {
-        doc.setFillColor(250, 248, 240);
-        doc.rect(margin, y, contentW, rowHeight, "F");
+        doc.setFillColor(249, 250, 251);
+        doc.rect(margin, y, contentW, rowH, "F");
       }
       doc.setDrawColor(229, 231, 235);
-      doc.line(margin, y + rowHeight, pageW - margin, y + rowHeight);
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(6.5);
+      doc.line(margin, y + rowH, pageW - margin, y + rowH);
+      doc.setFont("helvetica", row.bold ? "bold" : "normal");
+      doc.setFontSize(7);
       doc.setTextColor(...PDF_INK);
-
-      const values = isFamilyAccount
-        ? [
-            row.date,
-            row.type,
-            row.learner || "-",
-            row.reference,
-            row.description,
-            row.amountIn ? formatMoney(row.amountIn) : "-",
-            row.amountOut ? formatMoney(row.amountOut) : "-",
-            formatMoney(row.balance),
-          ]
-        : [
-            row.date,
-            row.type,
-            row.reference,
-            row.description,
-            row.amountIn ? formatMoney(row.amountIn) : "-",
-            row.amountOut ? formatMoney(row.amountOut) : "-",
-            formatMoney(row.balance),
-          ];
-
-      let x = margin + cellPad;
+      let x = margin + 1.2;
       values.forEach((value, i) => {
-        const w = colWidths[i] - cellPad * 2;
-        const alignRight = i >= values.length - 3;
-        const lines = doc.splitTextToSize(String(value || ""), w) as string[];
-        const line = lines[0] || "";
-        doc.text(line, alignRight ? x + w : x, y + 3.5, { align: alignRight ? "right" : "left" });
+        const w = colWidths[i] - 2.4;
+        const alignRight = i >= values.length - 2;
+        if (i === 3) {
+          doc.text(descLines, x, y + 3.4);
+        } else {
+          const line = String(value || "");
+          doc.text(line, alignRight ? x + w : x, y + 3.4, { align: alignRight ? "right" : "left" });
+        }
         x += colWidths[i];
       });
-      y += rowHeight;
+      y += rowH;
     });
   }
 
-  ensureSpace(16);
+  ensureRowSpace(14);
   y += 4;
-  const totalW = 62;
-  const totalX = pageW - margin - totalW;
-  doc.setDrawColor(...PDF_GOLD);
+  doc.setDrawColor(209, 213, 219);
   doc.setLineWidth(0.4);
-  doc.roundedRect(totalX, y, totalW, 12, 2, 2, "S");
+  doc.line(margin, y, pageW - margin, y);
+  y += 6;
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.setTextColor(153, 27, 27);
-  doc.text("Closing balance", totalX + 3, y + 6.5);
-  doc.text(formatMoney(balance), totalX + totalW - 3, y + 6.5, { align: "right" });
-  y += 16;
+  doc.setFontSize(11);
+  doc.setTextColor(...PDF_INK);
+  doc.text("Closing Balance", margin, y);
+  doc.text(formatStatementSignedMoney(balance), pageW - margin, y, { align: "right" });
+  y += 8;
 
   if (statementNote) {
-    ensureSpace(10);
+    ensureRowSpace(10);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.setTextColor(...PDF_INK);
+    doc.setTextColor(...PDF_MUTED);
     const noteLines = doc.splitTextToSize(String(statementNote), contentW) as string[];
     doc.text(noteLines, margin, y);
-    y += noteLines.length * 3.8 + 3;
   }
 
-  ensureSpace(6);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(...PDF_MUTED);
-  doc.text(`Statement generated for ${school.name || "School"} via EduClear.`, pageW / 2, pageH - 8, { align: "center" });
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i += 1) {
+    doc.setPage(i);
+    const footerTop = pageH - footerReserve + 2;
+    doc.setDrawColor(209, 213, 219);
+    doc.setLineWidth(0.3);
+    doc.line(margin, footerTop, pageW - margin, footerTop);
+    let fy = footerTop + 4;
+    if (bankingLines.length) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(...PDF_INK);
+      doc.text("Banking details", margin, fy);
+      fy += 3.5;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(...PDF_MUTED);
+      for (const line of bankingLines) {
+        doc.text(line, margin, fy);
+        fy += 3.3;
+      }
+    }
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...PDF_MUTED);
+    doc.text(`Page ${i} / ${pageCount}`, pageW - margin, pageH - 6, { align: "right" });
+  }
 
   return doc;
 }
@@ -533,46 +606,46 @@ export function accountStatementToPdfBase64(input: AccountStatementDocumentInput
 }
 
 export function buildAccountStatementHtml(input: AccountStatementDocumentInput): string {
-  const { school, accountNo, accountLabel, children, contact, period, statementDate, balance, transactions, statementNote, isFamilyAccount } =
+  const { school, accountNo, accountLabel, children, contact, period, statementDate, balance, statementNote } =
     input;
 
   const logoBlock = school.logoUrl
     ? `<img src="${escapeHtml(school.logoUrl)}" alt="" style="${STATEMENT_LOGO_IMG_STYLE}" />`
     : "";
 
-  const showLearnersList = isFamilyAccount || children.length > 1;
-  const childLines = showLearnersList
-    ? `<div style="margin-top:8px;font-size:12px;font-weight:900;color:#64748b">Learners:</div><ul style="margin:6px 0 0;padding-left:18px">${children
-        .map(
-          (c) =>
-            `<li>${escapeHtml(c.name)} <span style="color:#64748b;font-weight:600">– Grade ${escapeHtml(c.grade)}</span></li>`
-        )
+  const childLines = children.length
+    ? `<ul style="margin:6px 0 0;padding-left:18px">${children
+        .map((c) => `<li>${escapeHtml(c.name)} — ${escapeHtml(c.grade)}</li>`)
         .join("")}</ul>`
-    : children.length === 1
-      ? `<div style="margin-top:8px">${escapeHtml(children[0].name)} <span style="color:#64748b;font-weight:600">– Grade ${escapeHtml(children[0].grade)}</span></div>`
-      : "";
+    : `<div class="muted">—</div>`;
 
-  const txRows = transactions.length
-    ? transactions
+  const displayRows = buildFrontendStatementDisplayRows(input);
+  const txRows = displayRows.length
+    ? displayRows
         .map((row) => {
           const cols = [
             `<td>${escapeHtml(row.date)}</td>`,
             `<td>${escapeHtml(row.type)}</td>`,
-            ...(isFamilyAccount ? [`<td>${escapeHtml(row.learner || "-")}</td>`] : []),
             `<td>${escapeHtml(row.reference)}</td>`,
-            `<td>${escapeHtml(row.description)}</td>`,
-            `<td style="text-align:right">${row.amountIn ? escapeHtml(formatMoney(row.amountIn)) : "-"}</td>`,
-            `<td style="text-align:right">${row.amountOut ? escapeHtml(formatMoney(row.amountOut)) : "-"}</td>`,
-            `<td style="text-align:right;font-weight:800">${escapeHtml(formatMoney(row.balance))}</td>`,
+            `<td style="white-space:normal;word-break:break-word">${escapeHtml(row.description)}</td>`,
+            `<td style="text-align:right;white-space:nowrap">${escapeHtml(formatStatementAmountCell(row.amount))}</td>`,
+            `<td style="text-align:right;white-space:nowrap;font-weight:${row.bold ? 800 : 600}">${escapeHtml(
+              formatStatementBalanceCell(row.balance)
+            )}</td>`,
           ];
-          return `<tr>${cols.join("")}</tr>`;
+          return `<tr class="${row.bold ? "bf" : ""}">${cols.join("")}</tr>`;
         })
         .join("")
-    : `<tr><td colspan="${isFamilyAccount ? 8 : 7}" style="text-align:center;color:#64748b;padding:24px">No transactions for the selected period.</td></tr>`;
+    : `<tr><td colspan="6" style="text-align:center;color:#64748b;padding:24px">No transactions for the selected period.</td></tr>`;
 
-  const thead = isFamilyAccount
-    ? "<tr><th>Date</th><th>Type</th><th>Learner</th><th>Reference</th><th>Description</th><th style=\"text-align:right\">Amount In</th><th style=\"text-align:right\">Amount Out</th><th style=\"text-align:right\">Running Balance</th></tr>"
-    : "<tr><th>Date</th><th>Type</th><th>Reference</th><th>Description</th><th style=\"text-align:right\">Amount In</th><th style=\"text-align:right\">Amount Out</th><th style=\"text-align:right\">Running Balance</th></tr>";
+  const bankingLines = splitNonEmptyLines(school.bankingDetails);
+  const bankingBlock = bankingLines.length
+    ? `<div class="banking"><div class="banking-title">Banking details</div>${bankingLines
+        .map((line) => `<div>${escapeHtml(line)}</div>`)
+        .join("")}</div>`
+    : "";
+
+  const contactName = contact?.name || accountLabel;
 
   return `<!doctype html>
 <html>
@@ -580,86 +653,77 @@ export function buildAccountStatementHtml(input: AccountStatementDocumentInput):
   <meta charset="utf-8" />
   <title>Statement - ${escapeHtml(accountNo)}</title>
   <style>
-    @page { size: A4 portrait; margin: 10mm; }
-    body { font-family: Arial, sans-serif; color: #111827; margin: 0; padding: 10mm 10mm 8mm; background: #fff; max-width: 210mm; box-sizing: border-box; font-size: 11px; }
-    .brand-bar { height: 4px; background: #111827; margin: -10mm -10mm 0; }
-    .brand-gold { height: 1px; background: #d4af37; margin: 0 -10mm 8px; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #d4af37; padding-bottom: 10px; margin-bottom: 12px; gap: 16px; }
-    .header-left { flex: 1 1 58%; min-width: 0; }
-    .header-right { flex: 0 0 auto; text-align: right; }
-    .school-name { font-size: 17px; font-weight: 900; margin: 0 0 4px; line-height: 1.2; }
-    .muted { color: #6b7280; font-size: 10px; line-height: 1.45; }
-    .muted p { margin: 0 0 3px; display: block; }
-    .school-contact { display: flex; flex-direction: column; gap: 2px; }
-    .title { font-size: 20px; font-weight: 900; margin: 0 0 6px; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-    .box { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 10px; background: #fafafa; }
-    .box-title { font-size: 10px; font-weight: 900; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.03em; }
-    table { width: 100%; border-collapse: collapse; margin-top: 6px; table-layout: fixed; }
-    th { background: #111827; color: #fff; padding: 5px 6px; font-size: 9px; text-align: left; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    td { border-bottom: 1px solid #e5e7eb; padding: 4px 6px; font-size: 9px; vertical-align: top; overflow: hidden; text-overflow: ellipsis; }
-    tr:nth-child(even) td { background: #faf8f0; }
-    .totals { margin-top: 10px; display: flex; justify-content: flex-end; }
-    .total-box { width: 240px; border: 1.5px solid #d4af37; border-radius: 8px; padding: 8px 10px; background: #fffbeb; }
-    .closing { font-size: 14px; font-weight: 900; color: #991b1b; display: flex; justify-content: space-between; gap: 12px; }
-    .footer { margin-top: 16px; padding-top: 8px; border-top: 1px solid #e5e7eb; font-size: 9px; color: #6b7280; text-align: center; }
-    @media print { body { padding: 10mm; } th, td { font-size: 8.5px; } }
-    @media (max-width: 720px) {
-      body { padding: 12px; }
-      .header { flex-direction: column; }
-      .title { text-align: left; margin-top: 8px; }
-      .grid { grid-template-columns: 1fr; }
-      table { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-      thead, tbody, tr { display: table; width: 100%; table-layout: fixed; }
+    @page { size: A4 portrait; margin: 12mm; }
+    body { font-family: Arial, Helvetica, sans-serif; color: #111827; margin: 0; padding: 12mm; background: #fff; max-width: 210mm; box-sizing: border-box; font-size: 11px; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-bottom: 10px; border-bottom: 1px solid #d1d5db; margin-bottom: 10px; }
+    .header-left { flex: 1 1 55%; min-width: 0; }
+    .header-right { flex: 0 0 auto; text-align: right; max-width: 42%; }
+    .school-name { font-size: 17px; font-weight: 800; margin: 0; line-height: 1.2; }
+    .muted { color: #4b5563; font-size: 10px; line-height: 1.45; }
+    .muted p { margin: 0 0 2px; }
+    .title { font-size: 18px; font-weight: 800; margin: 0 0 8px; }
+    .meta { font-size: 11px; line-height: 1.45; margin-bottom: 8px; }
+    .meta div { margin: 0 0 2px; }
+    .learners { margin: 0 0 10px; padding-bottom: 8px; border-bottom: 1px solid #d1d5db; }
+    .learners-title { font-size: 11px; font-weight: 800; margin-bottom: 4px; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    thead { display: table-header-group; }
+    tr { page-break-inside: avoid; break-inside: avoid; }
+    th { background: #111827; color: #fff; padding: 6px 6px; font-size: 9px; text-align: left; font-weight: 700; }
+    th:nth-child(5), th:nth-child(6), td:nth-child(5), td:nth-child(6) { text-align: right; }
+    td { border-bottom: 1px solid #e5e7eb; padding: 5px 6px; font-size: 9px; vertical-align: top; }
+    tr:nth-child(even) td { background: #f9fafb; }
+    tr.bf td { font-weight: 700; }
+    .closing { margin-top: 12px; padding-top: 8px; border-top: 1px solid #d1d5db; display: flex; justify-content: space-between; font-size: 14px; font-weight: 800; }
+    .banking { margin-top: 18px; padding-top: 8px; border-top: 1px solid #d1d5db; font-size: 10px; color: #4b5563; line-height: 1.45; }
+    .banking-title { font-weight: 800; color: #111827; margin-bottom: 4px; }
+    .page-foot { margin-top: 10px; font-size: 10px; color: #6b7280; text-align: right; }
+    @media print {
+      body { padding: 0; }
+      .banking, .closing { page-break-inside: avoid; }
     }
   </style>
 </head>
 <body>
-  <div class="brand-bar"></div>
-  <div class="brand-gold"></div>
   <div class="header">
     <div class="header-left">
       ${logoBlock}
       <div class="school-name">${escapeHtml(school.name)}</div>
-      <div class="muted school-contact">
-        ${schoolBrandingLines(school)
-          .map((line) => `<p>${escapeHtml(line)}</p>`)
-          .join("")}
-      </div>
     </div>
-    <div class="header-right">
-      <div class="title">STATEMENT</div>
-      <div class="muted">
-        Account: ${escapeHtml(accountNo)}<br />
-        Period: ${escapeHtml(period)}<br />
-        Date: ${escapeHtml(statementDate)}
-      </div>
+    <div class="header-right muted">
+      ${schoolBrandingLines(school)
+        .map((line) => `<p>${escapeHtml(line)}</p>`)
+        .join("")}
     </div>
   </div>
-  <div class="grid">
-    <div class="box">
-      <div class="box-title">Account</div>
-      <div><b>Account holder:</b> ${escapeHtml(accountLabel)}</div>
-      ${children.length ? `<div style="margin-top:8px">${childLines}</div>` : ""}
-    </div>
-    <div class="box">
-      <div class="box-title">Contact</div>
-      <div><b>Name:</b> ${escapeHtml(contact?.name || accountLabel)}</div>
-      <div><b>Email:</b> ${escapeHtml(contact?.email || "—")}</div>
-      <div><b>Relationship:</b> ${escapeHtml(contact?.relationship || "Parent")}</div>
-    </div>
+  <div class="title">Statement</div>
+  <div class="meta">
+    <div>Parent / Guardian: ${escapeHtml(contactName)}</div>
+    <div>Account number: ${escapeHtml(accountNo)}</div>
+    <div>Statement date: ${escapeHtml(statementDate)}</div>
+    <div>Period: ${escapeHtml(period)}</div>
+  </div>
+  <div class="learners">
+    <div class="learners-title">Learners</div>
+    ${childLines}
   </div>
   <table>
-    <thead>${thead}</thead>
+    <thead>
+      <tr>
+        <th style="width:12%">Date</th>
+        <th style="width:12%">Type</th>
+        <th style="width:12%">Ref</th>
+        <th>Description</th>
+        <th style="width:14%">Amount</th>
+        <th style="width:14%">Balance</th>
+      </tr>
+    </thead>
     <tbody>${txRows}</tbody>
   </table>
-  <div class="totals">
-    <div class="total-box">
-      <div class="closing"><span>Closing balance</span><span>${escapeHtml(formatMoney(balance))}</span></div>
-    </div>
-  </div>
-  ${statementNote ? `<p style="margin-top:20px;line-height:1.5;white-space:pre-wrap">${escapeHtml(statementNote)}</p>` : ""}
-  <div class="footer">Statement generated for ${escapeHtml(school.name)} via EduClear.</div>
+  <div class="closing"><span>Closing Balance</span><span>${escapeHtml(formatStatementSignedMoney(balance))}</span></div>
+  ${statementNote ? `<p style="margin-top:16px;line-height:1.5;white-space:pre-wrap;color:#4b5563">${escapeHtml(statementNote)}</p>` : ""}
+  ${bankingBlock}
+  <div class="page-foot">Page 1</div>
 </body>
 </html>`;
 }

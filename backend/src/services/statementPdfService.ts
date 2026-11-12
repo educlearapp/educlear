@@ -1,47 +1,36 @@
 import PDFDocument from "pdfkit";
 import { loadSchoolLogoBuffer } from "../utils/schoolLogo";
-import type { StatementPdfInput } from "./statementPdfTypes";
+import { buildStatementPdfFilename } from "../utils/statementPeriod";
+import {
+  formatStatementAmountCell,
+  formatStatementBalanceCell,
+  formatStatementSignedMoney,
+  normaliseStatementNumber,
+  signedStatementAmount,
+} from "./statementAmountFormat";
+import type { StatementPdfInput, StatementPdfTransaction } from "./statementPdfTypes";
 
 const INK = "#111827";
-const MUTED = "#6b7280";
-const GOLD = "#d4af37";
+const MUTED = "#4b5563";
+const LINE = "#d1d5db";
 const TABLE_HEAD = "#111827";
-const ROW_ALT = "#faf8f0";
+const ROW_ALT = "#f9fafb";
 const ROW_BORDER = "#e5e7eb";
-const CARD_FILL = "#fafafa";
 
-const STATEMENT_LOGO_MAX_PT = 36;
-const STATEMENT_LOGO_GAP_PT = 3;
-/** ~10 mm side margins on A4 portrait */
-const PAGE_MARGIN_PT = 28;
-const BRAND_BLACK_H_PT = 5;
-const BRAND_GOLD_H_PT = 1;
-const BRAND_TOTAL_H_PT = BRAND_BLACK_H_PT + BRAND_GOLD_H_PT;
-const TOP_CONTENT_GAP_PT = 6;
-const FOOTER_RESERVE_PT = 36;
-const TABLE_ROW_MIN_PT = 11;
+const STATEMENT_LOGO_MAX_PT = 48;
+const STATEMENT_LOGO_GAP_PT = 4;
+/** ~12 mm side margins on A4 portrait */
+const PAGE_MARGIN_PT = 32;
+const TABLE_ROW_MIN_PT = 10;
 const TABLE_ROW_PAD_PT = 2;
-const TABLE_HEADER_H_PT = 13;
-const TABLE_FONT_SIZE = 6.5;
-const SCHOOL_NAME_FONT_SIZE = 12;
-const STATEMENT_TITLE_FONT_SIZE = 15;
-const CONTACT_FONT_SIZE = 7.5;
-const SCHOOL_NAME_LINE_GAP_PT = 3;
-const CONTACT_LINE_GAP_PT = 2;
-const CARD_PAD_PT = 6;
-const CARD_TITLE_GAP_PT = 8;
-const CARD_LINE_GAP_PT = 3;
-const CARD_BODY_FONT_SIZE = 8;
-
-function formatMoney(value: number): string {
-  const n = Number.isFinite(value) ? value : 0;
-  return `R ${n.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function formatBalance(value: number | null | undefined): string {
-  if (value === null || value === undefined) return "—";
-  return formatMoney(value);
-}
+const TABLE_HEADER_H_PT = 12;
+const TABLE_FONT_SIZE = 8;
+const SCHOOL_NAME_FONT_SIZE = 13;
+const STATEMENT_TITLE_FONT_SIZE = 16;
+const CONTACT_FONT_SIZE = 8;
+const META_FONT_SIZE = 9;
+const FOOTER_BANKING_FONT = 7.5;
+const FOOTER_PAGE_FONT = 8;
 
 function splitNonEmptyLines(value: string | null | undefined): string[] {
   return String(value ?? "")
@@ -65,37 +54,8 @@ function schoolHeaderContactLines(school: StatementPdfInput["school"]): string[]
   return lines;
 }
 
-function drawStackedTextLine(
-  doc: InstanceType<typeof PDFDocument>,
-  text: string,
-  x: number,
-  y: number,
-  width: number,
-  gapAfter: number,
-  options?: { font?: string; fontSize?: number; color?: string; bold?: boolean }
-): number {
-  if (options?.bold) doc.font("Helvetica-Bold");
-  else doc.font(options?.font || "Helvetica");
-  if (options?.fontSize) doc.fontSize(options.fontSize);
-  if (options?.color) doc.fillColor(options.color);
-  const h = doc.heightOfString(text, { width, lineGap: 1 });
-  doc.text(text, x, y, { width, lineGap: 1 });
-  return y + h + gapAfter;
-}
-
-function measureStackedLines(
-  doc: InstanceType<typeof PDFDocument>,
-  lines: string[],
-  width: number,
-  gapAfter: number,
-  fontSize = 8.5
-): number {
-  doc.font("Helvetica").fontSize(fontSize);
-  let h = 0;
-  for (const line of lines) {
-    h += doc.heightOfString(line, { width, lineGap: 1 }) + gapAfter;
-  }
-  return h;
+function bankingFooterLines(school: StatementPdfInput["school"]): string[] {
+  return splitNonEmptyLines(school.bankingDetails);
 }
 
 function sanitizeFilename(filename: string): string {
@@ -103,31 +63,39 @@ function sanitizeFilename(filename: string): string {
   return safe.endsWith(".pdf") ? safe : `${safe || "statement"}.pdf`;
 }
 
-import { buildStatementPdfFilename } from "../utils/statementPeriod";
-
 export function statementPdfFilename(accountNo: string, period?: string): string {
   return sanitizeFilename(buildStatementPdfFilename(accountNo, period || "All Time"));
 }
 
 type ColLayout = { headers: string[]; colWidths: number[] };
 
-function buildColumnLayout(contentW: number, isFamilyAccount: boolean): ColLayout {
-  if (isFamilyAccount) {
-    const fixed = [38, 34, 50, 44, 46, 46, 52];
-    const fixedSum = fixed.reduce((s, w) => s + w, 0);
-    const descW = Math.max(72, contentW - fixedSum);
-    return {
-      headers: ["Date", "Type", "Learner", "Reference", "Description", "Amount In", "Amount Out", "Running Balance"],
-      colWidths: [38, 34, 50, 44, descW, 46, 46, 52],
-    };
-  }
-  const fixed = [40, 32, 44, 46, 46, 52];
+function buildColumnLayout(contentW: number): ColLayout {
+  // Date | Type | Ref | Description | Amount | Balance
+  const fixed = [54, 68, 58, 60, 60];
   const fixedSum = fixed.reduce((s, w) => s + w, 0);
-  const descW = Math.max(80, contentW - fixedSum);
+  const descW = Math.max(110, contentW - fixedSum);
   return {
-    headers: ["Date", "Type", "Reference", "Description", "Amount In", "Amount Out", "Running Balance"],
-    colWidths: [40, 32, 44, descW, 46, 46, 52],
+    headers: ["Date", "Type", "Ref", "Description", "Amount", "Balance"],
+    colWidths: [54, 68, 58, descW, 60, 60],
   };
+}
+
+function drawStackedTextLine(
+  doc: InstanceType<typeof PDFDocument>,
+  text: string,
+  x: number,
+  y: number,
+  width: number,
+  gapAfter: number,
+  options?: { fontSize?: number; color?: string; bold?: boolean; align?: "left" | "right" }
+): number {
+  if (options?.bold) doc.font("Helvetica-Bold");
+  else doc.font("Helvetica");
+  if (options?.fontSize) doc.fontSize(options.fontSize);
+  if (options?.color) doc.fillColor(options.color);
+  const h = doc.heightOfString(text, { width, lineGap: 1, align: options?.align || "left" });
+  doc.text(text, x, y, { width, lineGap: 1, align: options?.align || "left" });
+  return y + h + gapAfter;
 }
 
 function drawTableHeader(
@@ -141,12 +109,12 @@ function drawTableHeader(
   doc.save();
   doc.rect(x0, y, totalW, TABLE_HEADER_H_PT).fill(TABLE_HEAD);
   doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(TABLE_FONT_SIZE);
-  let x = x0 + 3;
+  let x = x0 + 2;
   headers.forEach((label, i) => {
     const w = colWidths[i];
-    const alignRight = i >= headers.length - 3;
-    doc.text(label, alignRight ? x + w - 3 : x, y + 3.5, {
-      width: w - 6,
+    const alignRight = i >= headers.length - 2;
+    doc.text(label, x, y + 2.5, {
+      width: w - 4,
       align: alignRight ? "right" : "left",
       lineGap: 0,
     });
@@ -165,7 +133,7 @@ function measureRowHeight(
   let maxH = TABLE_ROW_MIN_PT;
   values.forEach((value, i) => {
     const w = Math.max(10, colWidths[i] - 6);
-    const h = doc.heightOfString(String(value || "—"), { width: w, lineGap: 0.5 });
+    const h = doc.heightOfString(String(value || ""), { width: w, lineGap: 0 });
     maxH = Math.max(maxH, h + TABLE_ROW_PAD_PT * 2);
   });
   return maxH;
@@ -178,7 +146,8 @@ function drawTableRow(
   x0: number,
   y: number,
   rowH: number,
-  shaded: boolean
+  shaded: boolean,
+  options?: { bold?: boolean }
 ) {
   const totalW = colWidths.reduce((s, w) => s + w, 0);
   if (shaded) {
@@ -186,83 +155,93 @@ function drawTableRow(
     doc.rect(x0, y, totalW, rowH).fill(ROW_ALT);
     doc.restore();
   }
-  doc.strokeColor(ROW_BORDER).moveTo(x0, y + rowH).lineTo(x0 + totalW, y + rowH).stroke();
-  doc.fillColor(INK).font("Helvetica").fontSize(TABLE_FONT_SIZE);
+  doc.strokeColor(ROW_BORDER).lineWidth(0.5).moveTo(x0, y + rowH).lineTo(x0 + totalW, y + rowH).stroke();
+  if (options?.bold) doc.font("Helvetica-Bold");
+  else doc.font("Helvetica");
+  doc.fillColor(INK).fontSize(TABLE_FONT_SIZE);
   let x = x0 + 3;
   values.forEach((value, i) => {
     const w = colWidths[i];
-    const alignRight = i >= values.length - 3;
+    const alignRight = i >= values.length - 2;
     const innerW = Math.max(10, w - 6);
-    doc.text(String(value || "—"), alignRight ? x + w - 3 - innerW : x, y + TABLE_ROW_PAD_PT, {
+    doc.text(String(value || ""), x, y + TABLE_ROW_PAD_PT, {
       width: innerW,
       align: alignRight ? "right" : "left",
-      lineGap: 0.5,
+      lineGap: 0,
     });
     x += w;
   });
 }
 
-function accountCardLines(input: StatementPdfInput): string[] {
-  const lines: string[] = [`Family account: ${input.accountLabel}`];
-  const showLearnersList = input.isFamilyAccount || input.children.length > 1;
-  if (showLearnersList) {
-    lines.push("All learners / siblings:");
-    for (const child of input.children) {
-      lines.push(`• ${child.name} — Grade ${child.grade}`);
+function transactionSortTime(row: StatementPdfTransaction): number {
+  const t = new Date(row.date || "").getTime();
+  return Number.isNaN(t) ? 0 : t;
+}
+
+type DisplayRow = {
+  date: string;
+  type: string;
+  reference: string;
+  description: string;
+  amount: number | null;
+  balance: number | null;
+  bold?: boolean;
+};
+
+/**
+ * Presentation-only display rows (Kid-e-Sys layout).
+ * Uses amounts/balances already produced by the production statement builder.
+ * Does not recalculate running or closing balances. Null builder balances stay blank.
+ */
+export function buildStatementDisplayRows(input: StatementPdfInput): DisplayRow[] {
+  const opening = normaliseStatementNumber(input.openingBalance ?? 0);
+  const chronological = [...(input.transactions || [])].sort((a, b) => {
+    const dt = transactionSortTime(a) - transactionSortTime(b);
+    if (dt !== 0) return dt;
+    return String(a.reference || "").localeCompare(String(b.reference || ""));
+  });
+
+  const rows: DisplayRow[] = [];
+  if (input.includeBroughtForward) {
+    rows.push({
+      date: "",
+      type: "",
+      reference: "",
+      description: input.broughtForwardLabel || "Balance Brought Forward",
+      amount: null,
+      balance: opening,
+      bold: true,
+    });
+  }
+
+  for (const row of chronological) {
+    const signed = signedStatementAmount(row.amountIn, row.amountOut);
+    if (row.balance === null || row.balance === undefined) {
+      rows.push({
+        date: row.date || "",
+        type: row.type || "",
+        reference: row.reference || "",
+        description: row.description || "",
+        amount: signed,
+        balance: null,
+      });
+      continue;
     }
-  } else if (input.children.length === 1) {
-    const child = input.children[0];
-    lines.push(`• ${child.name} — Grade ${child.grade}`);
+    rows.push({
+      date: row.date || "",
+      type: row.type || "",
+      reference: row.reference || "",
+      description: row.description || "",
+      amount: signed,
+      balance: normaliseStatementNumber(row.balance),
+    });
   }
-  return lines;
+  return rows;
 }
 
-function contactCardLines(input: StatementPdfInput): string[] {
-  const contactName = input.contact?.name || input.accountLabel;
-  const contactEmail = input.contact?.email || "—";
-  const contactCell = input.contact?.cellphone || "—";
-  const contactRel = input.contact?.relationship || "Parent";
-  const contactAccountNo = input.contact?.accountNo || input.accountNo || "—";
-  return [
-    `Parent/guardian: ${contactName}`,
-    `Email: ${contactEmail}`,
-    `Cell: ${contactCell}`,
-    `Relationship: ${contactRel}`,
-    `Account no: ${contactAccountNo}`,
-  ];
-}
-
-function measureCardHeight(
-  doc: InstanceType<typeof PDFDocument>,
-  lines: string[],
-  innerW: number
-): number {
-  doc.font("Helvetica-Bold").fontSize(7.5);
-  let h = CARD_PAD_PT + 8 + CARD_TITLE_GAP_PT;
-  h += measureStackedLines(doc, lines, innerW, CARD_LINE_GAP_PT, CARD_BODY_FONT_SIZE);
-  return h + CARD_PAD_PT;
-}
-
-function drawInfoCard(
-  doc: InstanceType<typeof PDFDocument>,
-  title: string,
-  lines: string[],
-  x: number,
-  y: number,
-  width: number,
-  height: number
-) {
-  doc.save();
-  doc.roundedRect(x, y, width, height, 4).fill(CARD_FILL).strokeColor(ROW_BORDER).stroke();
-  doc.restore();
-  doc.fillColor(INK).font("Helvetica-Bold").fontSize(7.5);
-  doc.text(title, x + CARD_PAD_PT, y + CARD_PAD_PT);
-  let lineY = y + CARD_PAD_PT + CARD_TITLE_GAP_PT;
-  doc.font("Helvetica").fontSize(CARD_BODY_FONT_SIZE).fillColor(INK);
-  const innerW = width - CARD_PAD_PT * 2;
-  for (const line of lines) {
-    lineY = drawStackedTextLine(doc, line, x + CARD_PAD_PT, lineY, innerW, CARD_LINE_GAP_PT);
-  }
+function measureFooterReserve(bankingLines: string[]): number {
+  const bankingBlock = bankingLines.length ? 10 + bankingLines.length * 9 + 6 : 8;
+  return Math.max(42, bankingBlock + 18);
 }
 
 type PageLayout = {
@@ -314,9 +293,9 @@ function finalizePdfDocument(doc: InstanceType<typeof PDFDocument>): Promise<Buf
 }
 
 /**
- * Draws one family statement into an existing PDFKit document.
- * Callers must position on a fresh page (first page of a new doc, or after addPage).
- * Pass a shared openImage() handle so bulk PDFs embed the school logo once.
+ * Draws one family statement into an existing PDFKit document (Kid-e-Sys layout).
+ * Callers must position on a fresh page. Pass a shared openImage() handle so bulk
+ * PDFs embed the school logo once (production performance path preserved).
  */
 export function drawStatementOntoDocument(
   doc: InstanceType<typeof PDFDocument>,
@@ -328,58 +307,53 @@ export function drawStatementOntoDocument(
     ? pageRangeBefore.start + pageRangeBefore.count - 1
     : 0;
 
+  const bankingLines = bankingFooterLines(input.school);
+  const footerReserve = measureFooterReserve(bankingLines);
+
   const layout: PageLayout = {
     pageW: doc.page.width,
     pageH: doc.page.height,
     margin: PAGE_MARGIN_PT,
     contentW: doc.page.width - PAGE_MARGIN_PT * 2,
-    bottomLimit: doc.page.height - PAGE_MARGIN_PT - FOOTER_RESERVE_PT,
+    bottomLimit: doc.page.height - PAGE_MARGIN_PT - footerReserve,
   };
 
-  const { headers, colWidths } = buildColumnLayout(layout.contentW, input.isFamilyAccount);
-  const leftW = layout.contentW * 0.55;
-  const rightW = layout.contentW - leftW - 8;
+  const { headers, colWidths } = buildColumnLayout(layout.contentW);
+  const leftW = layout.contentW * 0.58;
+  const rightW = layout.contentW - leftW - 10;
   const leftX = layout.margin;
-  const rightX = layout.margin + leftW + 8;
-  const topContentY = BRAND_TOTAL_H_PT + TOP_CONTENT_GAP_PT;
+  const rightX = layout.margin + leftW + 10;
 
-  let y = topContentY;
+  let y = layout.margin;
+  const firstPageIndexForFooter = startIndex;
 
   let logoImage: PdfKitImageHandle | null = opts?.logoImage ?? null;
   if (!logoImage && opts?.logoBuffer) {
     logoImage = openPdfKitImage(doc, opts.logoBuffer);
   }
 
-  const drawBrandBar = () => {
-    doc.save();
-    doc.rect(0, 0, layout.pageW, BRAND_BLACK_H_PT).fill(INK);
-    doc.rect(0, BRAND_BLACK_H_PT, layout.pageW, BRAND_GOLD_H_PT).fill(GOLD);
-    doc.restore();
-  };
-
-  const drawCompactContinuationHeader = () => {
-    const schoolName = String(input.school.name || "School").trim() || "School";
-    doc.fillColor(INK).font("Helvetica-Bold").fontSize(9);
-    doc.text(schoolName, leftX, y, { width: layout.contentW * 0.6 });
-    doc.text("STATEMENT (continued)", rightX, y, { width: rightW, align: "right" });
-    y += 12;
-    doc
-      .strokeColor(GOLD)
-      .lineWidth(0.75)
-      .moveTo(layout.margin, y)
-      .lineTo(layout.pageW - layout.margin, y)
-      .stroke();
-    y += 6;
+  const drawTableHead = () => {
     y = drawTableHeader(doc, headers, colWidths, layout.margin, y);
   };
 
+  const drawContinuationHeader = () => {
+    const schoolName = String(input.school.name || "School").trim() || "School";
+    doc.fillColor(INK).font("Helvetica-Bold").fontSize(10);
+    doc.text(schoolName, leftX, y, { width: layout.contentW * 0.55 });
+    doc.font("Helvetica").fontSize(9).fillColor(MUTED);
+    doc.text("Statement (continued)", rightX, y, { width: rightW, align: "right" });
+    y += 14;
+    doc.strokeColor(LINE).lineWidth(0.75).moveTo(layout.margin, y).lineTo(layout.pageW - layout.margin, y).stroke();
+    y += 8;
+    drawTableHead();
+  };
+
   const drawFullHeader = () => {
-    let leftY = topContentY;
-    let rightY = topContentY;
+    let leftY = layout.margin;
+    let rightY = layout.margin;
 
     if (logoImage || opts?.logoBuffer) {
       try {
-        // Prefer shared openImage handle; fall back to raw buffer when unavailable.
         doc.image((logoImage || opts?.logoBuffer) as Buffer, leftX, leftY, {
           fit: [STATEMENT_LOGO_MAX_PT, STATEMENT_LOGO_MAX_PT],
         });
@@ -390,169 +364,159 @@ export function drawStatementOntoDocument(
     }
 
     const schoolName = String(input.school.name || "School").trim() || "School";
-    doc.fillColor(INK).font("Helvetica-Bold").fontSize(SCHOOL_NAME_FONT_SIZE);
-    leftY = drawStackedTextLine(doc, schoolName, leftX, leftY, leftW, SCHOOL_NAME_LINE_GAP_PT, {
+    leftY = drawStackedTextLine(doc, schoolName, leftX, leftY, leftW, 4, {
       bold: true,
+      fontSize: SCHOOL_NAME_FONT_SIZE,
+      color: INK,
     });
 
     doc.font("Helvetica").fontSize(CONTACT_FONT_SIZE).fillColor(MUTED);
     for (const line of schoolHeaderContactLines(input.school)) {
-      leftY = drawStackedTextLine(doc, line, leftX, leftY, leftW, CONTACT_LINE_GAP_PT, {
+      rightY = drawStackedTextLine(doc, line, rightX, rightY, rightW, 2, {
+        fontSize: CONTACT_FONT_SIZE,
         color: MUTED,
+        align: "right",
       });
     }
 
-    doc.fillColor(INK).font("Helvetica-Bold").fontSize(STATEMENT_TITLE_FONT_SIZE);
-    doc.text("STATEMENT", rightX, rightY, { width: rightW, align: "right" });
-    rightY += 18;
+    y = Math.max(leftY, rightY) + 8;
+    doc.strokeColor(LINE).lineWidth(1).moveTo(layout.margin, y).lineTo(layout.pageW - layout.margin, y).stroke();
+    y += 10;
 
-    doc.font("Helvetica").fontSize(8).fillColor(MUTED);
-    doc.text(`Account number: ${input.accountNo}`, rightX, rightY, {
-      width: rightW,
-      align: "right",
+    y = drawStackedTextLine(doc, "Statement", layout.margin, y, layout.contentW, 8, {
+      bold: true,
+      fontSize: STATEMENT_TITLE_FONT_SIZE,
+      color: INK,
     });
-    rightY += 8;
-    doc.text(`Statement period: ${input.period}`, rightX, rightY, {
-      width: rightW,
-      align: "right",
-    });
-    rightY += 8;
-    doc.text(`Statement date: ${input.statementDate}`, rightX, rightY, {
-      width: rightW,
-      align: "right",
-    });
-    rightY += 8;
 
-    y = Math.max(leftY, rightY) + 6;
-    doc
-      .strokeColor(GOLD)
-      .lineWidth(0.85)
-      .moveTo(layout.margin, y)
-      .lineTo(layout.pageW - layout.margin, y)
-      .stroke();
+    const contactName = input.contact?.name || input.accountLabel || "—";
+    const metaLines: string[] = [
+      `Parent / Guardian: ${contactName}`,
+      `Account number: ${input.accountNo}`,
+      `Statement date: ${input.statementDate}`,
+      `Period: ${input.period}`,
+    ];
+    doc.font("Helvetica").fontSize(META_FONT_SIZE).fillColor(INK);
+    for (const line of metaLines) {
+      y = drawStackedTextLine(doc, line, layout.margin, y, layout.contentW, 3, {
+        fontSize: META_FONT_SIZE,
+        color: INK,
+      });
+    }
+    y += 4;
+
+    doc.fillColor(INK).font("Helvetica-Bold").fontSize(9);
+    doc.text("Learners", layout.margin, y);
+    y += 12;
+    doc.font("Helvetica").fontSize(8.5);
+    if (!input.children.length) {
+      doc.fillColor(MUTED).text("—", layout.margin, y);
+      y += 11;
+    } else {
+      for (const child of input.children) {
+        const line = `${child.name} — ${child.grade}`;
+        const h = doc.heightOfString(line, { width: layout.contentW, lineGap: 0.5 });
+        doc.fillColor(INK).text(line, layout.margin, y, { width: layout.contentW, lineGap: 0.5 });
+        y += h + 2;
+      }
+    }
+    y += 6;
+    doc.strokeColor(LINE).lineWidth(0.75).moveTo(layout.margin, y).lineTo(layout.pageW - layout.margin, y).stroke();
     y += 8;
   };
 
-  const ensureSpace = (needed: number, repeatTableHeader = true) => {
+  const ensureSpace = (needed: number) => {
     if (y + needed <= layout.bottomLimit) return;
     doc.addPage({ size: "A4", layout: "portrait", margin: 0 });
     y = layout.margin;
-    if (repeatTableHeader) {
-      drawCompactContinuationHeader();
-    }
+    drawContinuationHeader();
   };
 
-  drawBrandBar();
   drawFullHeader();
+  drawTableHead();
 
-  const boxGap = 8;
-  const boxW = (layout.contentW - boxGap) / 2;
-  const accountLines = accountCardLines(input);
-  const contactLines = contactCardLines(input);
-  const innerCardW = boxW - CARD_PAD_PT * 2;
-  const boxH = Math.max(
-    measureCardHeight(doc, accountLines, innerCardW),
-    measureCardHeight(doc, contactLines, innerCardW)
-  );
+  const displayRows = buildStatementDisplayRows(input);
 
-  ensureSpace(boxH + 8, false);
-  drawInfoCard(doc, "ACCOUNT", accountLines, layout.margin, y, boxW, boxH);
-  drawInfoCard(doc, "CONTACT", contactLines, layout.margin + boxW + boxGap, y, boxW, boxH);
-  y += boxH + 8;
-
-  y = drawTableHeader(doc, headers, colWidths, layout.margin, y);
-
-  const transactions = input.transactions || [];
-  if (!transactions.length) {
+  if (!displayRows.length) {
     ensureSpace(TABLE_ROW_MIN_PT + 4);
     const emptyH = TABLE_ROW_MIN_PT + 4;
     doc.strokeColor(ROW_BORDER).rect(layout.margin, y, layout.contentW, emptyH).stroke();
-    doc.fillColor(MUTED).font("Helvetica").fontSize(7.5);
+    doc.fillColor(MUTED).font("Helvetica").fontSize(8);
     doc.text("No transactions for the selected period.", layout.margin, y + 4, {
       width: layout.contentW,
       align: "center",
     });
     y += emptyH + 4;
   } else {
-    transactions.forEach((row, index) => {
-      const values = input.isFamilyAccount
-        ? [
-            row.date,
-            row.type,
-            row.learner || "—",
-            row.reference,
-            row.description,
-            row.amountIn ? formatMoney(row.amountIn) : "—",
-            row.amountOut ? formatMoney(row.amountOut) : "—",
-            formatBalance(row.balance),
-          ]
-        : [
-            row.date,
-            row.type,
-            row.reference,
-            row.description,
-            row.amountIn ? formatMoney(row.amountIn) : "—",
-            row.amountOut ? formatMoney(row.amountOut) : "—",
-            formatBalance(row.balance),
-          ];
-
+    displayRows.forEach((row, index) => {
+      const values = [
+        row.date,
+        row.type,
+        row.reference,
+        row.description,
+        formatStatementAmountCell(row.amount),
+        formatStatementBalanceCell(row.balance),
+      ];
       const rowH = measureRowHeight(doc, values, colWidths);
-      ensureSpace(rowH + 2);
-      drawTableRow(doc, values, colWidths, layout.margin, y, rowH, index % 2 === 1);
+      ensureSpace(rowH + 1);
+      drawTableRow(doc, values, colWidths, layout.margin, y, rowH, index % 2 === 1, {
+        bold: Boolean(row.bold),
+      });
       y += rowH;
     });
   }
 
-  const closingCardH = 28;
-  const closingGap = 8;
-  ensureSpace(closingCardH + closingGap + 12, false);
-
-  y += closingGap;
-  const totalW = Math.min(180, layout.contentW * 0.42);
-  const totalX = layout.pageW - layout.margin - totalW;
-  doc.save();
-  doc
-    .roundedRect(totalX, y, totalW, closingCardH, 3)
-    .fill("#fff8e6")
-    .strokeColor(GOLD)
-    .lineWidth(1)
-    .stroke();
-  doc.restore();
-  doc.fillColor(INK).font("Helvetica-Bold").fontSize(8.5);
-  doc.text("Closing balance", totalX + 8, y + 9);
-  doc.font("Helvetica-Bold").fontSize(10).fillColor("#991b1b");
-  doc.text(formatMoney(input.balance), totalX + 8, y + 9, {
-    width: totalW - 16,
+  const closingH = 22;
+  ensureSpace(closingH + 14);
+  y += 8;
+  doc.strokeColor(LINE).lineWidth(1).moveTo(layout.margin, y).lineTo(layout.pageW - layout.margin, y).stroke();
+  y += 8;
+  doc.fillColor(INK).font("Helvetica-Bold").fontSize(11);
+  doc.text("Closing Balance", layout.margin, y, { width: layout.contentW * 0.55 });
+  doc.text(formatStatementSignedMoney(input.balance), layout.margin, y, {
+    width: layout.contentW,
     align: "right",
   });
-  y += closingCardH + 8;
+  y += 16;
 
   if (input.statementNote) {
-    ensureSpace(24, false);
-    doc.fillColor(INK).font("Helvetica").fontSize(8);
-    const noteH = doc.heightOfString(input.statementNote, {
-      width: layout.contentW,
-      lineGap: 0.5,
-    });
-    doc.text(input.statementNote, layout.margin, y, {
-      width: layout.contentW,
-      lineGap: 0.5,
-    });
-    y += noteH + 8;
+    ensureSpace(28);
+    doc.fillColor(MUTED).font("Helvetica").fontSize(8);
+    const noteH = doc.heightOfString(input.statementNote, { width: layout.contentW, lineGap: 0.5 });
+    doc.text(input.statementNote, layout.margin, y, { width: layout.contentW, lineGap: 0.5 });
+    y += noteH + 6;
   }
 
-  doc.fillColor(MUTED).font("Helvetica").fontSize(7);
-  doc.text(
-    `Statement generated for ${input.school.name || "School"} via EduClear.`,
-    layout.margin,
-    layout.pageH - layout.margin - 6,
-    { width: layout.contentW, align: "center" }
-  );
-
+  // Stamp banking details + Page X / Y on every page of this statement.
   const pageRangeAfter = typeof doc.bufferedPageRange === "function" ? doc.bufferedPageRange() : null;
   const endIndex = pageRangeAfter
     ? pageRangeAfter.start + pageRangeAfter.count - 1
     : startIndex;
+  const pageCount = endIndex - firstPageIndexForFooter + 1;
+  for (let i = 0; i < pageCount; i += 1) {
+    doc.switchToPage(firstPageIndexForFooter + i);
+    const footerTop = layout.pageH - PAGE_MARGIN_PT - footerReserve + 4;
+    doc.save();
+    doc.strokeColor(LINE).lineWidth(0.75).moveTo(layout.margin, footerTop).lineTo(layout.pageW - layout.margin, footerTop).stroke();
+    let fy = footerTop + 6;
+    if (bankingLines.length) {
+      doc.fillColor(INK).font("Helvetica-Bold").fontSize(FOOTER_BANKING_FONT);
+      doc.text("Banking details", layout.margin, fy, { width: layout.contentW * 0.7 });
+      fy += 10;
+      doc.font("Helvetica").fontSize(FOOTER_BANKING_FONT).fillColor(MUTED);
+      for (const line of bankingLines) {
+        doc.text(line, layout.margin, fy, { width: layout.contentW * 0.72 });
+        fy += 9;
+      }
+    }
+    doc.fillColor(MUTED).font("Helvetica").fontSize(FOOTER_PAGE_FONT);
+    doc.text(`Page ${i + 1} / ${pageCount}`, layout.margin, layout.pageH - PAGE_MARGIN_PT - 4, {
+      width: layout.contentW,
+      align: "right",
+    });
+    doc.restore();
+  }
+
   return { startPageIndex: startIndex, endPageIndex: endIndex };
 }
 
@@ -563,7 +527,13 @@ export async function generateStatementPdfBuffer(
   input: StatementPdfInput,
   opts?: { logoBuffer?: Buffer | null }
 ): Promise<Buffer> {
-  const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 0, autoFirstPage: true, bufferPages: true });
+  const doc = new PDFDocument({
+    size: "A4",
+    layout: "portrait",
+    margin: 0,
+    autoFirstPage: true,
+    bufferPages: true,
+  });
 
   const logoBuf =
     opts && "logoBuffer" in opts
@@ -571,7 +541,6 @@ export async function generateStatementPdfBuffer(
       : await loadSchoolLogoBuffer(input.school.logoUrl);
 
   const logoImage = logoBuf ? openPdfKitImage(doc, logoBuf) : null;
-
   drawStatementOntoDocument(doc, input, { logoImage, logoBuffer: logoBuf });
   return finalizePdfDocument(doc);
 }
@@ -579,6 +548,7 @@ export async function generateStatementPdfBuffer(
 /**
  * Single-pass combined statements PDF — one PDFKit document, shared logo/fonts.
  * Each family statement starts on a new page. No per-family merge.
+ * Preserves production bulk PDF performance path.
  */
 export async function generateCombinedStatementsPdfBuffer(
   inputs: StatementPdfInput[],

@@ -413,6 +413,7 @@ async function loadSchoolBranding(schoolId: string) {
       address: true,
       postalAddress: true,
       logoUrl: true,
+      bankingDetails: true,
     },
   });
   return {
@@ -423,6 +424,7 @@ async function loadSchoolBranding(schoolId: string) {
     address: String(school?.address || "").trim() || undefined,
     postalAddress: String(school?.postalAddress || "").trim() || undefined,
     logoUrl: String(school?.logoUrl || "").trim() || undefined,
+    bankingDetails: String(school?.bankingDetails || "").trim() || undefined,
   };
 }
 
@@ -560,6 +562,9 @@ export async function buildStatementPdfInput(
     kidesysHistory: options.sharedKidesysHistory,
   });
 
+  // Presentation-only: selected-period statements may show existing openingBalance as BBF.
+  const includeBroughtForward = period !== "All Time";
+
   return {
     school,
     accountNo: scope.accountRef || "—",
@@ -575,6 +580,8 @@ export async function buildStatementPdfInput(
     transactions,
     statementNote: options.statementNote,
     isFamilyAccount: scope.isFamilyAccount,
+    openingBalance,
+    includeBroughtForward,
   };
 }
 

@@ -1,6 +1,8 @@
 import type { BillingInvoiceChargeLine, BillingLedgerEntry } from "../utils/billingLedgerStore";
 import type { KidesysHistoryEntry } from "../utils/kidesysTransactionHistoryStore";
 
+export type StatementPdfTransactionSection = "historical" | "brought-forward" | "active";
+
 export type StatementPdfTransaction = {
   date: string;
   type: string;
@@ -12,6 +14,8 @@ export type StatementPdfTransaction = {
   learner?: string;
   /** Present only when the ledger invoice stored an immutable charge-line snapshot. */
   chargeLines?: BillingInvoiceChargeLine[];
+  /** Optional section marker; unused by the presentation-only PDF path. */
+  statementSection?: StatementPdfTransactionSection;
 };
 
 export type StatementPdfContact = {
@@ -30,6 +34,8 @@ export type StatementPdfSchoolBranding = {
   address?: string;
   postalAddress?: string;
   logoUrl?: string;
+  /** Freeform school banking / payment instructions (footer). */
+  bankingDetails?: string;
 };
 
 export type StatementPdfInput = {
@@ -44,6 +50,15 @@ export type StatementPdfInput = {
   transactions: StatementPdfTransaction[];
   statementNote?: string;
   isFamilyAccount: boolean;
+  /**
+   * Existing period opening from computeStatementOpeningBalance (presentation passthrough).
+   * Displayed as Balance Brought Forward when includeBroughtForward is true.
+   */
+  openingBalance?: number;
+  /** When true, render a BBF display row for selected (non–All Time) periods. */
+  includeBroughtForward?: boolean;
+  /** Label for the brought-forward display row. */
+  broughtForwardLabel?: string;
 };
 
 /**
