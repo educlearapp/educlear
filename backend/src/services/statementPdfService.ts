@@ -193,9 +193,25 @@ type DisplayRow = {
  * Uses amounts/balances already produced by the production statement builder.
  * Does not recalculate running or closing balances. Null builder balances stay blank.
  */
+function statementSectionOrder(
+  section: StatementPdfTransaction["statementSection"] | undefined
+): number {
+  if (section === "historical") return 0;
+  if (section === "brought-forward") return 1;
+  if (section === "active") return 2;
+  // Legacy rows without section keep date-only ordering (same bucket).
+  return 1;
+}
+
 export function buildStatementDisplayRows(input: StatementPdfInput): DisplayRow[] {
   const opening = normaliseStatementNumber(input.openingBalance ?? 0);
   const chronological = [...(input.transactions || [])].sort((a, b) => {
+    const sectionDelta =
+      statementSectionOrder(a.statementSection) - statementSectionOrder(b.statementSection);
+    if (sectionDelta !== 0) return sectionDelta;
+    if (a.chronoSeq != null && b.chronoSeq != null && a.chronoSeq !== b.chronoSeq) {
+      return a.chronoSeq - b.chronoSeq;
+    }
     const dt = transactionSortTime(a) - transactionSortTime(b);
     if (dt !== 0) return dt;
     return String(a.reference || "").localeCompare(String(b.reference || ""));
@@ -216,6 +232,7 @@ export function buildStatementDisplayRows(input: StatementPdfInput): DisplayRow[
 
   for (const row of chronological) {
     const signed = signedStatementAmount(row.amountIn, row.amountOut);
+    const isBroughtForward = row.statementSection === "brought-forward";
     if (row.balance === null || row.balance === undefined) {
       rows.push({
         date: row.date || "",
@@ -224,6 +241,7 @@ export function buildStatementDisplayRows(input: StatementPdfInput): DisplayRow[
         description: row.description || "",
         amount: signed,
         balance: null,
+        ...(isBroughtForward ? { bold: true } : {}),
       });
       continue;
     }
@@ -234,6 +252,7 @@ export function buildStatementDisplayRows(input: StatementPdfInput): DisplayRow[
       description: row.description || "",
       amount: signed,
       balance: normaliseStatementNumber(row.balance),
+      ...(isBroughtForward ? { bold: true } : {}),
     });
   }
   return rows;

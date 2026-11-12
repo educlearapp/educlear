@@ -1,5 +1,6 @@
 import { relinkSchoolBillingLedger } from "./billingLedgerRelink";
 import { resolveBillingAccountRef } from "./resolveBillingAccountRef";
+import { normaliseEduClearAccountNo } from "./familyAccountNumber";
 import { resolveAccountStatementScope } from "./statementPdfData";
 import {
   buildStatementManageTransactions,
@@ -15,6 +16,8 @@ import {
   formatStatementPeriodHeaderLabel,
   normalizeStatementPeriod,
 } from "../utils/statementPeriod";
+import { readSchoolFamilyAccountAgeAnalysisSnapshots } from "../utils/familyAccountAgeAnalysisStore";
+import { computeAgeBaselineStatementOpening } from "./statementAgeBaseline";
 
 export type BuildAccountStatementTransactionsOptions = {
   schoolId: string;
@@ -86,9 +89,27 @@ export async function buildAccountStatementTransactions(
   const ledger = readSchoolLedger(schoolId);
   const scopedEntries = collectAccountRefLedgerEntries(ledger, accountRef);
   const periodFilteredEntries = filterLedgerByStatementPeriod(scopedEntries, period);
-  const openingBalance = computeStatementOpeningBalance(scopedEntries, period, {
-    showCorrectionsAudit,
-  });
+
+  const ageSnaps = readSchoolFamilyAccountAgeAnalysisSnapshots(schoolId);
+  const ageKey = String(accountRef || "").trim();
+  const ageSnap =
+    ageSnaps[ageKey.toUpperCase()] ||
+    ageSnaps[ageKey] ||
+    ageSnaps[normaliseEduClearAccountNo(ageKey) || ""];
+  const ageAnalysisBaseline = ageSnap
+    ? {
+        balance: Number(ageSnap.balance) || 0,
+        importedAt: String(ageSnap.importedAt || "").trim(),
+      }
+    : undefined;
+
+  const openingBalance = ageAnalysisBaseline
+    ? computeAgeBaselineStatementOpening(ageAnalysisBaseline, scopedEntries, period, {
+        showCorrectionsAudit,
+      })
+    : computeStatementOpeningBalance(scopedEntries, period, {
+        showCorrectionsAudit,
+      });
 
   const transactions = buildStatementManageTransactions({
     schoolId,
@@ -99,6 +120,7 @@ export async function buildAccountStatementTransactions(
     openingBalance,
     nameByLearnerId,
     showCorrectionsAudit,
+    ...(ageAnalysisBaseline ? { ageAnalysisBaseline } : {}),
   });
 
   return {

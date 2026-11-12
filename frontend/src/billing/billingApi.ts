@@ -181,6 +181,8 @@ export type StatementAccountTransactionRow = {
   balance: number | null;
   isKidesysHistory: boolean;
   isOpeningBalance: boolean;
+  /** Display-only Age Analysis BBF at migration boundary (not a ledger posting). */
+  isMigrationBroughtForward?: boolean;
   canUndo: boolean;
   undoBlockedReason?: string;
   entryType?: string;

@@ -1,0 +1,36 @@
+{
+  "sil007": {
+    "age": -45600,
+    "importedHistoryNet": 12000,
+    "importedHistoryLastDate": "2026-05-15",
+    "importedHistoryCount": 52,
+    "residual": -57600,
+    "ownerOriginalStatementEnd": {
+      "date": "2026-08-18",
+      "balance": -9000,
+      "source": "owner-reviewed Kid-e-Sys PDF"
+    },
+    "segmentNets": {
+      "may15_importEnd_to_aug18_originalEnd": -21000,
+      "aug18_to_age": -36600,
+      "sumEqualsResidual": true
+    },
+    "productionUiReconstruction": {
+      "summary": -3000,
+      "impliedLiveDelta": 42600,
+      "impliedLastRunningCurrentMethod": 54600
+    },
+    "b1": {
+      "openingDisplayOnly": -45600,
+      "lastRunning": -3000,
+      "reconcilesToSummary": true
+    }
+  },
+  "fleetOct26": {
+    "ageAccounts": 344,
+    "b1Reconciles": 344,
+    "nonzeroCurrentGaps": 210
+  },
+  "existingUndeployedDesign": "backend/src/services/statementAgeBaseline.ts (NOT wired to production)",
+  "originalPdfOnDisk": null
+}

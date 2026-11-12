@@ -1,0 +1,20 @@
+{
+  "source": "render CLI read-only",
+  "backend": {
+    "serviceId": "srv-d6j8jvma2pns7397bghg",
+    "liveCommit": "de5bac189b7860c026007fddc5d5cfd28ecac125",
+    "deployId": "dep-dbqom1rrjlhs73a174dg",
+    "autoDeploy": "no"
+  },
+  "frontend": {
+    "serviceId": "srv-d6j8svruibrs73age3d0",
+    "liveCommit": "70b6740504af1b4dc38459aac6f4f33b94c653d8",
+    "deployId": "dep-dbqp40m7bikc73aok370",
+    "autoDeploy": "no"
+  },
+  "rollback": {
+    "pairPreB1": "de5bac189b7860c026007fddc5d5cfd28ecac125",
+    "note": "FE live 70b6740 is child of BE live de5bac1"
+  },
+  "deployed": false
+}

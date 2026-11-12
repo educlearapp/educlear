@@ -760,6 +760,7 @@ export default function StatementManage({
     balance: number | null;
     isKidesysHistory: boolean;
     isOpeningBalance: boolean;
+    isMigrationBroughtForward?: boolean;
     canUndo: boolean;
     undoBlockedReason?: string;
     entryType?: string;
@@ -774,13 +775,15 @@ export default function StatementManage({
 
   const transactions = accountTransactions as TransactionDisplayRow[];
 
+  // Legacy ledger opening-balance rows stay pinned; migration BBF stays in chronological stream
+  // (newest-first: live → BBF → history) so the Age Analysis boundary remains visible.
   const openingBalanceRows = useMemo(
-    () => transactions.filter((row) => row.isOpeningBalance),
+    () => transactions.filter((row) => row.isOpeningBalance && !row.isMigrationBroughtForward),
     [transactions]
   );
 
   const pageableTransactions = useMemo(
-    () => transactions.filter((row) => !row.isOpeningBalance),
+    () => transactions.filter((row) => !row.isOpeningBalance || Boolean(row.isMigrationBroughtForward)),
     [transactions]
   );
 
@@ -1614,7 +1617,9 @@ export default function StatementManage({
   const renderTransactionRow = (row: TransactionDisplayRow) => {
     const isSelected = selectedTransactionKey === row.key;
     const signedAmount = signedTransactionAmount(row.amountIn, row.amountOut);
-    const amountLabel = formatStatementTableMoney(signedAmount);
+    const amountLabel = row.isMigrationBroughtForward
+      ? "—"
+      : formatStatementTableMoney(signedAmount);
     const balanceLabel = row.balance === null || row.balance === undefined
       ? "—"
       : formatStatementTableMoney(row.balance);
@@ -1629,6 +1634,8 @@ export default function StatementManage({
         cursor: "pointer",
         background: isSelected
           ? "rgba(212,175,55,0.28)"
+          : row.isMigrationBroughtForward
+            ? "rgba(212,175,55,0.18)"
           : row.isKidesysHistory || row.isImportedHistory
             ? "rgba(212,175,55,0.08)"
             : row.isOpeningBalance

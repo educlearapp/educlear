@@ -1,0 +1,49 @@
+{
+  "status": "LOCAL_VERIFY_ONLY_NO_DEPLOY",
+  "snapshot": {
+    "ledger": "billing-ledger-production-backup-2026-10-26T07-40-16Z-pre-d71309c.json",
+    "age": "family-account-age-analysis.json",
+    "note": "Nov figures via in-memory overlays only — not an authorised November production freeze."
+  },
+  "fleet": {
+    "accounts": 344,
+    "reconcileOk": 344,
+    "failCount": 0,
+    "failSample": []
+  },
+  "sil007": {
+    "auth": -3000,
+    "closingHelper": -3000,
+    "openingBbf": -45600,
+    "manageLastRunning": -3000,
+    "pdfLastRunning": -3000,
+    "displayLastBalance": -3000,
+    "macPdfFingerprintMatch": true,
+    "manageRowCount": 67,
+    "pdfRowCount": 67,
+    "target": -3000,
+    "matchesTarget": true
+  },
+  "wol001": {
+    "auth": 3190.7,
+    "closingHelper": 3190.7,
+    "openingBbf": 3670,
+    "manageLastRunning": 3190.7,
+    "pdfLastRunning": 3190.7,
+    "displayLastBalance": 3190.7,
+    "macPdfFingerprintMatch": true,
+    "manageRowCount": 116,
+    "pdfRowCount": 116,
+    "target": 3190.7,
+    "matchesTarget": true
+  },
+  "pdfSamples": {
+    "sil007": "/private/tmp/educlear-wt-stmt-on-live/docs/verification/statement-manage-transactions-table/unified-b1-local/SIL007-unified-b1-all-time.pdf",
+    "wol001": "/private/tmp/educlear-wt-stmt-on-live/docs/verification/statement-manage-transactions-table/unified-b1-local/WOL001-unified-b1-all-time.pdf"
+  },
+  "architecture": {
+    "sharedSource": "buildStatementManageTransactionsWithAgeBaseline",
+    "pdfDelegatesVia": "buildStatementTransactions → buildStatementManageTransactions when ageAnalysisBaseline set",
+    "pdfInputWiring": "statementPdfData.buildStatementPdfInput passes ageAnalysisBaseline + full scoped ledger"
+  }
+}

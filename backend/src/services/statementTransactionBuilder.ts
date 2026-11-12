@@ -27,10 +27,20 @@ import {
 } from "../utils/kidesysTransactionHistoryStore";
 import {
   filterKidesysHistoryByStatementPeriod,
+  filterLedgerByStatementPeriod,
+  normalizeStatementPeriod,
   shouldShowOpeningBalanceMigration,
 } from "../utils/statementPeriod";
 import { formatInvoiceChargeLinesBreakdown } from "./invoiceChargeLines";
 import type { StatementPdfTransaction } from "./statementPdfTypes";
+import {
+  computeAgeBaselineStatementOpening,
+  MIGRATION_BROUGHT_FORWARD_LABEL,
+  PERIOD_BROUGHT_FORWARD_LABEL,
+  partitionLedgerByAgeBaseline,
+  type AgeAnalysisBaselineRef,
+} from "./statementAgeBaseline";
+import { roundStatementMoney } from "./statementAccounts";
 
 export type StatementManageTransactionRow = {
   key: string;
@@ -47,6 +57,8 @@ export type StatementManageTransactionRow = {
   balance: number | null;
   isKidesysHistory: boolean;
   isOpeningBalance: boolean;
+  /** Display-only Age Analysis BBF at migration boundary (not a ledger posting). */
+  isMigrationBroughtForward?: boolean;
   canUndo: boolean;
   /** Why undo is unavailable (empty when canUndo). */
   undoBlockedReason?: string;
@@ -62,6 +74,10 @@ export type StatementManageTransactionRow = {
   recordedLabel?: "Captured" | "Imported";
   /** Immutable invoice fee breakdown when present on the ledger entry. */
   chargeLines?: BillingInvoiceChargeLine[];
+  /** Display-only Age Analysis BBF row (not a ledger posting). */
+  isMigrationBroughtForward?: boolean;
+  /** Chronological build sequence — PDF/display tie-break; not shown in UI. */
+  chronoSeq?: number;
 };
 
 function recordedDateFor(entry: BillingLedgerEntry): { recordedDate?: string; recordedLabel?: "Captured" | "Imported" } {
@@ -116,6 +132,12 @@ type BuildStatementTransactionsInput = {
   showCorrectionsAudit?: boolean;
   /** Optional preloaded Kid-e-Sys history for the school (bulk PDF reuse). */
   kidesysHistory?: import("../utils/kidesysTransactionHistoryStore").KidesysHistoryEntry[];
+  /**
+   * When set (Kid-e-Sys Age Analysis account), use B1 running-balance assembly:
+   * historical imported rows keep reconstructed running balances; labelled BBF = age baseline;
+   * live EduClear postings advance from that baseline to the authoritative Summary.
+   */
+  ageAnalysisBaseline?: { balance: number; importedAt: string };
 };
 
 function resolveEntryLearnerLabel(
@@ -160,10 +182,36 @@ function formatPdfDescription(entry: BillingLedgerEntry): string {
 
 /**
  * Builds statement transaction rows matching StatementManage (posting ledger + Kid-e-Sys history).
+ * When `ageAnalysisBaseline` is set, delegates to the same clarified B1 Manage builder so
+ * Mac/browser and PDF (individual / bulk / email) share identical amounts and running balances.
  */
 export function buildStatementTransactions(
   input: BuildStatementTransactionsInput
 ): StatementPdfTransaction[] {
+  if (input.ageAnalysisBaseline) {
+    const manageRows = buildStatementManageTransactions({
+      ...input,
+      periodFilteredEntries: input.ledgerEntries,
+    });
+    return manageRows.map((row) => ({
+      date: row.date,
+      type: row.type,
+      reference: row.reference || "—",
+      description: row.description || "—",
+      amountIn: row.amountIn,
+      amountOut: row.amountOut,
+      balance: row.balance,
+      learner: row.learner || undefined,
+      ...(row.chargeLines ? { chargeLines: row.chargeLines } : {}),
+      ...(row.chronoSeq != null ? { chronoSeq: row.chronoSeq } : {}),
+      statementSection: row.isMigrationBroughtForward
+        ? ("brought-forward" as const)
+        : row.isImportedHistory || row.isKidesysHistory
+          ? ("historical" as const)
+          : ("active" as const),
+    }));
+  }
+
   const { schoolId, accountRef, ledgerEntries, period, nameByLearnerId } = input;
   const showCorrectionsAudit = Boolean(input.showCorrectionsAudit);
   const openingBalance = normaliseAmount(input.openingBalance ?? 0);
@@ -258,12 +306,243 @@ type BuildStatementManageTransactionsInput = BuildStatementTransactionsInput & {
   periodFilteredEntries: BillingLedgerEntry[];
 };
 
+function signedEntryAmount(entry: BillingLedgerEntry): number {
+  const amount = normaliseAmount(entry.amount);
+  return entry.type === "invoice" || entry.type === "penalty" ? amount : -amount;
+}
+
+function entrySortTime(entry: BillingLedgerEntry): number {
+  const t = new Date(entry.date || entry.createdAt).getTime();
+  return Number.isNaN(t) ? 0 : t;
+}
+
+/**
+ * Clarified B1 Manage assembly (local / approved for testing):
+ * - Imported history/top-up: chronological running from 0 (reconstructed within imported set).
+ * - Display-only BBF = Age Analysis baseline at the migration boundary.
+ * - Live EduClear postings advance from that baseline → last running = Summary.
+ */
+function buildStatementManageTransactionsWithAgeBaseline(
+  input: BuildStatementManageTransactionsInput,
+  baseline: AgeAnalysisBaselineRef
+): StatementManageTransactionRow[] {
+  const { schoolId, accountRef, ledgerEntries, period, nameByLearnerId } = input;
+  const showCorrectionsAudit = Boolean(input.showCorrectionsAudit);
+  const normalizedPeriod = normalizeStatementPeriod(period);
+
+  const { baselineIncluded, livePosting } = partitionLedgerByAgeBaseline(
+    ledgerEntries,
+    baseline.importedAt,
+    { showCorrectionsAudit }
+  );
+
+  const historicalEntries = [...baselineIncluded]
+    .filter((entry) => {
+      if (!shouldShowOpeningBalanceMigration(normalizedPeriod, entry) && isKidesysOpeningBalanceEntry(entry)) {
+        return false;
+      }
+      return true;
+    })
+    .sort((a, b) => entrySortTime(a) - entrySortTime(b));
+
+  type DisplayRow = StatementManageTransactionRow & { sortTime: number; chronoSeq: number };
+  const historicalRows: DisplayRow[] = [];
+  let histRunning = 0;
+  historicalEntries.forEach((entry, index) => {
+    const amount = normaliseAmount(entry.amount);
+    const isDebit = entry.type === "invoice" || entry.type === "penalty";
+    histRunning = roundStatementMoney(histRunning + (isDebit ? amount : -amount));
+    const typeLabel = formatLedgerTypeLabel(entry);
+    const sortTime = entrySortTime(entry);
+    const chargeLines = snapshotChargeLines(entry);
+    historicalRows.push({
+      key: `hist-${entry.id}`,
+      ledgerEntryId: entry.id,
+      auditNo: index + 1,
+      date: entry.date || "-",
+      type: formatStatementManageTypeLabel(entry),
+      method: entry.type === "payment" ? String(entry.method || "").trim() || "—" : "—",
+      learner: resolveEntryLearnerLabel(entry, nameByLearnerId, accountRef),
+      reference: formatLedgerReferenceDisplay(entry),
+      description: formatLedgerDescriptionDisplay(entry),
+      amountIn: isDebit ? amount : 0,
+      amountOut: !isDebit ? amount : 0,
+      balance: histRunning,
+      isKidesysHistory: false,
+      isOpeningBalance: false,
+      canUndo: false,
+      undoBlockedReason:
+        "Imported Kid-e-Sys history is a record only. It does not affect the Age Analysis balance and cannot be undone.",
+      entryType: entry.type,
+      isImportedHistory: true,
+      isUndone: isUndoneLedgerEntry(entry),
+      sourceLabel: describeLedgerEntrySource(entry),
+      ...recordedDateFor(entry),
+      ...(chargeLines ? { chargeLines } : {}),
+      sortTime,
+      chronoSeq: index,
+    });
+  });
+
+  // History-store twins not shown as ledger copies: append with continued reconstructed running.
+  const shownLedgerEntries = [...historicalEntries];
+  const kidesysSource =
+    input.kidesysHistory != null ? input.kidesysHistory : readSchoolKidesysHistory(schoolId);
+  const leftoverHistory = withoutHistoryShownByLedgerCopy(
+    filterKidesysHistoryByStatementPeriod(
+      filterHistoryForAccount(kidesysSource, accountRef),
+      normalizedPeriod
+    ),
+    shownLedgerEntries
+  ).sort((a, b) => new Date(a.date || "").getTime() - new Date(b.date || "").getTime());
+
+  leftoverHistory.forEach((entry) => {
+    const amount = normaliseAmount(entry.amount);
+    const isDebit = entry.type === "invoice";
+    histRunning = roundStatementMoney(histRunning + (isDebit ? amount : -amount));
+    const sortTime = new Date(entry.date || "").getTime();
+    const chronoSeq = historicalRows.length;
+    historicalRows.push({
+      key: `kidesys-${entry.id}`,
+      auditNo: "—",
+      date: entry.date || "-",
+      type: formatKidesysHistoryTypeLabel(entry.type),
+      method: "—",
+      learner: entry.fullName || "—",
+      reference: formatKidesysHistoryReferenceDisplay(entry),
+      description: formatKidesysHistoryDescriptionDisplay(entry),
+      amountIn: isDebit ? amount : 0,
+      amountOut: !isDebit ? amount : 0,
+      balance: histRunning,
+      isKidesysHistory: true,
+      isOpeningBalance: false,
+      canUndo: false,
+      undoBlockedReason:
+        "Imported Kid-e-Sys history is a record only. It does not affect the Age Analysis balance and cannot be undone.",
+      entryType: entry.type,
+      isImportedHistory: true,
+      sourceLabel: "Kid-e-Sys import (historical record)",
+      sortTime: Number.isNaN(sortTime) ? 0 : sortTime,
+      chronoSeq,
+    });
+  });
+
+  const bbfBalance = computeAgeBaselineStatementOpening(
+    baseline,
+    ledgerEntries,
+    normalizedPeriod,
+    { showCorrectionsAudit }
+  );
+  const maxHistTime = historicalRows.reduce((m, r) => Math.max(m, r.sortTime), 0);
+  const liveInPeriod = filterLedgerByStatementPeriod(livePosting, normalizedPeriod).filter((entry) => {
+    if (!shouldShowOpeningBalanceMigration(normalizedPeriod, entry) && isKidesysOpeningBalanceEntry(entry)) {
+      return false;
+    }
+    return true;
+  });
+  const minLiveTime = liveInPeriod.length
+    ? Math.min(...liveInPeriod.map(entrySortTime))
+    : maxHistTime + 2;
+  const bbfSortTime =
+    historicalRows.length && liveInPeriod.length
+      ? (maxHistTime + minLiveTime) / 2
+      : historicalRows.length
+        ? maxHistTime + 1
+        : minLiveTime - 1;
+
+  const bbfLabel =
+    normalizedPeriod === "All Time" ? MIGRATION_BROUGHT_FORWARD_LABEL : PERIOD_BROUGHT_FORWARD_LABEL;
+
+  const bbfRow: DisplayRow = {
+    key: `bbf-age-${accountRef}`,
+    auditNo: "—",
+    date: "—",
+    type: "Balance brought forward",
+    method: "—",
+    learner: "—",
+    reference: "BBF",
+    description: `${bbfLabel} (Age Analysis)`,
+    amountIn: 0,
+    amountOut: 0,
+    balance: bbfBalance,
+    isKidesysHistory: false,
+    isOpeningBalance: true,
+    isMigrationBroughtForward: true,
+    canUndo: false,
+    undoBlockedReason: "Display-only Age Analysis baseline — not a ledger posting.",
+    entryType: undefined,
+    isImportedHistory: false,
+    sourceLabel: "Age Analysis baseline (display only)",
+    sortTime: bbfSortTime,
+    chronoSeq: historicalRows.length,
+  };
+
+  const liveRows: DisplayRow[] = [];
+  let liveRunning = bbfBalance;
+  [...liveInPeriod].sort((a, b) => entrySortTime(a) - entrySortTime(b)).forEach((entry, index) => {
+    const amount = normaliseAmount(entry.amount);
+    const isDebit = entry.type === "invoice" || entry.type === "penalty";
+    liveRunning = roundStatementMoney(liveRunning + (isDebit ? amount : -amount));
+    const typeLabel = formatLedgerTypeLabel(entry);
+    const undoBlockedReason = statementUndoBlockedReason(entry, typeLabel);
+    const canUndo =
+      canUndoStatementPostingEntry(entry, typeLabel) &&
+      !isUndoneLedgerEntry(entry) &&
+      !isEduClearUndoCorrectionEntry(entry) &&
+      !undoBlockedReason;
+    const chargeLines = snapshotChargeLines(entry);
+    liveRows.push({
+      key: `live-${entry.id}`,
+      ledgerEntryId: entry.id,
+      auditNo: index + 1,
+      date: entry.date || "-",
+      type: formatStatementManageTypeLabel(entry),
+      method: entry.type === "payment" ? String(entry.method || "").trim() || "—" : "—",
+      learner: resolveEntryLearnerLabel(entry, nameByLearnerId, accountRef),
+      reference: formatLedgerReferenceDisplay(entry),
+      description: formatLedgerDescriptionDisplay(entry),
+      amountIn: isDebit ? amount : 0,
+      amountOut: !isDebit ? amount : 0,
+      balance: liveRunning,
+      isKidesysHistory: false,
+      isOpeningBalance: false,
+      canUndo,
+      undoBlockedReason: canUndo ? "" : undoBlockedReason || "This transaction cannot be undone.",
+      entryType: entry.type,
+      isImportedHistory: false,
+      isUndone: isUndoneLedgerEntry(entry),
+      sourceLabel: describeLedgerEntrySource(entry),
+      ...recordedDateFor(entry),
+      ...(chargeLines ? { chargeLines } : {}),
+      sortTime: entrySortTime(entry),
+      chronoSeq: historicalRows.length + 1 + index,
+    });
+  });
+
+  // Section order (newest-first within each band) — do not interleave by date across bands.
+  // Live → labelled Age Analysis BBF → historical. Overlapping hist/live dates stay separated.
+  const byNewestFirst = (a: DisplayRow, b: DisplayRow) => {
+    if (a.sortTime !== b.sortTime) return b.sortTime - a.sortTime;
+    if (a.chronoSeq !== b.chronoSeq) return b.chronoSeq - a.chronoSeq;
+    return String(a.key).localeCompare(String(b.key));
+  };
+  const liveNewestFirst = [...liveRows].sort(byNewestFirst);
+  const histNewestFirst = [...historicalRows].sort(byNewestFirst);
+  const merged = [...liveNewestFirst, bbfRow, ...histNewestFirst];
+
+  return merged.map(({ sortTime: _sortTime, ...row }) => row);
+}
+
 /**
  * Statement Manage UI rows — same canonical logic as PDF, with undo/audit metadata.
  */
 export function buildStatementManageTransactions(
   input: BuildStatementManageTransactionsInput
 ): StatementManageTransactionRow[] {
+  if (input.ageAnalysisBaseline) {
+    return buildStatementManageTransactionsWithAgeBaseline(input, input.ageAnalysisBaseline);
+  }
+
   const { schoolId, accountRef, periodFilteredEntries, period, nameByLearnerId } = input;
   const showCorrectionsAudit = Boolean(input.showCorrectionsAudit);
   const openingBalance = normaliseAmount(input.openingBalance ?? 0);

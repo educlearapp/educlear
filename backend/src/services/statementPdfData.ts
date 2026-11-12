@@ -1,7 +1,10 @@
 import { prisma } from "../prisma";
 import { matchLearnersToAccountHolder } from "./familyAccountMembers";
 import { resolveLedgerJoinAccountRef, normaliseEduClearAccountNo } from "./familyAccountNumber";
-import { buildAccountsFromAgeAnalysisSnapshots } from "./statementAccounts";
+import {
+  buildAccountsFromAgeAnalysisSnapshots,
+  resolveAuthoritativeAccountBalanceFromSnapshot,
+} from "./statementAccounts";
 import { readSchoolFamilyAccountAgeAnalysisSnapshots } from "../utils/familyAccountAgeAnalysisStore";
 import { resolveBillingAccountRef } from "./resolveBillingAccountRef";
 import {
@@ -26,6 +29,10 @@ import type {
 } from "./statementPdfTypes";
 import { generateStatementPdfBuffer, statementPdfFilename } from "./statementPdfService";
 import { buildStatementTransactions } from "./statementTransactionBuilder";
+import {
+  computeAgeBaselineStatementClosing,
+  computeAgeBaselineStatementOpening,
+} from "./statementAgeBaseline";
 import {
   computeStatementClosingBalance,
   computeStatementOpeningBalance,
@@ -515,15 +522,37 @@ export async function buildStatementPdfInput(
   const ledger = options.sharedLedger ?? readSchoolLedger(schoolId);
   const scopedEntries = collectAccountRefLedgerEntries(ledger, scope.accountRef);
   const filtered = filterLedgerByStatementPeriod(scopedEntries, period);
-  const openingBalance = computeStatementOpeningBalance(scopedEntries, period);
   const closingBalanceSource =
     options.closingBalanceSource === "period-ledger" ? "period-ledger" : "age-analysis";
+
+  const ageSnaps = readSchoolFamilyAccountAgeAnalysisSnapshots(schoolId);
+  const ageKey = String(scope.accountRef || "").trim();
+  const ageSnap =
+    ageSnaps[ageKey.toUpperCase()] ||
+    ageSnaps[ageKey] ||
+    ageSnaps[normaliseEduClearAccountNo(ageKey) || ""];
+  const ageAnalysisBaseline = ageSnap
+    ? {
+        balance: Number(ageSnap.balance) || 0,
+        importedAt: String(ageSnap.importedAt || "").trim(),
+      }
+    : undefined;
+
+  // Age-migrated accounts: same B1 opening/closing as Manage. Non-migrated: legacy helpers.
+  const openingBalance = ageAnalysisBaseline
+    ? computeAgeBaselineStatementOpening(ageAnalysisBaseline, scopedEntries, period)
+    : computeStatementOpeningBalance(scopedEntries, period);
 
   let balance: number;
   if (closingBalanceSource === "period-ledger") {
     // Period-end identity: opening + in-period statement-visible ledger net.
     // Never substitute the current Age Analysis snapshot for a historical window.
-    balance = computeStatementClosingBalance(scopedEntries, period);
+    balance = ageAnalysisBaseline
+      ? computeAgeBaselineStatementClosing(ageAnalysisBaseline, scopedEntries, period)
+      : computeStatementClosingBalance(scopedEntries, period);
+  } else if (ageAnalysisBaseline && ageSnap) {
+    // Individual statements: authoritative Summary (age + live delta) — matches Manage.
+    balance = resolveAuthoritativeAccountBalanceFromSnapshot(ageSnap, scopedEntries);
   } else {
     // Legacy individual statements: Age Analysis (Kid-e-Sys accountRef) snapshot.
     const accounts = await buildAccountsFromAgeAnalysisSnapshots(schoolId);
@@ -555,15 +584,18 @@ export async function buildStatementPdfInput(
   const transactions = buildStatementTransactions({
     schoolId,
     accountRef: scope.accountRef,
-    ledgerEntries: filtered,
+    // B1 needs full scoped ledger for partition; legacy path still uses period-filtered rows.
+    ledgerEntries: ageAnalysisBaseline ? scopedEntries : filtered,
     period,
     openingBalance,
     nameByLearnerId,
     kidesysHistory: options.sharedKidesysHistory,
+    ...(ageAnalysisBaseline ? { ageAnalysisBaseline } : {}),
   });
 
-  // Presentation-only: selected-period statements may show existing openingBalance as BBF.
-  const includeBroughtForward = period !== "All Time";
+  // B1 embeds a labelled Age Analysis BBF in the transaction stream — do not double-render.
+  // Legacy selected-period statements may still show openingBalance as display BBF.
+  const includeBroughtForward = !ageAnalysisBaseline && period !== "All Time";
 
   return {
     school,

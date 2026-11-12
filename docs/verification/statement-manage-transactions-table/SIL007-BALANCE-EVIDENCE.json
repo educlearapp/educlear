@@ -1,0 +1,38 @@
+{
+  "account": "SIL007",
+  "schoolId": "cmpideqeq0000108xb6ouv9zi",
+  "observedProductionUi": {
+    "summary": -3000,
+    "latestRunning": 54600,
+    "gapRunningMinusSummary": 57600,
+    "latestPayment": {
+      "date": "2026-11-04",
+      "signed": -450
+    }
+  },
+  "ageAnalysis": {
+    "balance": -45600,
+    "kidesysSection": "Over Paid",
+    "importedAt": "2099-12-31T23:59:59.999Z",
+    "source": "kideesys-age-analysis",
+    "openingBalanceLedgerRows": 0
+  },
+  "importHistory": {
+    "kideesysTransactionCount": 52,
+    "kideesysTransactionNet": 12000,
+    "kidesysTopupNet": 0
+  },
+  "residual": {
+    "formula": "age - (history + topup)",
+    "value": -57600,
+    "identity": "summary - lastRunning = residual (live cancels)"
+  },
+  "reconstructionFromObservedSummary": {
+    "impliedLiveDelta": 42600,
+    "impliedLastRunning": 54600,
+    "matchesOwnerObservation": true
+  },
+  "redesignIntroducedGap": false,
+  "accountsWithNonZeroResidualOct26VsAge": 210,
+  "wol001Residual": 3500
+}

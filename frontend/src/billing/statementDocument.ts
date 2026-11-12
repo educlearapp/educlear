@@ -25,6 +25,7 @@ export type StatementTransaction = {
   balance: number | null;
   learner?: string;
   statementSection?: "historical" | "brought-forward" | "active";
+  chronoSeq?: number;
 };
 
 export type StatementSchoolBranding = {
@@ -313,10 +314,26 @@ type StatementDisplayRow = {
   bold?: boolean;
 };
 
+function frontendStatementSectionOrder(
+  section: AccountStatementDocumentInput["transactions"][number]["statementSection"] | undefined
+): number {
+  if (section === "historical") return 0;
+  if (section === "brought-forward") return 1;
+  if (section === "active") return 2;
+  return 1;
+}
+
 /** Presentation-only: reuse builder amounts/balances; do not invent running balances. */
 function buildFrontendStatementDisplayRows(input: AccountStatementDocumentInput): StatementDisplayRow[] {
   const opening = normaliseStatementNumber(input.openingBalance ?? 0);
   const chronological = [...(input.transactions || [])].sort((a, b) => {
+    const sectionDelta =
+      frontendStatementSectionOrder(a.statementSection) -
+      frontendStatementSectionOrder(b.statementSection);
+    if (sectionDelta !== 0) return sectionDelta;
+    if (a.chronoSeq != null && b.chronoSeq != null && a.chronoSeq !== b.chronoSeq) {
+      return a.chronoSeq - b.chronoSeq;
+    }
     const da = new Date(a.date || "").getTime();
     const db = new Date(b.date || "").getTime();
     const ta = Number.isNaN(da) ? 0 : da;
@@ -338,6 +355,7 @@ function buildFrontendStatementDisplayRows(input: AccountStatementDocumentInput)
   }
   for (const row of chronological) {
     const signed = signedStatementAmount(row.amountIn, row.amountOut);
+    const isBroughtForward = row.statementSection === "brought-forward";
     if (row.balance === null || row.balance === undefined || Number.isNaN(Number(row.balance))) {
       rows.push({
         date: row.date || "",
@@ -346,6 +364,7 @@ function buildFrontendStatementDisplayRows(input: AccountStatementDocumentInput)
         description: row.description || "",
         amount: signed,
         balance: null,
+        ...(isBroughtForward ? { bold: true } : {}),
       });
       continue;
     }
@@ -356,6 +375,7 @@ function buildFrontendStatementDisplayRows(input: AccountStatementDocumentInput)
       description: row.description || "",
       amount: signed,
       balance: normaliseStatementNumber(row.balance),
+      ...(isBroughtForward ? { bold: true } : {}),
     });
   }
   return rows;

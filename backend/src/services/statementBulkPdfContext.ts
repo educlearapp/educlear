@@ -14,6 +14,10 @@ import { readSchoolKidesysHistory, type KidesysHistoryEntry } from "../utils/kid
 import { loadSchoolLogoBuffer } from "../utils/schoolLogo";
 import { buildStatementTransactions } from "./statementTransactionBuilder";
 import {
+  computeAgeBaselineStatementClosing,
+  computeAgeBaselineStatementOpening,
+} from "./statementAgeBaseline";
+import {
   computeStatementClosingBalance,
   computeStatementOpeningBalance,
   filterLedgerByStatementPeriod,
@@ -338,9 +342,27 @@ export function buildStatementPdfInputFromBulkContext(
 
   const scopedEntries = collectAccountRefLedgerEntries(ctx.ledger, accountRef);
   const filtered = filterLedgerByStatementPeriod(scopedEntries, period);
-  const openingBalance = computeStatementOpeningBalance(scopedEntries, period);
-  // Invoice-run bulk always uses period-ledger closing balances.
-  const balance = computeStatementClosingBalance(scopedEntries, period);
+
+  const ageKey = String(accountRef || "").trim();
+  const ageSnap =
+    ctx.ageAnalysisSnapshots[ageKey.toUpperCase()] ||
+    ctx.ageAnalysisSnapshots[ageKey] ||
+    ctx.ageAnalysisSnapshots[normaliseEduClearAccountNo(ageKey) || ""];
+  const ageAnalysisBaseline = ageSnap
+    ? {
+        balance: Number(ageSnap.balance) || 0,
+        importedAt: String(ageSnap.importedAt || "").trim(),
+      }
+    : undefined;
+
+  // Same B1 opening/closing as Manage + individual PDF when Age Analysis snap exists.
+  const openingBalance = ageAnalysisBaseline
+    ? computeAgeBaselineStatementOpening(ageAnalysisBaseline, scopedEntries, period)
+    : computeStatementOpeningBalance(scopedEntries, period);
+  // Invoice-run bulk always uses period-ledger closing identity (age baseline + live in window).
+  const balance = ageAnalysisBaseline
+    ? computeAgeBaselineStatementClosing(ageAnalysisBaseline, scopedEntries, period)
+    : computeStatementClosingBalance(scopedEntries, period);
 
   const nameByLearnerId = new Map(
     learners.map((l) => [l.id, `${l.firstName} ${l.lastName}`.trim()])
@@ -355,12 +377,17 @@ export function buildStatementPdfInputFromBulkContext(
   const transactions = buildStatementTransactions({
     schoolId: ctx.schoolId,
     accountRef,
-    ledgerEntries: filtered,
+    // B1 needs full scoped ledger for partition; legacy path still uses period-filtered rows.
+    ledgerEntries: ageAnalysisBaseline ? scopedEntries : filtered,
     period,
     openingBalance,
     nameByLearnerId,
     kidesysHistory: ctx.kidesysHistory,
+    ...(ageAnalysisBaseline ? { ageAnalysisBaseline } : {}),
   });
+
+  // B1 embeds labelled Age Analysis BBF in the stream — do not double-render.
+  const includeBroughtForward = !ageAnalysisBaseline && period !== "All Time";
 
   return {
     school: ctx.branding,
@@ -377,5 +404,7 @@ export function buildStatementPdfInputFromBulkContext(
     transactions,
     statementNote: opts.statementNote,
     isFamilyAccount,
+    openingBalance,
+    includeBroughtForward,
   };
 }

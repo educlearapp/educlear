@@ -1,0 +1,37 @@
+{
+  "fleet": {
+    "accounts": 344,
+    "reconcileOk": 344,
+    "failCount": 0,
+    "failSample": []
+  },
+  "sil007": {
+    "auth": -3000,
+    "lastRunning": -3000,
+    "bbf": -45600,
+    "histCount": 52,
+    "liveCount": 14,
+    "target": -3000
+  },
+  "wol001": {
+    "auth": 3190.7,
+    "lastRunning": 3190.7,
+    "bbf": 3670,
+    "histCount": 101,
+    "liveCount": 14,
+    "target": 3190.7
+  },
+  "historicalAppearance": {
+    "beforeBBF": "Imported history/top-up rows show chronological running balances reconstructed from 0 within the imported set (Kid-e-Sys-style continuity for available records).",
+    "bbf": "Clearly labelled Balance brought forward at migration (Age Analysis) \u2014 display-only, not a ledger posting.",
+    "afterBBF": "Only live EduClear postings advance the balance from the Age Analysis baseline; last live running = Summary."
+  },
+  "unifiedMacPdf": {
+    "status": "LOCAL_VERIFY_ONLY_NO_DEPLOY",
+    "fleet344": true,
+    "sil007": -3000,
+    "wol001": 3190.7,
+    "macPdfMatch": true,
+    "artefacts": "docs/verification/statement-manage-transactions-table/unified-b1-local/"
+  }
+}

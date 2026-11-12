@@ -14,8 +14,10 @@ export type StatementPdfTransaction = {
   learner?: string;
   /** Present only when the ledger invoice stored an immutable charge-line snapshot. */
   chargeLines?: BillingInvoiceChargeLine[];
-  /** Optional section marker; unused by the presentation-only PDF path. */
+  /** Optional section marker for B1 Age Analysis assembly (historical / BBF / active). */
   statementSection?: StatementPdfTransactionSection;
+  /** Chronological build sequence for stable same-day ordering (PDF ascending). */
+  chronoSeq?: number;
 };
 
 export type StatementPdfContact = {
