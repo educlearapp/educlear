@@ -1,0 +1,162 @@
+{
+  "summaryOk": true,
+  "colsOk": true,
+  "signedOk": true,
+  "newestFirst": true,
+  "evidence": {
+    "ths": [
+      "Date",
+      "Type",
+      "Ref",
+      "Description",
+      "Amount",
+      "Balance"
+    ],
+    "amounts": [
+      {
+        "date": "2026-11-06",
+        "type": "Payment",
+        "ref": "PAY-20261106-WOL001-001",
+        "description": "Payment",
+        "amount": "-R3,000.00",
+        "balance": "-R309.30"
+      },
+      {
+        "date": "2026-10-15",
+        "type": "Invoice",
+        "ref": "INV-1792048587339",
+        "description": "PRIMARY 2026 \u2014 R 3 000,00 JAMF Fee \u2014 R 450,00",
+        "amount": "R3,450.00",
+        "balance": "R2,690.70"
+      },
+      {
+        "date": "2026-10-06",
+        "type": "Payment",
+        "ref": "PAY-20261006-WOL001-001",
+        "description": "Payment",
+        "amount": "-R3,000.00",
+        "balance": "-R759.30"
+      },
+      {
+        "date": "2026-09-30",
+        "type": "Penalty",
+        "ref": "PEN-2026-09",
+        "description": "Da Silva late payment penalty (10%) \u2014 outstanding R4037, threshold R3000, month 2026-09",
+        "amount": "R403.70",
+        "balance": "R2,240.70"
+      },
+      {
+        "date": "2026-09-16",
+        "type": "Invoice",
+        "ref": "INV-1789559850502",
+        "description": "Invoice Run For October 2026",
+        "amount": "R3,000.00",
+        "balance": "R1,837.00"
+      },
+      {
+        "date": "2026-09-15",
+        "type": "Invoice",
+        "ref": "INV-WOL001-1789458300974",
+        "description": "2027 REG FEE INCREASE",
+        "amount": "R300.00",
+        "balance": "-R1,163.00"
+      },
+      {
+        "date": "2026-09-09",
+        "type": "Payment",
+        "ref": "PAY-20260909-WOL001-001",
+        "description": "Payment",
+        "amount": "-R2,000.00",
+        "balance": "-R1,463.00"
+      },
+      {
+        "date": "2026-09-04",
+        "type": "Payment",
+        "ref": "PAY-20260904-WOL001-001",
+        "description": "Payment",
+        "amount": "-R3,000.00",
+        "balance": "R537.00"
+      }
+    ],
+    "summaryText": "Summary\nFamily Account WOL001\nLearners:\nElleliyon Wolebo \u2013 Grade Primary\nR 3\u00a0500,00\nRecently Owing\nAccount WOL001",
+    "headerBg": "rgb(17, 24, 39)",
+    "buttons": [
+      {
+        "text": "Desktop",
+        "disabled": false
+      },
+      {
+        "text": "Mobile",
+        "disabled": false
+      },
+      {
+        "text": "\u21a9 Back",
+        "disabled": false
+      },
+      {
+        "text": "+ Payment",
+        "disabled": false
+      },
+      {
+        "text": "Print Statement",
+        "disabled": false
+      },
+      {
+        "text": "Download PDF",
+        "disabled": false
+      },
+      {
+        "text": "Send Statement",
+        "disabled": false
+      },
+      {
+        "text": "Manage",
+        "disabled": true
+      },
+      {
+        "text": "Undo",
+        "disabled": true
+      },
+      {
+        "text": "Previous",
+        "disabled": true
+      },
+      {
+        "text": "1",
+        "disabled": false
+      },
+      {
+        "text": "Next",
+        "disabled": false
+      }
+    ]
+  },
+  "actionState": {
+    "manageDisabled": false,
+    "undoDisabled": false,
+    "correctionsLabel": "Show corrections / audit",
+    "checkboxCount": 1
+  },
+  "summaryUnchangedMarkers": {
+    "hasSummaryHeading": true,
+    "hasRecentlyOwing": true,
+    "hasBalance3500": true,
+    "hasAccountWOL001": true,
+    "hasLearner": true
+  },
+  "actionsVerified": {
+    "manageDisabled": false,
+    "undoDisabled": false,
+    "correctionsLabel": "Show corrections / audit",
+    "checkboxCount": 1
+  },
+  "columns": [
+    "Date",
+    "Type",
+    "Ref",
+    "Description",
+    "Amount",
+    "Balance"
+  ],
+  "headerInk": "rgb(17, 24, 39)"
+}

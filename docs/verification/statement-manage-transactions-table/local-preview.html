@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>EduClear — Family Account Transactions Table Preview (local)</title>
+  <style>
+    :root { --gold: #d4af37; --ink: #111827; }
+    body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; background: #f3f4f6; color: var(--ink); }
+    .wrap { max-width: 1100px; margin: 24px auto; padding: 0 16px 40px; }
+    h1 { font-size: 18px; margin: 0 0 8px; }
+    .note { color: #64748b; font-size: 13px; margin-bottom: 16px; }
+    .grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 12px; }
+    .card { background: #fff; border: 1px solid var(--gold); border-radius: 8px; padding: 12px; }
+    .summary-title { font-weight: 900; font-size: 15px; margin-bottom: 6px; }
+    .balance { font-size: 20px; font-weight: 900; color: #b91c1c; }
+    .muted { color: #64748b; }
+    .tx { margin-top: 12px; background: #fff; border: 1px solid var(--gold); border-radius: 8px; overflow: hidden; }
+    .tx-bar { background: var(--ink); color: var(--gold); padding: 8px 12px; font-weight: 900; font-size: 14px; display:flex; justify-content:space-between; align-items:center; }
+    .actions { display:flex; gap:8px; align-items:center; }
+    button { border: 1px solid #d1d5db; background: #fff; padding: 6px 10px; border-radius: 6px; font-weight: 800; font-size: 12px; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; min-width: 720px; }
+    th { background: var(--ink); color: #fff; padding: 6px 8px; font-size: 11px; font-weight: 900; text-align: left; letter-spacing: 0.2px; }
+    th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    td { padding: 5px 8px; border-bottom: 1px solid #e5e7eb; font-size: 12px; vertical-align: top; }
+    tr:hover { background: rgba(212,175,55,0.12); }
+    .sub { font-size: 10px; color: #64748b; font-weight: 700; }
+    .badge { font-size: 11px; font-weight: 800; color: #92400e; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Family Account — Transactions table (presentation preview)</h1>
+    <p class="note">Summary card below is frozen reference styling. Only the transactions table was redesigned to match the approved Kid-e-Sys PDF columns: Date | Type | Ref | Description | Amount | Balance. Signed amounts; running balances unchanged. No deploy.</p>
+    <div class="grid">
+      <div class="card">
+        <div style="font-weight:900; margin-bottom:8px;">Account</div>
+        <div>WOL001 · Wolmarans Family</div>
+        <div class="muted" style="margin-top:8px; font-weight:800; font-size:12px;">Learners:</div>
+        <ul style="margin:6px 0 0; padding-left:18px;">
+          <li><strong>Aiden Wolmarans</strong> <span class="muted">– Grade 5</span></li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="summary-title">Summary</div>
+        <div class="muted" style="font-weight:800; font-size:12px;">Learners:</div>
+        <ul style="margin:0; padding-left:18px;">
+          <li>Aiden Wolmarans <span class="muted">– Grade 5</span></li>
+        </ul>
+        <div class="balance">R3,500.00</div>
+        <div class="muted">Recently Owing</div>
+        <div class="muted" style="font-size:13px;">Account WOL001</div>
+      </div>
+    </div>
+    <section class="tx">
+      <div class="tx-bar">
+        <span>Transactions</span>
+        <div class="actions">
+          <label style="color:#e5e7eb; font-size:12px; font-weight:700;"><input type="checkbox" /> Show corrections / audit</label>
+          <button>Manage</button>
+          <button>Undo</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Ref</th>
+              <th>Description</th>
+              <th class="num">Amount</th>
+              <th class="num">Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>12/11/2026</td>
+              <td>Payment<div class="sub">EFT</div></td>
+              <td>PAY-88421</td>
+              <td>Payment received<div class="sub">Aiden Wolmarans</div></td>
+              <td class="num">-R1,200.00</td>
+              <td class="num" style="font-weight:800;">R3,500.00</td>
+            </tr>
+            <tr>
+              <td>01/11/2026</td>
+              <td>Invoice</td>
+              <td>INV-1101</td>
+              <td>November school fees</td>
+              <td class="num">R2,450.00</td>
+              <td class="num" style="font-weight:800;">R4,700.00</td>
+            </tr>
+            <tr style="background:rgba(212,175,55,0.08);">
+              <td>15/10/2026</td>
+              <td><span class="badge">Kid-e-Sys History</span></td>
+              <td>KID-992</td>
+              <td>Imported statement line</td>
+              <td class="num">R250.00</td>
+              <td class="num" style="font-weight:800;">R2,250.00</td>
+            </tr>
+            <tr>
+              <td>01/10/2026</td>
+              <td>Invoice</td>
+              <td>INV-1001</td>
+              <td>October school fees</td>
+              <td class="num">R2,000.00</td>
+              <td class="num" style="font-weight:800;">R2,000.00</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

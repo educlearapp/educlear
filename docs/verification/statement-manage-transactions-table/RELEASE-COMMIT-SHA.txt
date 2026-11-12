@@ -1,0 +1,2 @@
+Use: git -C <worktree> rev-parse HEAD on feature/statement-manage-transactions-kidesys-table
+Parent/live base: de5bac189b7860c026007fddc5d5cfd28ecac125

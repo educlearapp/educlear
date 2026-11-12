@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="820" viewBox="0 0 1200 820">
+  <rect width="1200" height="820" fill="#f3f4f6"/>
+  <text x="40" y="40" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700" fill="#111827">Family Account — Transactions table (local preview)</text>
+  <text x="40" y="64" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#64748b">Summary frozen · Date | Type | Ref | Description | Amount | Balance · invoices + / payments −</text>
+  <rect x="40" y="90" width="600" height="170" rx="8" fill="#fff" stroke="#d4af37" stroke-width="2"/>
+  <text x="56" y="118" font-family="Arial" font-size="15" font-weight="700">Account</text>
+  <text x="56" y="144" font-family="Arial" font-size="14">WOL001 · Wolmarans Family</text>
+  <text x="56" y="176" font-family="Arial" font-size="12" fill="#64748b" font-weight="700">Learners:</text>
+  <text x="72" y="198" font-family="Arial" font-size="14">Aiden Wolmarans – Grade 5</text>
+  <rect x="660" y="90" width="500" height="170" rx="8" fill="#fff" stroke="#d4af37" stroke-width="2"/>
+  <text x="676" y="118" font-family="Arial" font-size="15" font-weight="700">Summary</text>
+  <text x="676" y="148" font-family="Arial" font-size="13">Learners: Aiden Wolmarans – Grade 5</text>
+  <text x="676" y="182" font-family="Arial" font-size="22" font-weight="700" fill="#b91c1c">R3,500.00</text>
+  <text x="676" y="208" font-family="Arial" font-size="14" fill="#64748b">Recently Owing</text>
+  <text x="676" y="232" font-family="Arial" font-size="13" fill="#64748b">Account WOL001</text>
+  <rect x="40" y="280" width="1120" height="500" rx="8" fill="#fff" stroke="#d4af37" stroke-width="2"/>
+  <rect x="42" y="282" width="1116" height="40" fill="#111827"/>
+  <text x="56" y="308" font-family="Arial" font-size="14" font-weight="700" fill="#d4af37">Transactions</text>
+  <text x="780" y="308" font-family="Arial" font-size="12" fill="#e5e7eb">Show corrections / audit · Manage · Undo</text>
+  <rect x="42" y="322" width="1116" height="28" fill="#111827"/>
+  <text x="56" y="341" font-family="Arial" font-size="11" font-weight="700" fill="#fff">Date</text>
+  <text x="160" y="341" font-family="Arial" font-size="11" font-weight="700" fill="#fff">Type</text>
+  <text x="300" y="341" font-family="Arial" font-size="11" font-weight="700" fill="#fff">Ref</text>
+  <text x="420" y="341" font-family="Arial" font-size="11" font-weight="700" fill="#fff">Description</text>
+  <text x="940" y="341" font-family="Arial" font-size="11" font-weight="700" fill="#fff" text-anchor="end">Amount</text>
+  <text x="1120" y="341" font-family="Arial" font-size="11" font-weight="700" fill="#fff" text-anchor="end">Balance</text>
+  <g font-family="Arial" font-size="12" fill="#111827">
+    <text x="56" y="388">12/11/2026</text><text x="160" y="388">Payment</text><text x="300" y="388">PAY-88421</text><text x="420" y="388">Payment received</text><text x="940" y="388" text-anchor="end">-R1,200.00</text><text x="1120" y="388" text-anchor="end" font-weight="700">R3,500.00</text>
+    <line x1="42" y1="410" x2="1158" y2="410" stroke="#e5e7eb"/>
+    <text x="56" y="436">01/11/2026</text><text x="160" y="436">Invoice</text><text x="300" y="436">INV-1101</text><text x="420" y="436">November school fees</text><text x="940" y="436" text-anchor="end">R2,450.00</text><text x="1120" y="436" text-anchor="end" font-weight="700">R4,700.00</text>
+    <line x1="42" y1="458" x2="1158" y2="458" stroke="#e5e7eb"/>
+    <rect x="42" y="458" width="1116" height="48" fill="#fef9ef"/>
+    <text x="56" y="488" fill="#92400e" font-weight="700">15/10/2026</text><text x="160" y="488" fill="#92400e" font-weight="700">Kid-e-Sys History</text><text x="300" y="488">KID-992</text><text x="420" y="488">Imported statement line</text><text x="940" y="488" text-anchor="end">R250.00</text><text x="1120" y="488" text-anchor="end" font-weight="700">R2,250.00</text>
+    <line x1="42" y1="506" x2="1158" y2="506" stroke="#e5e7eb"/>
+    <text x="56" y="536">01/10/2026</text><text x="160" y="536">Invoice</text><text x="300" y="536">INV-1001</text><text x="420" y="536">October school fees</text><text x="940" y="536" text-anchor="end">R2,000.00</text><text x="1120" y="536" text-anchor="end" font-weight="700">R2,000.00</text>
+  </g>
+</svg>

@@ -101,6 +101,27 @@ const GOLD = "#d4af37";
 const INK = "#111827";
 const TRANSACTIONS_PER_PAGE = 10;
 
+/** Kid-e-Sys statement table money (matches approved PDF). Presentation only. */
+function formatStatementTableMoney(value: unknown): string {
+  const n = typeof value === "number" ? value : Number(value);
+  const amount = Number.isFinite(n) ? Math.round(n * 100) / 100 : 0;
+  const body = Math.abs(amount).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  if (amount < 0) return `-R${body}`;
+  return `R${body}`;
+}
+
+function signedTransactionAmount(amountIn: unknown, amountOut: unknown): number {
+  const inn = typeof amountIn === "number" ? amountIn : Number(amountIn);
+  const out = typeof amountOut === "number" ? amountOut : Number(amountOut);
+  const a = Number.isFinite(inn) ? inn : 0;
+  const b = Number.isFinite(out) ? out : 0;
+  return Math.round((a - b) * 100) / 100;
+}
+
+
 type ModalKind =
   | "pending"
   | "undoConfirm"
@@ -776,9 +797,8 @@ export default function StatementManage({
     return { total, totalPages, currentPage, rangeStart, rangeEnd, paginated };
   }, [pageableTransactions, transactionsPage]);
 
-  const transactionColumns = isFamilyBillingAccount
-    ? ["Audit No", "Date", "Type", "Method", "Learner", "Reference", "Description", "Amount In", "Amount Out", "Balance"]
-    : ["Audit No", "Date", "Type", "Method", "Reference", "Description", "Amount In", "Amount Out", "Balance"];
+  // Match approved Kid-e-Sys statement PDF columns (presentation only).
+  const transactionColumns = ["Date", "Type", "Ref", "Description", "Amount", "Balance"];
 
   const closeModal = () => {
     setModalKind(null);
@@ -1453,9 +1473,11 @@ export default function StatementManage({
   };
 
   const compactCell: React.CSSProperties = {
-    padding: "7px 9px",
-    borderBottom: "1px solid #f1f5f9",
+    padding: "5px 8px",
+    borderBottom: "1px solid #e5e7eb",
     fontSize: 12,
+    color: INK,
+    verticalAlign: "top",
   };
 
   const compactField: React.CSSProperties = {
@@ -1591,6 +1613,11 @@ export default function StatementManage({
 
   const renderTransactionRow = (row: TransactionDisplayRow) => {
     const isSelected = selectedTransactionKey === row.key;
+    const signedAmount = signedTransactionAmount(row.amountIn, row.amountOut);
+    const amountLabel = formatStatementTableMoney(signedAmount);
+    const balanceLabel = row.balance === null || row.balance === undefined
+      ? "—"
+      : formatStatementTableMoney(row.balance);
     return (
     <tr
       key={row.key}
@@ -1610,7 +1637,6 @@ export default function StatementManage({
         outline: isSelected ? `2px solid ${GOLD}` : undefined,
       }}
     >
-      <td style={compactCell}>{row.auditNo}</td>
       <td style={compactCell}>
         {row.date}
         {row.recordedDate ? (
@@ -1630,21 +1656,25 @@ export default function StatementManage({
         {row.sourceLabel ? (
           <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700 }}>{row.sourceLabel}</div>
         ) : null}
+        {showCorrectionsAudit && row.auditNo !== undefined && row.auditNo !== null && String(row.auditNo).trim() ? (
+          <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700 }}>Audit {row.auditNo}</div>
+        ) : null}
+        {row.method ? (
+          <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700 }}>{row.method}</div>
+        ) : null}
       </td>
-      <td style={compactCell}>{row.method || "—"}</td>
-      {isFamilyBillingAccount ? (
-        <td style={compactCell}>{row.learner || "-"}</td>
-      ) : null}
-      <td style={compactCell}>{row.reference}</td>
-      <td style={compactCell}>{row.description}</td>
-      <td style={{ ...compactCell, textAlign: "right" }}>
-        {row.amountIn ? formatMoney(row.amountIn) : "-"}
+      <td style={compactCell}>{row.reference || "—"}</td>
+      <td style={{ ...compactCell, maxWidth: 320, wordBreak: "break-word" }}>
+        {row.description}
+        {isFamilyBillingAccount && row.learner ? (
+          <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700 }}>{row.learner}</div>
+        ) : null}
       </td>
-      <td style={{ ...compactCell, textAlign: "right" }}>
-        {row.amountOut ? formatMoney(row.amountOut) : "-"}
+      <td style={{ ...compactCell, textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
+        {amountLabel}
       </td>
-      <td style={{ ...compactCell, textAlign: "right", fontWeight: 800 }}>
-        {row.balance === null ? "—" : formatMoney(row.balance)}
+      <td style={{ ...compactCell, textAlign: "right", whiteSpace: "nowrap", fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>
+        {balanceLabel}
       </td>
     </tr>
     );
@@ -2005,19 +2035,20 @@ export default function StatementManage({
           </div>
         ) : null}
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 880 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 720 }}>
             <thead>
-              <tr style={{ background: "#f8fafc" }}>
+              <tr style={{ background: INK }}>
                 {transactionColumns.map((h) => (
                     <th
                       key={h}
                       style={{
-                        padding: "7px 9px",
-                        borderBottom: "1px solid #e5e7eb",
-                        textAlign: h.includes("Amount") || h === "Balance" ? "right" : "left",
+                        padding: "6px 8px",
+                        borderBottom: "1px solid #111827",
+                        textAlign: h === "Amount" || h === "Balance" ? "right" : "left",
                         fontSize: 11,
                         fontWeight: 900,
-                        color: "#64748b",
+                        color: "#ffffff",
+                        letterSpacing: 0.2,
                       }}
                     >
                       {h}
