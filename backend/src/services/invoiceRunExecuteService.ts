@@ -49,6 +49,11 @@ import {
   loadOnceOffCatalogue,
   type OnceOffCatalogueFee,
 } from "./onceOffInvoiceChargeGuard";
+import {
+  applyFeeFrequencyExclusionGuard,
+  loadFeeFrequencyCatalogue,
+  type FeeFrequencyCatalogueEntry,
+} from "./invoiceFeeFrequencyExclusion";
 
 const MONEY_TOLERANCE = 0.01;
 
@@ -163,6 +168,9 @@ export type LearnerEligibilityInput = {
   invoicePeriodIndex?: Set<string>;
   extraFees?: StoredBillingPlanItem[];
   onceOffCatalogue?: OnceOffCatalogueFee[];
+  feeFrequencyCatalogue?: FeeFrequencyCatalogueEntry[];
+  /** Required for school-scoped December alias allowlists (Da Silva variants). */
+  schoolId?: string;
 };
 
 export type LearnerEligibilityResult = {
@@ -177,7 +185,7 @@ export function evaluateLearnerEligibility(
   input: LearnerEligibilityInput
 ): LearnerEligibilityResult {
   const { learner, accountNo, accountError, invoicePeriod, existingLedger, invoicePeriodIndex } = input;
-  const guarded = applyOnceOffRecurrenceGuard({
+  const afterOnceOff = applyOnceOffRecurrenceGuard({
     planItems: input.planItems,
     extraFees: input.extraFees,
     catalogue: input.onceOffCatalogue || [],
@@ -185,11 +193,22 @@ export function evaluateLearnerEligibility(
     learnerId: learner.id,
     invoicePeriod,
   });
+  const guarded = applyFeeFrequencyExclusionGuard({
+    planItems: afterOnceOff.planItems,
+    extraFees: afterOnceOff.extraFees,
+    catalogue: input.feeFrequencyCatalogue || [],
+    invoicePeriod,
+    schoolId: input.schoolId,
+  });
   const planItems = guarded.planItems;
   const extraFees = guarded.extraFees;
-  const hadBillableItems = [...(input.planItems || []), ...(input.extraFees || [])].some(
-    (item) => String(item?.feeDescription || "").trim() && Number(item?.amount) > 0
-  );
+  const isBillableLine = (item: StoredBillingPlanItem | undefined) =>
+    Boolean(String(item?.feeDescription || "").trim() && Number(item?.amount) > 0);
+  const hadBillableItems = [...(input.planItems || []), ...(input.extraFees || [])].some(isBillableLine);
+  const hadBillableAfterOnceOff = [
+    ...(afterOnceOff.planItems || []),
+    ...(afterOnceOff.extraFees || []),
+  ].some(isBillableLine);
 
   if (String(learner.enrollmentStatus || "").toUpperCase() !== "ACTIVE") {
     return {
@@ -203,11 +222,17 @@ export function evaluateLearnerEligibility(
 
   const combinedPlan = [...planItems, ...(extraFees || [])];
   if (!combinedPlan.length) {
+    let skipReason: InvoiceRunSkipReason = "BILLING_PLAN_EMPTY";
+    if (hadBillableItems && !hadBillableAfterOnceOff) {
+      skipReason = "ONCE_OFF_ALREADY_INVOICED";
+    } else if (hadBillableAfterOnceOff) {
+      skipReason = "FEE_EXCLUDED_FOR_PERIOD";
+    }
     return {
       billableEligible: false,
       status: "skipped",
       amount: 0,
-      skipReason: hadBillableItems ? "ONCE_OFF_ALREADY_INVOICED" : "BILLING_PLAN_EMPTY",
+      skipReason,
     };
   }
 
@@ -562,6 +587,7 @@ export async function executeInvoiceRun(
   const existingLedger = readSchoolLedger(schoolId);
   const invoicePeriodIndex = buildLearnerInvoicePeriodIndex(existingLedger);
   const onceOffCatalogue = await loadOnceOffCatalogue(schoolId);
+  const feeFrequencyCatalogue = await loadFeeFrequencyCatalogue(schoolId);
   if (!dryRun && ledgerHasRunId(existingLedger, runId)) {
     const failed: InvoiceRunExecuteResult = {
       success: false,
@@ -652,6 +678,8 @@ export async function executeInvoiceRun(
       invoicePeriodIndex,
       extraFees: extraFeesByLearnerId[learner.id],
       onceOffCatalogue,
+      feeFrequencyCatalogue,
+      schoolId,
     });
     eligibilityByLearnerId.set(learner.id, eligibility);
   }
@@ -681,6 +709,8 @@ export async function executeInvoiceRun(
         invoicePeriodIndex,
         extraFees: extraFeesByLearnerId[learner.id],
         onceOffCatalogue,
+        feeFrequencyCatalogue,
+        schoolId,
       });
       eligibilityByLearnerId.set(learner.id, eligibility);
     } else if (!accountResolved) {
@@ -776,13 +806,20 @@ export async function executeInvoiceRun(
           explicitlyEmpty
         )
       : plansByLearnerId[row.learnerId] || [];
-    const guardedCharges = applyOnceOffRecurrenceGuard({
+    const afterOnceOff = applyOnceOffRecurrenceGuard({
       planItems,
       extraFees: extraFeesByLearnerId[row.learnerId] || [],
       catalogue: onceOffCatalogue,
       ledger: existingLedger,
       learnerId: row.learnerId,
       invoicePeriod,
+    });
+    const guardedCharges = applyFeeFrequencyExclusionGuard({
+      planItems: afterOnceOff.planItems,
+      extraFees: afterOnceOff.extraFees,
+      catalogue: feeFrequencyCatalogue,
+      invoicePeriod,
+      schoolId,
     });
     const chargeSnapshot = buildInvoiceChargeLines(guardedCharges.planItems, guardedCharges.extraFees);
     if (!chargeSnapshot.ok) {
@@ -896,6 +933,8 @@ export function buildInvoiceRunPlanForTest(input: {
   invoicePeriod: string;
   extraFeesByLearnerId?: Record<string, StoredBillingPlanItem[]>;
   onceOffCatalogue?: OnceOffCatalogueFee[];
+  feeFrequencyCatalogue?: FeeFrequencyCatalogueEntry[];
+  schoolId?: string;
 }): {
   learnerRows: InvoiceRunLearnerRow[];
   accounts: InvoiceRunAccountValidation[];
@@ -925,6 +964,8 @@ export function buildInvoiceRunPlanForTest(input: {
       existingLedger: input.existingLedger,
       extraFees: input.extraFeesByLearnerId?.[learner.id],
       onceOffCatalogue: input.onceOffCatalogue,
+      feeFrequencyCatalogue: input.feeFrequencyCatalogue,
+      schoolId: input.schoolId,
     });
     eligibilityByLearnerId.set(learner.id, eligibility);
     learnerRows.push({
@@ -961,6 +1002,8 @@ export function buildInvoiceRunPlanForTest(input: {
         existingLedger: input.existingLedger,
         extraFees: input.extraFeesByLearnerId?.[learner.id],
         onceOffCatalogue: input.onceOffCatalogue,
+        feeFrequencyCatalogue: input.feeFrequencyCatalogue,
+        schoolId: input.schoolId,
       });
     }
   );
