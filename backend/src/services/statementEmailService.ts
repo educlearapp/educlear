@@ -1,6 +1,7 @@
 import { sendEmailWithAttachment, type SendEmailWithAttachmentInput } from "../routes/emailService";
 import { buildAndGenerateStatementPdf } from "./statementPdfData";
 import type { StatementClosingBalanceSource } from "./statementPdfTypes";
+import { normalizeStatementRecipientEmail } from "./statementRecipientEmail";
 
 export type SendStatementEmailInput = {
   schoolId: string;
@@ -12,10 +13,6 @@ export type SendStatementEmailInput = {
   learnerId?: string;
   /** Kid-e-Sys FamilyAccount.accountRef (preferred over learnerId). */
   accountNo?: string;
-  /** Explicit FamilyAccount id — preferred for family / zero-learner accounts. */
-  familyAccountId?: string;
-  accountIdentityType?: "familyAccountId" | "accountRef" | "accountNo" | "learnerId";
-  accountIdentityValue?: string;
   period?: string;
   statementNote?: string;
   /** Invoice-run bulk email should pass period-ledger; individual statements keep default. */
@@ -35,9 +32,16 @@ export async function sendStatementEmail(input: SendStatementEmailInput) {
     throw new Error("Missing schoolId for statement email delivery.");
   }
 
-  const to = String(input.to || "").trim();
   const subject = String(input.subject || "").trim();
   const html = String(input.html || "").trim();
+  const normalizedTo = normalizeStatementRecipientEmail(input.to);
+  if (!normalizedTo.ok) {
+    const err = new Error(normalizedTo.reason) as Error & { code?: string; statusCode?: number };
+    err.code = "INVALID_STATEMENT_RECIPIENT";
+    err.statusCode = 400;
+    throw err;
+  }
+  const to = normalizedTo.email;
 
   if (!to || !subject || !html) {
     throw new Error("Missing required fields: schoolId, to, subject, html");
@@ -48,17 +52,11 @@ export async function sendStatementEmail(input: SendStatementEmailInput) {
 
   const learnerId = String(input.learnerId || "").trim();
   const accountNo = String(input.accountNo || "").trim();
-  const familyAccountId = String(input.familyAccountId || "").trim();
-  const accountIdentityType = input.accountIdentityType;
-  const accountIdentityValue = String(input.accountIdentityValue || "").trim();
-  if (learnerId || accountNo || familyAccountId || accountIdentityValue) {
+  if (learnerId || accountNo) {
     const generated = await buildAndGenerateStatementPdf({
       schoolId,
       learnerId: learnerId || "",
       accountNo: accountNo || undefined,
-      familyAccountId: familyAccountId || undefined,
-      accountIdentityType,
-      accountIdentityValue: accountIdentityValue || undefined,
       period: input.period,
       statementNote: input.statementNote,
       closingBalanceSource: input.closingBalanceSource,

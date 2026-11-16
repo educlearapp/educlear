@@ -2963,13 +2963,11 @@ export default function InvoiceRuns(props: any) {
 
 
     try {
-
-
+      let sentCount = 0;
+      let skippedCount = 0;
+      const skippedReasons: string[] = [];
 
       for (const row of statementEmailRows) {
-
-
-
         const emailHtml = buildStatementCoverEmailHtml({
           school: {
             name: schoolName,
@@ -2983,11 +2981,21 @@ export default function InvoiceRuns(props: any) {
         try {
           const rowLearnerId = String(row.id || row.learnerId || "").trim();
           if (!rowLearnerId) {
-            throw new Error(`Missing learner id for ${row.learnerName || "learner"}`);
+            skippedCount += 1;
+            skippedReasons.push(
+              `${String(row.accountNo || row.learnerName || "learner")}: Missing learner id`
+            );
+            continue;
+          }
+          const to = String(row.parentEmail || "").trim();
+          if (!to) {
+            skippedCount += 1;
+            skippedReasons.push(`${String(row.accountNo || row.learnerName || "learner")}: Missing email`);
+            continue;
           }
           await sendStatementEmail({
             schoolId,
-            to: row.parentEmail,
+            to,
             subject:
               statementEmailRows.length === 1
                 ? statementEmailSubject
@@ -2998,28 +3006,44 @@ export default function InvoiceRuns(props: any) {
             period: invoiceRunStatementPeriod || INVOICE_RUN_STATEMENT_DEFAULT_PERIOD,
             closingBalanceSource: "period-ledger",
           });
+          sentCount += 1;
         } catch (sendErr: unknown) {
-          const err = sendErr as Error & { setupRequired?: boolean };
+          const err = sendErr as Error & { setupRequired?: boolean; skipRecipient?: boolean };
           if (err.setupRequired) {
             throw new Error(
               err.message ||
                 "School email address missing. Open Communication → Email and add the school's email address."
             );
           }
+          // Invalid / undeliverable recipient: skip and continue so one bad address
+          // cannot abort the rest of a successful invoice-run statement batch.
+          if (
+            err.skipRecipient ||
+            /invalid|missing email|angle-bracket|format/i.test(String(err.message || ""))
+          ) {
+            skippedCount += 1;
+            skippedReasons.push(
+              `${String(row.accountNo || row.learnerName || "learner")}: ${
+                err.message || "Invalid email"
+              }`
+            );
+            continue;
+          }
           throw new Error(err.message || "Failed to send statement email");
         }
-
-
-
       }
 
+      const skipSummary =
+        skippedCount > 0
+          ? `\n\nSkipped ${skippedCount}:\n- ${skippedReasons.slice(0, 15).join("\n- ")}${
+              skippedReasons.length > 15 ? `\n- …and ${skippedReasons.length - 15} more` : ""
+            }`
+          : "";
+      alert(`${sentCount} statement email(s) sent.${skipSummary}`);
 
-
-      alert(`${statementEmailRows.length} statement email(s) sent.`);
-
-
-
-      setStatementEmailOpen(false);
+      if (sentCount > 0) {
+        setStatementEmailOpen(false);
+      }
 
 
 

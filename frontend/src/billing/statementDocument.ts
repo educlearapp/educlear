@@ -1003,8 +1003,10 @@ export async function sendStatementEmail(payload: {
   if (!response.ok) {
     const err = new Error(
       String((body as { error?: string }).error || "Failed to send statement email")
-    ) as Error & { setupRequired?: boolean };
+    ) as Error & { setupRequired?: boolean; skipRecipient?: boolean; code?: string };
     err.setupRequired = Boolean((body as { setupRequired?: boolean }).setupRequired);
+    err.skipRecipient = Boolean((body as { skipRecipient?: boolean }).skipRecipient);
+    err.code = String((body as { code?: string }).code || "");
     throw err;
   }
   return body as { messageId?: string };

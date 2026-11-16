@@ -8,6 +8,7 @@ import {
   classifyResendIdempotencyConflict,
   isResendNetworkUnavailableError,
 } from "./resendClient";
+import { normalizeStatementRecipientEmail } from "./statementRecipientEmail";
 
 export const BULK_STATEMENT_EMAIL_JOB_CONCURRENCY = 5;
 export const BULK_STATEMENT_EMAIL_DISPATCH_SPACING_MS = 220;
@@ -226,7 +227,10 @@ export async function createOrAttachBulkStatementEmailJob(
   for (const raw of input.recipients || []) {
     const accountNo = String(raw.accountNo || "").trim().toUpperCase();
     const email = String(raw.email || "").trim();
-    const normalizedEmail = normalizeBulkStatementEmail(email);
+    const parsed = normalizeStatementRecipientEmail(email);
+    const normalizedEmail = parsed.ok
+      ? parsed.email
+      : normalizeBulkStatementEmail(email);
     const parentId = String(raw.parentId || "").trim();
     if (!accountNo) continue;
     const recipientKey = buildBulkStatementRecipientKey({
@@ -237,7 +241,8 @@ export async function createOrAttachBulkStatementEmailJob(
     if (seen.has(recipientKey)) continue;
     seen.add(recipientKey);
 
-    const skipped = Boolean(raw.skipped) || !normalizedEmail;
+    const invalidReason = parsed.ok ? null : parsed.reason;
+    const skipped = Boolean(raw.skipped) || !parsed.ok;
     rows.push({
       schoolId,
       accountNo,
@@ -246,11 +251,13 @@ export async function createOrAttachBulkStatementEmailJob(
       parentId,
       contactName: String(raw.contactName || "").trim(),
       relationship: String(raw.relationship || "").trim(),
-      normalizedEmail: normalizedEmail || "",
+      normalizedEmail: parsed.ok ? parsed.email : "",
       displayEmail: email,
       recipientKey,
       status: skipped ? "SKIPPED" : "PENDING",
-      failureReason: skipped ? String(raw.skipReason || "Skipped").slice(0, 500) : null,
+      failureReason: skipped
+        ? String(raw.skipReason || invalidReason || "Skipped").slice(0, 500)
+        : null,
     });
   }
 

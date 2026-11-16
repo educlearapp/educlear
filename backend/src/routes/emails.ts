@@ -4,7 +4,6 @@ import {
   isResendNetworkUnavailableError,
   RESEND_NETWORK_UNAVAILABLE_MESSAGE,
 } from "../services/schoolEmailService";
-import { BillingAccountResolutionError } from "../services/billingAccountIdentity";
 import { sendStatementEmail } from "../services/statementEmailService";
 
 const router = Router();
@@ -22,9 +21,6 @@ router.post("/send-statement", async (req, res) => {
     const html = String(req.body?.html || "").trim();
     const learnerId = String(req.body?.learnerId || "").trim();
     const accountNo = String(req.body?.accountNo || "").trim();
-    const familyAccountId = String(req.body?.familyAccountId || "").trim();
-    const accountIdentityType = String(req.body?.accountIdentityType || "").trim();
-    const accountIdentityValue = String(req.body?.accountIdentityValue || "").trim();
     const period = req.body?.period != null ? String(req.body.period) : undefined;
     const statementNote =
       req.body?.statementNote != null ? String(req.body.statementNote) : undefined;
@@ -43,10 +39,9 @@ router.post("/send-statement", async (req, res) => {
       });
     }
 
-    if (!learnerId && !accountNo && !familyAccountId && !accountIdentityValue && !pdfBase64) {
+    if (!learnerId && !accountNo && !pdfBase64) {
       return res.status(400).json({
-        error:
-          "Missing account identity (familyAccountId, accountNo, learnerId, or accountIdentity). Statement PDF is generated on the server.",
+        error: "Missing learnerId or accountNo. Statement PDF is generated on the server.",
       });
     }
 
@@ -57,11 +52,6 @@ router.post("/send-statement", async (req, res) => {
       html,
       learnerId: learnerId || undefined,
       accountNo: accountNo || undefined,
-      familyAccountId: familyAccountId || undefined,
-      accountIdentityType: accountIdentityType
-        ? (accountIdentityType as "familyAccountId" | "accountRef" | "accountNo" | "learnerId")
-        : undefined,
-      accountIdentityValue: accountIdentityValue || undefined,
       period,
       statementNote,
       filename,
@@ -75,10 +65,14 @@ router.post("/send-statement", async (req, res) => {
     });
   } catch (error: unknown) {
     console.error("Send statement email error:", error);
-    if (error instanceof BillingAccountResolutionError) {
-      return res.status(error.status).json({ error: error.message, code: error.code });
+    const err = error as Error & { setupRequired?: boolean; statusCode?: number; code?: string };
+    if (err.code === "INVALID_STATEMENT_RECIPIENT") {
+      return res.status(400).json({
+        error: err.message || "Invalid statement recipient email",
+        code: "INVALID_STATEMENT_RECIPIENT",
+        skipRecipient: true,
+      });
     }
-    const err = error as Error & { setupRequired?: boolean; statusCode?: number };
     if (err.message?.includes("Missing required fields") || err.message?.includes("Missing schoolId")) {
       return res.status(400).json({
         error: err.message,
