@@ -39,6 +39,7 @@ import { UNIVERSAL_ORCHESTRATOR_VERSION } from "./OrchestratorTypes";
 import { getOrchestratorRunByStage, saveOrchestratorRun } from "./orchestratorStore";
 import { withMigrationCompleteLock } from "./migrationCompleteLock";
 import { getSourceManifestByStage } from "./sourceManifest";
+import { requireMigrationWriteAllowed } from "../core/migrationProductionExecutionGuard";
 
 function audit(run: OrchestratorRunRecord, event: string, detail?: string): void {
   run.audit.push({ at: new Date().toISOString(), event, detail });
@@ -57,6 +58,11 @@ export async function completeUniversalMigration(input: {
   if (!input.confirmation) {
     throw new Error("Please confirm before completing the migration.");
   }
+
+  requireMigrationWriteAllowed({
+    targetSchoolId: input.targetSchoolId,
+    operation: "Complete Migration",
+  });
 
   const stage = getStage(input.stageId);
   if (!stage || stage.targetSchoolId !== input.targetSchoolId) {
@@ -184,6 +190,8 @@ async function runCompleteBody(
             confirmationText: String(school?.name || stage.targetSchoolName || "").trim(),
             mode: "APPLY",
             deferParentsToParentFamilyPlan: deferParents,
+            // Simple Upload→Check→Approve path: post eligible rows only; finance recon remains the hard gate.
+            proceedWithEligibleActiveOnly: true,
           } as any);
           if (deferParents) {
             audit(run, "core_deferred_parents_to_parent_family_plan");

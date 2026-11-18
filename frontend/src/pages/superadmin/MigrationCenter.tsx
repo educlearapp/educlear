@@ -95,24 +95,56 @@ export default function MigrationCenter() {
         <header className="uc-migration-center-header">
           <h1 className="page-title">Universal Migration Center</h1>
           <p className="uc-migration-center-subtitle">
-            Upload → Review exceptions → Complete Migration. Super Admin only.
+            Upload → Check → Approve → Import. Super Admin only. Existing live schools stay
+            protected.
           </p>
+          <ol className="uc-migration-phase1-steps" aria-label="Migration steps">
+            <li>
+              <span className="uc-migration-phase1-step-num">1</span>
+              <span className="uc-migration-phase1-step-label">Upload</span>
+            </li>
+            <li>
+              <span className="uc-migration-phase1-step-num">2</span>
+              <span className="uc-migration-phase1-step-label">Check</span>
+            </li>
+            <li>
+              <span className="uc-migration-phase1-step-num">3</span>
+              <span className="uc-migration-phase1-step-label">Approve</span>
+            </li>
+            <li>
+              <span className="uc-migration-phase1-step-num">4</span>
+              <span className="uc-migration-phase1-step-label">Import</span>
+            </li>
+          </ol>
         </header>
 
         <UniversalMigrationCenterNav />
 
         <div className="uc-migration-center-sections">
-          <section className="uc-migration-center-section" aria-labelledby="uc-mig-main">
+          <section className="uc-migration-center-section" aria-labelledby="uc-mig-upload">
             <div className="uc-migration-center-section-accent" aria-hidden="true" />
             <span className="uc-migration-center-section-num">1</span>
-            <h2 id="uc-mig-main" className="uc-migration-center-section-title">
-              School Migration
+            <h2 id="uc-mig-upload" className="uc-migration-center-section-title">
+              Upload
             </h2>
             <p className="uc-migration-center-section-hint">
-              Choose the school, upload the export files, and let EduClear analyse everything
-              automatically. Review only genuine exceptions, then Complete Migration.
+              Choose the school that will receive the data, then upload the export files from the
+              old system. EduClear will tell you if anything important is missing.
             </p>
             <UniversalMigrationUpload />
+          </section>
+
+          <section className="uc-migration-center-section" aria-labelledby="uc-mig-check-import">
+            <div className="uc-migration-center-section-accent" aria-hidden="true" />
+            <span className="uc-migration-center-section-num">2–4</span>
+            <h2 id="uc-mig-check-import" className="uc-migration-center-section-title">
+              Check → Approve → Import
+            </h2>
+            <p className="uc-migration-center-section-hint">
+              EduClear checks learners, families and money totals. Money must match exactly (R0.00
+              difference) before you can Approve &amp; Import. If something stops mid-way, you can
+              safely continue later — existing school data stays protected.
+            </p>
             <UniversalMigrationOrchestratorSection
               onNotice={setApplyNotice}
               onOpenReviewSection={openReview}

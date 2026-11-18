@@ -1,0 +1,5 @@
+Learner ID,Learner Name,Grade,Class,Subjects,Mother,Parent ID Number,Mobile,Email,Account Number,Status
+9400000000101,Ada Active,Grade 1,Grade 1A,Mathematics,Parent Alpha,8400000000101,0825000001,alpha@phase1e.test,ACC-P1E-01,ACTIVE
+9400000000102,Ben Unknown,Grade 1,Grade 1A,English,Parent Alpha,8400000000101,0825000001,alpha@phase1e.test,ACC-P1E-01,
+9400000000103,Cia Missing,Grade 2,Grade 2B,Mathematics,Parent Beta,8400000000102,0825000002,beta@phase1e.test,ACC-P1E-02,
+9400000000104,Dan Former,Grade 3,Grade 3C,English,Parent Gamma,8400000000103,0825000003,gamma@phase1e.test,ACC-P1E-03,HISTORICAL

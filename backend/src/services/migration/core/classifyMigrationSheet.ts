@@ -136,22 +136,42 @@ export function classifyMigrationSheet(input: {
   }
 
   const learnerIdentity =
-    hasAny(headers, ["accession", "admission", "admissionno", "learnernumber", "studentnumber"]) &&
-    hasAny(headers, ["surname", "lastname", "firstname", "fullname", "learnername"]);
+    hasAny(headers, [
+      "accession",
+      "admission",
+      "admissionno",
+      "learnernumber",
+      "studentnumber",
+      "learnerid",
+      "studentid",
+    ]) &&
+    hasAny(headers, ["surname", "lastname", "firstname", "fullname", "learnername", "studentname"]);
   const learnerNames =
-    hasAny(headers, ["firstname", "fullname", "learnername"]) &&
+    hasAny(headers, ["firstname", "fullname", "learnername", "studentname"]) &&
     hasAny(headers, ["surname", "lastname"]);
+  const combinedLearnerParentExport =
+    hasAny(headers, ["learnerid", "studentid", "learnername", "studentname", "firstname", "fullname"]) &&
+    hasAny(headers, ["grade", "class", "classroom"]) &&
+    hasAny(headers, ["mother", "father", "parent", "guardian", "parentid", "parentname"]);
   const looksLikeLearnerRegister =
-    (learnerIdentity || (learnerNames && hasAny(headers, ["grade", "class", "dob", "dateofbirth", "gender"]))) &&
+    (learnerIdentity ||
+      (learnerNames && hasAny(headers, ["grade", "class", "dob", "dateofbirth", "gender"])) ||
+      combinedLearnerParentExport) &&
     !has(headers, "metric");
 
+  // "Parent ID Number" on a learner register is linkage data, not a parent-only export.
+  const parentIdOnlyOnLearnerRegister =
+    looksLikeLearnerRegister &&
+    hasAny(headers, ["parentid", "parentidnumber"]) &&
+    !hasAny(headers, ["linkedlearners", "learneraccessions", "roles", "candidateid"]);
+
   const parentCandidate =
-    hasAny(headers, ["candidateid", "parentid"]) ||
+    (!parentIdOnlyOnLearnerRegister && hasAny(headers, ["candidateid", "parentid"])) ||
     (hasAny(headers, ["firstname", "surname", "lastname"]) &&
       hasAny(headers, ["linkedlearners", "learneraccessions", "roles"]));
 
   const parentContact =
-    hasAny(headers, ["parentname", "guardian", "parentfirstname", "parentfirst"]) &&
+    hasAny(headers, ["parentname", "guardian", "parentfirstname", "parentfirst", "mother", "father"]) &&
     hasAny(headers, ["cell", "phone", "email", "mobile"]);
 
   const relationship =
@@ -189,8 +209,12 @@ export function classifyMigrationSheet(input: {
     };
   }
 
-  if (looksLikeLearnerRegister && !parentCandidate && !billing) {
-    reasons.push("Learner identity columns");
+  if (looksLikeLearnerRegister && !billing) {
+    reasons.push(
+      combinedLearnerParentExport
+        ? "Combined learner register with parent contact columns"
+        : "Learner identity columns"
+    );
     return {
       category: "learners",
       sheetRole: "DATA",

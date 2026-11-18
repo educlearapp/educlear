@@ -1,4 +1,5 @@
 import type { MigrationAdapter } from "../types/MigrationAdapter";
+import { accountabilityAdapter } from "./accountabilityAdapter";
 import { adamAdapter } from "./adamAdapter";
 import { d6Adapter } from "./d6Adapter";
 import { edadminAdapter } from "./edadminAdapter";
@@ -16,11 +17,13 @@ export const MIGRATION_ADAPTERS: MigrationAdapter[] = [
   adamAdapter,
   edadminAdapter,
   edupacAdapter,
+  accountabilityAdapter,
   genericExcelAdapter,
   genericCsvAdapter,
 ];
 
 export {
+  accountabilityAdapter,
   adamAdapter,
   d6Adapter,
   edadminAdapter,
@@ -30,6 +33,10 @@ export {
   kideesysAdapter,
   sasamsAdapter,
 };
+export {
+  ACCOUNTABILITY_ADAPTER_STATUS,
+  ACCOUNTABILITY_UNSUPPORTED_REASON,
+} from "./accountabilityAdapter";
 export {
   KIDEESYS_ADAPTER_METADATA,
   KIDEESYS_CONFIDENCE_RULES,

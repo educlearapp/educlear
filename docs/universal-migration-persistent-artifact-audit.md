@@ -1,43 +1,35 @@
-# Universal Migration — Persistent Artifact Audit (Phase 1O)
+# Universal Migration — Persistent Artifact Audit (Phase 1O → Phase 1B)
 
 Render backend: `process.cwd()` = `backend/`. Persistent disk mounts at `backend/data` only.
 
-## Persistent (`data/`)
+## Persistent (`data/`) — Phase 1B write root
 
 | Artifact | Path | Survives deploy/restart? |
 |----------|------|---------------------------|
 | Completion locks | `data/migration-orchestrator/locks/` | YES (shared disk) |
+| Orchestrator runs / readiness | `data/migration-orchestrator/` | YES (new writes) |
+| Sessions, stages, manifests, plans, finance/accept evidence, batches, reports, templates, registry, signoffs, pilots, runbooks, readiness | `data/migration-*` | YES (new writes) |
+| Staging uploads (universal) | `data/migration-staging/` | YES (preferred write) |
 | Billing ledger / age analysis (existing) | `data/` | YES |
 
-## Ephemeral (`storage/` or `uploads/`) — RESTRICTION / BLOCKER RISK
+## Legacy (`storage/` / `uploads/`) — read-compatible, never blindly moved/deleted
 
 | Artifact | Path | Survives deploy/restart? |
 |----------|------|---------------------------|
-| Orchestrator runs | `storage/migration-orchestrator/` | NO |
-| Source manifests | `storage/migration-source-manifests/` | NO |
-| Stages | `storage/migration-stages/` | NO |
-| Sessions | `storage/migration-sessions/` | NO |
-| Parent/family plans | `storage/migration-parent-family/` | NO |
-| Academic plans | `storage/migration-academic/` | NO |
-| Finance reconciliations | `storage/migration-finance-reconciliations/` | NO |
-| Statement authority | `storage/migration-statement-authority/` (+ baselines) | NO |
-| Fee Check authority | `storage/migration-feecheck-authority/` | NO |
-| Acceptances | `storage/migration-acceptances/` | NO |
-| Compiled plans / source analyses | `storage/migration-compiled-plans/`, `migration-source-analyses/` | NO |
-| Uploaded source files | `uploads/migration-staging/` | NO |
+| Pre-Phase-1 control-plane JSON | `storage/migration-*` | NO on ephemeral disk, but **still readable** via dual-read |
+| Uploaded source files (legacy) | `uploads/migration-staging/`, `storage/migration-staging/` | Allowed read roots retained |
+
+## Dual-read policy (Phase 1B)
+
+- **WRITE:** always `data/migration-<key>/`
+- **READ:** `data/` first, then legacy `storage/migration-<key>/`
+- **Never** bulk-move or silently delete legacy migration records
 
 ## Classification
 
 - **Completion lock production compatibility:** YES for current single-web-service topology sharing `data/` disk.
-- **Retry/reopen after backend restart mid-pilot:** CRITICAL artifacts under `storage/` are **ephemeral** → **PILOT RESTRICTION** (and potential release blocker if multi-day / restart expected).
-
-### Operational mitigation for controlled Pilot #1
-
-1. Complete Upload → Analyse → Review → Complete → evidence export in **one continuous window**.
-2. **Do not deploy or restart** backend between upload and audit package export.
-3. Immediately copy/export the pilot audit package off the instance after Complete.
-4. Treat post-restart reopen of the same stage as **unsupported** until artifacts are moved to `data/` in a future hardening phase.
+- **Retry/reopen after backend restart:** Supported for artifacts written under `data/` after Phase 1B. Legacy `storage/` artifacts remain readable without migration.
 
 ## Database
 
-Authoritative EduClear school data (learners, parents, links, classrooms, subjects, family accounts, ledger via billing store) lives in DB / `data/` ledger — survives. Migration *control-plane* evidence currently does not (except locks).
+Authoritative EduClear school data lives in DB / `data/` ledger — survives. Migration control-plane evidence now writes to persistent `data/` with legacy fallback reads.

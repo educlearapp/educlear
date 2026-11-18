@@ -6,8 +6,14 @@ import fs from "fs";
 import path from "path";
 import type { MigrationFinanceReconciliation } from "./MigrationFinanceReconciliation";
 import { MIGRATION_FINANCE_RECONCILIATION_VERSION } from "./MigrationFinanceReconciliation";
+import {
+  ensureMigrationArtifactWriteDir,
+  listMigrationArtifactIds,
+  resolveMigrationArtifactReadPath,
+} from "../core/migrationPersistentArtifacts";
 
-const DIR = path.join(process.cwd(), "storage", "migration-finance-reconciliations");
+const ARTIFACT_KEY = "finance-reconciliations";
+const DIR = (() => ensureMigrationArtifactWriteDir(ARTIFACT_KEY))();
 
 function ensureDir(): void {
   if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true });
@@ -50,9 +56,11 @@ export function getFinanceReconciliation(
   reconciliationId: string
 ): MigrationFinanceReconciliation | null {
   try {
-    const fp = filePath(reconciliationId);
-    if (!fs.existsSync(fp)) return null;
-    return JSON.parse(fs.readFileSync(fp, "utf8")) as MigrationFinanceReconciliation;
+    const dual = resolveMigrationArtifactReadPath(ARTIFACT_KEY, reconciliationId);
+    if (dual) {
+      return JSON.parse(fs.readFileSync(dual, "utf8")) as MigrationFinanceReconciliation;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -75,14 +83,10 @@ export function listFinanceReconciliationsForStage(
 ): MigrationFinanceReconciliation[] {
   ensureDir();
   const out: MigrationFinanceReconciliation[] = [];
-  for (const name of fs.readdirSync(DIR)) {
-    if (!name.endsWith(".json") || name.startsWith(".")) continue;
-    if (name.includes(".tmp")) continue;
+  for (const id of listMigrationArtifactIds(ARTIFACT_KEY)) {
     try {
-      const row = JSON.parse(
-        fs.readFileSync(path.join(DIR, name), "utf8")
-      ) as MigrationFinanceReconciliation;
-      if (row.stageId === stageId) out.push(row);
+      const row = getFinanceReconciliation(id);
+      if (row && row.stageId === stageId) out.push(row);
     } catch {
       /* skip */
     }

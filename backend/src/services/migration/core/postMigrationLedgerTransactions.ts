@@ -75,7 +75,7 @@ function resolveIndexEntry(
     const entry = index.get(key);
     if (entry) return { entry, matched: true };
   }
-  return { entry: null, matched: keys.length > 0 };
+  return { entry: null, matched: false };
 }
 
 function prismaEnrollmentToMigrationStatus(enrollmentStatus: string): MigrationLearnerStatus {
@@ -227,6 +227,7 @@ export async function postSingleMigrationLedgerTransaction(
     learnerEntry: entry,
     hasLearnerOrAccountMatch: matched,
     accountStatus,
+    purpose: "migrationImportPosting",
   });
 
   const reportBase = {
@@ -300,21 +301,34 @@ export async function postSingleMigrationLedgerTransaction(
     return;
   }
 
-  const activeLearner = await ctx.tx.learner.findFirst({
-    where: {
-      schoolId: ctx.schoolId,
-      familyAccountId: familyAccount.id,
-      enrollmentStatus: "ACTIVE",
-    },
-    select: { id: true, grade: true, className: true, enrollmentStatus: true },
-    orderBy: { createdAt: "asc" },
-  });
+  // Phase 1E: migration import posts to the uniquely resolved family account.
+  // Prefer an ACTIVE learner for ledger linkage when present; otherwise any learner
+  // on that account (UNKNOWN/HISTORICAL/UNENROLLED). Do NOT invent allocations.
+  const linkedLearner =
+    (await ctx.tx.learner.findFirst({
+      where: {
+        schoolId: ctx.schoolId,
+        familyAccountId: familyAccount.id,
+        enrollmentStatus: "ACTIVE",
+      },
+      select: { id: true },
+      orderBy: { createdAt: "asc" },
+    })) ||
+    (await ctx.tx.learner.findFirst({
+      where: {
+        schoolId: ctx.schoolId,
+        familyAccountId: familyAccount.id,
+      },
+      select: { id: true },
+      orderBy: { createdAt: "asc" },
+    }));
 
-  if (!activeLearner) {
+  if (!linkedLearner) {
     ctx.report.push({
       ...reportBase,
       status: "failed",
-      message: "No ACTIVE learner on billing account — transaction not posted (head count protected)",
+      message:
+        "Billing account has no linked learner — transaction not posted (ambiguous / incomplete family link)",
     });
     ctx.failedCounts.transactions += 1;
     bumpTransactionOutcome(ctx.transactionOutcomes, "blocked");
@@ -334,7 +348,7 @@ export async function postSingleMigrationLedgerTransaction(
   const ledgerEntry: BillingLedgerEntry = {
     id: entryId,
     schoolId: ctx.schoolId,
-    learnerId: activeLearner.id,
+    learnerId: linkedLearner.id,
     accountNo: familyAccount.accountRef,
     type: ledgerType,
     amount: normaliseAmount(decision.amount),

@@ -6,13 +6,21 @@ import type {
   MigrationImportBatch,
   MigrationImportReportRow,
 } from "../types/MigrationApply";
+import {
+  ensureMigrationArtifactWriteDir,
+  listMigrationArtifactIds,
+  migrationArtifactExists,
+  resolveMigrationArtifactReadPath,
+} from "./migrationPersistentArtifacts";
 
-const BATCHES_DIR = path.join(process.cwd(), "storage", "migration-import-batches");
+const ARTIFACT_KEY = "import-batches";
+
+function getBatchesDir(): string {
+  return ensureMigrationArtifactWriteDir(ARTIFACT_KEY);
+}
 
 function ensureBatchesDir(): void {
-  if (!fs.existsSync(BATCHES_DIR)) {
-    fs.mkdirSync(BATCHES_DIR, { recursive: true });
-  }
+  getBatchesDir();
 }
 
 function sanitizeBatchId(id: string): string | null {
@@ -26,8 +34,9 @@ function sanitizeBatchId(id: string): string | null {
 function batchFilePath(id: string): string {
   const safe = sanitizeBatchId(id);
   if (!safe) throw new Error("Invalid batch id");
-  const resolved = path.resolve(BATCHES_DIR, `${safe}.json`);
-  if (!resolved.startsWith(path.resolve(BATCHES_DIR) + path.sep)) {
+  const dir = getBatchesDir();
+  const resolved = path.resolve(dir, `${safe}.json`);
+  if (!resolved.startsWith(path.resolve(dir) + path.sep)) {
     throw new Error("Invalid batch path");
   }
   return resolved;
@@ -69,10 +78,10 @@ export function createMigrationImportBatch(
   const safeId = sanitizeBatchId(batchId);
   if (!safeId) throw new Error("Invalid batch id");
 
-  const filePath = batchFilePath(safeId);
-  if (fs.existsSync(filePath)) {
+  if (migrationArtifactExists(ARTIFACT_KEY, safeId)) {
     throw new Error("Import batch id already exists");
   }
+  const filePath = batchFilePath(safeId);
 
   const batch: MigrationImportBatch = {
     batchId: safeId,
@@ -118,11 +127,10 @@ export function updateMigrationImportBatch(batch: MigrationImportBatch): Migrati
 }
 
 export function getImportBatch(batchId: string): MigrationImportBatch | null {
-  ensureBatchesDir();
   const safeId = sanitizeBatchId(batchId);
   if (!safeId) return null;
-  const filePath = batchFilePath(safeId);
-  if (!fs.existsSync(filePath)) return null;
+  const filePath = resolveMigrationArtifactReadPath(ARTIFACT_KEY, safeId);
+  if (!filePath) return null;
   try {
     const raw = JSON.parse(fs.readFileSync(filePath, "utf8")) as MigrationImportBatch;
     return hydrateImportBatch(raw);
@@ -137,13 +145,8 @@ export function getMigrationImportBatch(batchId: string): MigrationImportBatch |
 
 export function listImportBatches(): MigrationImportBatch[] {
   ensureBatchesDir();
-  const files = fs
-    .readdirSync(BATCHES_DIR)
-    .filter((name) => name.endsWith(".json") && !name.includes(".tmp"));
-
   const batches: MigrationImportBatch[] = [];
-  for (const file of files) {
-    const id = file.replace(/\.json$/, "");
+  for (const id of listMigrationArtifactIds(ARTIFACT_KEY)) {
     const batch = getImportBatch(id);
     if (batch) batches.push(batch);
   }

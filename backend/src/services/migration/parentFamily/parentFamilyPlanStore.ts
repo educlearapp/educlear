@@ -6,13 +6,26 @@ import type {
   ParentFamilyDiscovery,
   ParentFamilyMigrationPlan,
 } from "./ParentFamilyMigrationTypes";
+import {
+  ensureMigrationArtifactWriteDir,
+  getMigrationArtifactLegacyDir,
+  getMigrationArtifactWriteDir,
+} from "../core/migrationPersistentArtifacts";
 
-const ROOT = path.join(process.cwd(), "storage", "migration-parent-family");
+const ARTIFACT_KEY = "parent-family";
+const ROOT = (() => ensureMigrationArtifactWriteDir(ARTIFACT_KEY))();
 
 function ensureDir(sub?: string): string {
   const dir = sub ? path.join(ROOT, sub) : ROOT;
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   return dir;
+}
+
+function readDirs(sub: string): string[] {
+  return [
+    path.join(getMigrationArtifactWriteDir(ARTIFACT_KEY), sub),
+    path.join(getMigrationArtifactLegacyDir(ARTIFACT_KEY), sub),
+  ];
 }
 
 function sanitizeId(id: string): string | null {
@@ -32,16 +45,20 @@ function writeJson(dir: string, id: string, data: unknown): void {
   fs.renameSync(tmp, fp);
 }
 
-function readJson<T>(dir: string, id: string): T | null {
-  try {
-    const safe = sanitizeId(id);
-    if (!safe) return null;
-    const fp = path.join(dir, `${safe}.json`);
-    if (!fs.existsSync(fp)) return null;
-    return JSON.parse(fs.readFileSync(fp, "utf8")) as T;
-  } catch {
-    return null;
+function readJson<T>(dirOrDirs: string | string[], id: string): T | null {
+  const safe = sanitizeId(id);
+  if (!safe) return null;
+  const dirs = Array.isArray(dirOrDirs) ? dirOrDirs : [dirOrDirs];
+  for (const dir of dirs) {
+    try {
+      const fp = path.join(dir, `${safe}.json`);
+      if (!fs.existsSync(fp)) continue;
+      return JSON.parse(fs.readFileSync(fp, "utf8")) as T;
+    } catch {
+      /* try next */
+    }
   }
+  return null;
 }
 
 export function saveParentFamilyDiscovery(d: ParentFamilyDiscovery): ParentFamilyDiscovery {
@@ -59,11 +76,11 @@ export function saveParentFamilyPlan(plan: ParentFamilyMigrationPlan): ParentFam
 }
 
 export function getParentFamilyPlan(planId: string): ParentFamilyMigrationPlan | null {
-  return readJson(ensureDir("plans"), planId);
+  return readJson(readDirs("plans"), planId);
 }
 
 export function getParentFamilyPlanByStage(stageId: string): ParentFamilyMigrationPlan | null {
-  return readJson(ensureDir("plans"), `stage_${stageId}`);
+  return readJson(readDirs("plans"), `stage_${stageId}`);
 }
 
 export function saveParentFamilyCheck(check: ParentFamilyCheck): ParentFamilyCheck {
@@ -74,11 +91,11 @@ export function saveParentFamilyCheck(check: ParentFamilyCheck): ParentFamilyChe
 }
 
 export function getParentFamilyCheck(checkId: string): ParentFamilyCheck | null {
-  return readJson(ensureDir("checks"), checkId);
+  return readJson(readDirs("checks"), checkId);
 }
 
 export function getParentFamilyCheckByStage(stageId: string): ParentFamilyCheck | null {
-  return readJson(ensureDir("checks"), `stage_${stageId}`);
+  return readJson(readDirs("checks"), `stage_${stageId}`);
 }
 
 export function saveParentFamilyApply(result: ParentFamilyApplyResult): ParentFamilyApplyResult {
@@ -89,5 +106,5 @@ export function saveParentFamilyApply(result: ParentFamilyApplyResult): ParentFa
 }
 
 export function getParentFamilyApplyByPlan(planId: string): ParentFamilyApplyResult | null {
-  return readJson(ensureDir("applies"), `plan_${planId}`);
+  return readJson(readDirs("applies"), `plan_${planId}`);
 }

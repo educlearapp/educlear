@@ -1,5 +1,5 @@
 /**
- * Persist academic plans / checks / apply results under storage/.
+ * Persist academic plans / checks / apply results under data/ (legacy storage/ readable).
  */
 
 import fs from "fs";
@@ -10,13 +10,26 @@ import type {
   AcademicStructureCheck,
   AcademicStructureDiscovery,
 } from "./AcademicMigrationTypes";
+import {
+  ensureMigrationArtifactWriteDir,
+  getMigrationArtifactLegacyDir,
+  getMigrationArtifactWriteDir,
+} from "../core/migrationPersistentArtifacts";
 
-const ROOT = path.join(process.cwd(), "storage", "migration-academic");
+const ARTIFACT_KEY = "academic";
+const ROOT = (() => ensureMigrationArtifactWriteDir(ARTIFACT_KEY))();
 
 function ensureDir(sub?: string): string {
   const dir = sub ? path.join(ROOT, sub) : ROOT;
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   return dir;
+}
+
+function readDirs(sub: string): string[] {
+  return [
+    path.join(getMigrationArtifactWriteDir(ARTIFACT_KEY), sub),
+    path.join(getMigrationArtifactLegacyDir(ARTIFACT_KEY), sub),
+  ];
 }
 
 function sanitizeId(id: string): string | null {
@@ -36,16 +49,20 @@ function writeJson(dir: string, id: string, data: unknown): void {
   fs.renameSync(tmp, fp);
 }
 
-function readJson<T>(dir: string, id: string): T | null {
-  try {
-    const safe = sanitizeId(id);
-    if (!safe) return null;
-    const fp = path.join(dir, `${safe}.json`);
-    if (!fs.existsSync(fp)) return null;
-    return JSON.parse(fs.readFileSync(fp, "utf8")) as T;
-  } catch {
-    return null;
+function readJson<T>(dirOrDirs: string | string[], id: string): T | null {
+  const safe = sanitizeId(id);
+  if (!safe) return null;
+  const dirs = Array.isArray(dirOrDirs) ? dirOrDirs : [dirOrDirs];
+  for (const dir of dirs) {
+    try {
+      const fp = path.join(dir, `${safe}.json`);
+      if (!fs.existsSync(fp)) continue;
+      return JSON.parse(fs.readFileSync(fp, "utf8")) as T;
+    } catch {
+      /* try next */
+    }
   }
+  return null;
 }
 
 export function saveAcademicDiscovery(
@@ -65,11 +82,11 @@ export function saveAcademicPlan(plan: AcademicMigrationPlan): AcademicMigration
 }
 
 export function getAcademicPlan(planId: string): AcademicMigrationPlan | null {
-  return readJson(ensureDir("plans"), planId);
+  return readJson(readDirs("plans"), planId);
 }
 
 export function getAcademicPlanByStage(stageId: string): AcademicMigrationPlan | null {
-  return readJson(ensureDir("plans"), `stage_${stageId}`);
+  return readJson(readDirs("plans"), `stage_${stageId}`);
 }
 
 export function saveAcademicCheck(check: AcademicStructureCheck): AcademicStructureCheck {
@@ -80,11 +97,11 @@ export function saveAcademicCheck(check: AcademicStructureCheck): AcademicStruct
 }
 
 export function getAcademicCheck(checkId: string): AcademicStructureCheck | null {
-  return readJson(ensureDir("checks"), checkId);
+  return readJson(readDirs("checks"), checkId);
 }
 
 export function getAcademicCheckByStage(stageId: string): AcademicStructureCheck | null {
-  return readJson(ensureDir("checks"), `stage_${stageId}`);
+  return readJson(readDirs("checks"), `stage_${stageId}`);
 }
 
 export function saveAcademicApply(result: AcademicApplyResult): AcademicApplyResult {
@@ -95,7 +112,7 @@ export function saveAcademicApply(result: AcademicApplyResult): AcademicApplyRes
 }
 
 export function getAcademicApplyByPlan(planId: string): AcademicApplyResult | null {
-  return readJson(ensureDir("applies"), `plan_${planId}`);
+  return readJson(readDirs("applies"), `plan_${planId}`);
 }
 
 export function markAcademicPlanStale(planId: string, reason: string): void {

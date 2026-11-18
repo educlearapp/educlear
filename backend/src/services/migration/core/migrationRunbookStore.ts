@@ -3,8 +3,15 @@ import path from "path";
 import { randomUUID } from "crypto";
 import type { MigrationRunbook, MigrationRunbookPatch } from "../types/MigrationRunbook";
 import { buildMigrationRunbook, computeRunbookOverallStatus } from "./buildMigrationRunbook";
+import {
+  ensureMigrationArtifactWriteDir,
+  listMigrationArtifactIds,
+  migrationArtifactExists,
+  resolveMigrationArtifactReadPath,
+} from "./migrationPersistentArtifacts";
 
-const RUNBOOKS_DIR = path.join(process.cwd(), "storage", "migration-runbooks");
+const ARTIFACT_KEY = "runbooks";
+const RUNBOOKS_DIR = (() => ensureMigrationArtifactWriteDir(ARTIFACT_KEY))();
 
 export function ensureMigrationRunbooksDir(): void {
   if (!fs.existsSync(RUNBOOKS_DIR)) {
@@ -51,10 +58,10 @@ export function createRunbook(input: {
   const safeId = sanitizeRunbookId(runbookId);
   if (!safeId) throw new Error("Invalid runbook id");
 
-  const filePath = runbookFilePath(safeId);
-  if (fs.existsSync(filePath)) {
+  if (migrationArtifactExists(ARTIFACT_KEY, safeId)) {
     throw new Error("Runbook id already exists");
   }
+  const filePath = runbookFilePath(safeId);
 
   const runbook = buildMigrationRunbook({
     runbookId: safeId,
@@ -71,11 +78,10 @@ export function createRunbook(input: {
 }
 
 export function getRunbook(runbookId: string): MigrationRunbook | null {
-  ensureMigrationRunbooksDir();
   const safeId = sanitizeRunbookId(runbookId);
   if (!safeId) return null;
-  const filePath = runbookFilePath(safeId);
-  if (!fs.existsSync(filePath)) return null;
+  const filePath = resolveMigrationArtifactReadPath(ARTIFACT_KEY, safeId);
+  if (!filePath) return null;
   try {
     return JSON.parse(fs.readFileSync(filePath, "utf8")) as MigrationRunbook;
   } catch {
@@ -85,13 +91,8 @@ export function getRunbook(runbookId: string): MigrationRunbook | null {
 
 export function listRunbooks(): MigrationRunbook[] {
   ensureMigrationRunbooksDir();
-  const files = fs
-    .readdirSync(RUNBOOKS_DIR)
-    .filter((name) => name.endsWith(".json") && !name.includes(".tmp"));
-
   const runbooks: MigrationRunbook[] = [];
-  for (const file of files) {
-    const id = file.replace(/\.json$/, "");
+  for (const id of listMigrationArtifactIds(ARTIFACT_KEY)) {
     const runbook = getRunbook(id);
     if (runbook) runbooks.push(runbook);
   }

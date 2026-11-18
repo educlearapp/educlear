@@ -1,5 +1,7 @@
 /** Client helpers for Phase 1L Universal Migration Orchestrator. */
 
+import { getSuperAdminToken } from "../../auth/superAdminSession";
+
 export type DomainStatusSnapshot = {
   domainId: string;
   label: string;
@@ -51,6 +53,21 @@ export type OrchestratorRun = {
   summary: Record<string, unknown>;
 };
 
+function authHeaders(): Record<string, string> {
+  const token = getSuperAdminToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function parseJson(res: Response): Promise<Record<string, unknown>> {
+  return (await res.json().catch(() => ({}))) as Record<string, unknown>;
+}
+
+function errorMessage(data: Record<string, unknown>, fallback: string): string {
+  const err = data?.error;
+  if (typeof err === "string" && err.trim()) return err;
+  return fallback;
+}
+
 export async function postOrchestratorPrepare(input: {
   targetSchoolId: string;
   targetSchoolName?: string;
@@ -67,15 +84,22 @@ export async function postOrchestratorPrepare(input: {
 }> {
   const res = await fetch("/api/migration/orchestrator/prepare", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     credentials: "include",
     body: JSON.stringify(input),
   });
-  const data = await res.json().catch(() => ({}));
+  const data = await parseJson(res);
   if (!res.ok || !data?.success) {
-    throw new Error(data?.error || "EduClear could not analyse the uploaded files.");
+    throw new Error(errorMessage(data, "EduClear could not analyse the uploaded files."));
   }
-  return data;
+  return data as {
+    stageId: string;
+    stage: Record<string, unknown>;
+    readiness: UniversalMigrationReadiness;
+    steps: string[];
+    plainLanguage: string;
+    reusedExistingStage: boolean;
+  };
 }
 
 export async function postOrchestratorAnalyse(input: {
@@ -88,13 +112,18 @@ export async function postOrchestratorAnalyse(input: {
 }> {
   const res = await fetch("/api/migration/orchestrator/analyse", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     credentials: "include",
     body: JSON.stringify(input),
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data?.success) throw new Error(data?.error || "Analyse failed");
-  return { readiness: data.readiness, steps: data.steps || [] };
+  const data = await parseJson(res);
+  if (!res.ok || !data?.success) {
+    throw new Error(errorMessage(data, "Analyse failed"));
+  }
+  return {
+    readiness: data.readiness as UniversalMigrationReadiness,
+    steps: (data.steps as string[]) || [],
+  };
 }
 
 export async function getOrchestratorReadiness(input: {
@@ -104,11 +133,16 @@ export async function getOrchestratorReadiness(input: {
   const q = new URLSearchParams({ targetSchoolId: input.targetSchoolId });
   const res = await fetch(
     `/api/migration/orchestrator/readiness/${encodeURIComponent(input.stageId)}?${q}`,
-    { credentials: "include" }
+    { credentials: "include", headers: { ...authHeaders() } }
   );
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data?.success) throw new Error(data?.error || "Readiness failed");
-  return { readiness: data.readiness, run: data.run ?? null };
+  const data = await parseJson(res);
+  if (!res.ok || !data?.success) {
+    throw new Error(errorMessage(data, "Readiness failed"));
+  }
+  return {
+    readiness: data.readiness as UniversalMigrationReadiness,
+    run: (data.run as OrchestratorRun | null) ?? null,
+  };
 }
 
 export async function postOrchestratorComplete(input: {
@@ -122,15 +156,17 @@ export async function postOrchestratorComplete(input: {
 }> {
   const res = await fetch("/api/migration/orchestrator/complete", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     credentials: "include",
     body: JSON.stringify(input),
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data?.success) throw new Error(data?.error || "Complete migration failed");
+  const data = await parseJson(res);
+  if (!res.ok || !data?.success) {
+    throw new Error(errorMessage(data, "Complete migration failed"));
+  }
   return {
-    run: data.run,
-    readiness: data.readiness,
-    plainLanguage: data.plainLanguage || "",
+    run: data.run as OrchestratorRun,
+    readiness: data.readiness as UniversalMigrationReadiness,
+    plainLanguage: String(data.plainLanguage || ""),
   };
 }

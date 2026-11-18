@@ -194,4 +194,22 @@ export const MIGRATION_SYSTEM_REGISTRY_SEED: MigrationSystemResearch[] = [
     templateCount: 0,
     lastReviewedAt: REVIEWED_AT,
   },
+  {
+    systemId: "accountability",
+    systemName: "AccountAbility",
+    vendor: "AccountAbility",
+    country: "ZA",
+    website: "",
+    exportTypes: ["unknown", "mixed"],
+    supportsLearners: false,
+    supportsParents: false,
+    supportsBilling: false,
+    supportsTransactions: false,
+    supportsStaff: false,
+    notes:
+      "Adapter stub registered for future onboarding. Export samples not yet received — no detection, mapping, or staging is enabled. Do not invent field mappings until real exports are analysed.",
+    adapterStatus: "planned",
+    templateCount: 0,
+    lastReviewedAt: "2026-11-18T00:00:00.000Z",
+  },
 ];

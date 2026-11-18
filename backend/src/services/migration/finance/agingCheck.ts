@@ -15,6 +15,10 @@ import {
   resolveAgingFidelity,
   type AgingBucketsCents,
 } from "./agingFidelity";
+import {
+  ensureMigrationArtifactWriteDir,
+  resolveMigrationArtifactReadPath,
+} from "../core/migrationPersistentArtifacts";
 
 export const AGING_CHECK_VERSION = "1I.1" as const;
 
@@ -46,7 +50,8 @@ export type MigrationAgingCheck = {
   stale: boolean;
 };
 
-const DIR = path.join(process.cwd(), "storage", "migration-aging-checks");
+const ARTIFACT_KEY = "aging-checks";
+const DIR = (() => ensureMigrationArtifactWriteDir(ARTIFACT_KEY))();
 
 function ensureDir(): void {
   if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true });
@@ -77,8 +82,8 @@ export function getAgingCheck(checkId: string): MigrationAgingCheck | null {
   try {
     const safe = sanitizeId(checkId);
     if (!safe) return null;
-    const fp = path.join(DIR, `${safe}.json`);
-    if (!fs.existsSync(fp)) return null;
+    const fp = resolveMigrationArtifactReadPath(ARTIFACT_KEY, safe);
+    if (!fp) return null;
     return JSON.parse(fs.readFileSync(fp, "utf8")) as MigrationAgingCheck;
   } catch {
     return null;

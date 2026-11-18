@@ -1,14 +1,14 @@
 import fs from "fs";
 import path from "path";
+import {
+  getMigrationDataRoot,
+  getMigrationLegacyStorageRoot,
+  getPersistentAndLegacyMigrationStagingRoots,
+} from "./migrationPersistentArtifacts";
 
-/** Raw untouched uploads — never overwrite originals. */
+/** Raw untouched uploads — never overwrite originals. Writes prefer persistent data/. */
 export function getUniversalMigrationStagingDir(): string {
-  const backendCwd = process.cwd();
-  const underBackend = path.join(backendCwd, "storage", "migration-staging");
-  if (fs.existsSync(path.join(backendCwd, "storage"))) {
-    return underBackend;
-  }
-  return path.join(backendCwd, "..", "storage", "migration-staging");
+  return path.join(getMigrationDataRoot(), "migration-staging");
 }
 
 export function ensureUniversalMigrationStagingDir(): string {
@@ -17,4 +17,14 @@ export function ensureUniversalMigrationStagingDir(): string {
     fs.mkdirSync(dir, { recursive: true });
   }
   return dir;
+}
+
+/** All roots where staged source files may already exist (data + legacy storage). */
+export function getUniversalMigrationStagingReadRoots(): string[] {
+  const roots = [
+    getUniversalMigrationStagingDir(),
+    path.join(getMigrationLegacyStorageRoot(), "migration-staging"),
+    ...getPersistentAndLegacyMigrationStagingRoots(),
+  ];
+  return [...new Set(roots.map((r) => path.resolve(r)))];
 }

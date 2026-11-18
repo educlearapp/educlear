@@ -1,0 +1,7 @@
+Account Number,Transaction Date,Amount,Reference,Description,Type
+ACC-P1E-01,2026-06-10,200.00,PAY-A,Post-cutover payment active sibling,Payment
+ACC-P1E-01,2026-06-11,275.00,PAY-B,Post-cutover payment unknown sibling same family,Payment
+ACC-P1E-02,2026-06-12,50.00,CR-01,Credit note after cutover,Credit note
+ACC-P1E-02,2026-06-13,25.00,PAY-OK,Normal payment missing-status learner,Payment
+ACC-P1E-03,2026-06-14,100.00,PAY-EX,Former learner historical payment,Payment
+ACC-P1E-01,2026-06-01,10.00,HIST-01,Pre-cutover history only,Payment

@@ -322,19 +322,57 @@ export function computeUniversalMigrationReadiness(input: {
       warningCount: 0,
     });
   } else {
-    // Finance applicable
+    // Finance applicable — distinguish projected (pre-import) from verified (post-import).
+    const txReady = stage.transactionReadiness;
+    const projectedEligible = Number(txReady?.eligibleActiveTransactions ?? 0);
+    const projectedBlocked = Number(txReady?.blockedTransactions ?? 0);
+    const projectedUnmatched = Number(txReady?.unmatchedTransactions ?? 0);
+    const projectedHistorical = Number(txReady?.historicalOnlyTransactions ?? 0);
+
     let finStatus: DomainStatusSnapshot["status"] = "READY";
     let finBlocking = 0;
+    let finPlain =
+      "Source finance is staged. Projected only — actual totals are verified after import.";
+    let reconciliationPhase: "projected" | "verified" | "failed" | "stale" = "projected";
+
     if (!recon) {
-      finStatus = coreApplied ? "READY" : "BLOCKED";
-      finBlocking = coreApplied ? 0 : 1;
+      // Pre-apply: never claim match/mismatch; never VERIFIED.
+      finStatus = "READY";
+      finBlocking = 0;
+      reconciliationPhase = "projected";
+      finPlain =
+        projectedEligible > 0 || (stage.stagedCounts?.transactions ?? 0) > 0
+          ? `Source finance staged (${projectedEligible} payment(s) projected to post` +
+            (projectedHistorical ? `, ${projectedHistorical} historical-only` : "") +
+            (projectedBlocked + projectedUnmatched
+              ? `, ${projectedBlocked + projectedUnmatched} need attention`
+              : "") +
+            "). Actual R0.00 match is confirmed only after import."
+          : "Source opening balances / accounts are staged. Actual totals are verified after import.";
+      if (projectedUnmatched > 0 || projectedBlocked > 0) {
+        attentionItems.push({
+          attentionId: `fin_projected_${stage.stageId}`,
+          domainId: "FINANCE",
+          severity: "WARNING",
+          title: "Some source payments may not post",
+          message: `${projectedUnmatched} unmatched and ${projectedBlocked} invalid/blocked payment row(s) were found in the upload. They will not be posted; unresolved money can block acceptance after import.`,
+          reviewSection: "finance",
+        });
+      }
     } else if (recon.stale) {
       finStatus = "STALE";
       staleDomains.push("FINANCE");
       finBlocking = 1;
+      reconciliationPhase = "stale";
+      finPlain = "Finance check is out of date — re-check after the latest import.";
     } else if (!recon.canAccept || recon.differenceCents !== 0 || recon.mismatches.length) {
       finStatus = "BLOCKED";
       finBlocking = 1;
+      reconciliationPhase = "failed";
+      finPlain =
+        recon.differenceCents !== 0
+          ? `Post-import reconciliation failed — source and EduClear differ by R${(Math.abs(recon.differenceCents) / 100).toFixed(2)}.`
+          : "Post-import reconciliation failed — school accounts do not match.";
       attentionItems.push({
         attentionId: `fin_${recon.reconciliationId}`,
         domainId: "FINANCE",
@@ -348,38 +386,47 @@ export function computeUniversalMigrationReadiness(input: {
       });
     } else {
       finStatus = "VERIFIED";
+      reconciliationPhase = "verified";
+      finPlain = "Post-import reconciliation verified — school accounts match (R0.00).";
     }
     domains.push({
       domainId: "FINANCE",
       label: "Finance",
       applicable: true,
       status: finStatus,
-      plainLanguage:
-        finStatus === "VERIFIED"
-          ? "School accounts match."
-          : finStatus === "BLOCKED"
-            ? "School accounts do not match yet."
-            : "Finance information is ready to check after learners are migrated.",
+      plainLanguage: finPlain,
       metrics: {
         accounts: recon?.sourceTotals?.accountCount ?? stage.stagedCounts?.billingAccounts ?? 0,
-        differenceCents: recon?.differenceCents ?? null,
+        differenceCents: recon ? recon.differenceCents : null,
+        reconciliationPhase,
+        projectedEligiblePayments: projectedEligible,
+        projectedBlockedPayments: projectedBlocked,
+        projectedUnmatchedPayments: projectedUnmatched,
+        projectedHistoricalOnly: projectedHistorical,
       },
       blockingCount: finBlocking,
-      warningCount: 0,
+      warningCount: projectedUnmatched + projectedBlocked > 0 && !recon ? 1 : 0,
     });
 
     const stmt = getStatementAuthorityCheckByStage(stage.stageId);
     let stmtStatus: DomainStatusSnapshot["status"] = "READY";
     let stmtBlocking = 0;
+    let stmtPlain = "Statements will be verified after import (projected only).";
     if (!stmt) {
-      stmtStatus = recon?.canAccept ? "READY" : "BLOCKED";
+      stmtStatus = "READY";
+      stmtBlocking = 0;
+      stmtPlain = recon
+        ? "Statements still need verification after finance reconciliation."
+        : "Statements will be verified after import (projected only).";
     } else if (stmt.stale) {
       stmtStatus = "STALE";
       staleDomains.push("STATEMENTS");
       stmtBlocking = 1;
+      stmtPlain = "Statement check is out of date.";
     } else if (!stmt.statementAuthorityMatch) {
       stmtStatus = "BLOCKED";
       stmtBlocking = 1;
+      stmtPlain = "Post-import statement balances do not match.";
       attentionItems.push({
         attentionId: `stmt_${stmt.checkId}`,
         domainId: "STATEMENTS",
@@ -390,15 +437,17 @@ export function computeUniversalMigrationReadiness(input: {
       });
     } else {
       stmtStatus = "VERIFIED";
+      stmtPlain = "Post-import statement balances match.";
     }
     domains.push({
       domainId: "STATEMENTS",
       label: "Statements",
       applicable: true,
       status: stmtStatus,
-      plainLanguage:
-        stmtStatus === "VERIFIED" ? "Statements verified." : "Statements still need verification.",
-      metrics: {},
+      plainLanguage: stmtPlain,
+      metrics: {
+        reconciliationPhase: stmtStatus === "VERIFIED" ? "verified" : stmt ? "failed" : "projected",
+      },
       blockingCount: stmtBlocking,
       warningCount: 0,
     });
@@ -406,15 +455,22 @@ export function computeUniversalMigrationReadiness(input: {
     const fee = getFeeCheckAuthorityCheckByStage(stage.stageId);
     let feeStatus: DomainStatusSnapshot["status"] = "READY";
     let feeBlocking = 0;
+    let feePlain = "Fee Check will be verified after import (projected only).";
     if (!fee) {
-      feeStatus = stmt?.statementAuthorityMatch ? "READY" : "BLOCKED";
+      feeStatus = "READY";
+      feeBlocking = 0;
+      feePlain = stmt?.statementAuthorityMatch
+        ? "Fee Check still needs verification after statements."
+        : "Fee Check will be verified after import (projected only).";
     } else if (fee.stale) {
       feeStatus = "STALE";
       staleDomains.push("FEE_CHECK");
       feeBlocking = 1;
+      feePlain = "Fee Check is out of date.";
     } else if (!fee.feeCheckAuthorityMatch) {
       feeStatus = "BLOCKED";
       feeBlocking = 1;
+      feePlain = "Post-import Fee Check does not match.";
       attentionItems.push({
         attentionId: `fee_${fee.checkId}`,
         domainId: "FEE_CHECK",
@@ -425,14 +481,17 @@ export function computeUniversalMigrationReadiness(input: {
       });
     } else {
       feeStatus = "VERIFIED";
+      feePlain = "Post-import Fee Check verified.";
     }
     domains.push({
       domainId: "FEE_CHECK",
       label: "Fee Check",
       applicable: true,
       status: feeStatus,
-      plainLanguage: feeStatus === "VERIFIED" ? "Fee Check verified." : "Fee Check still needs verification.",
-      metrics: {},
+      plainLanguage: feePlain,
+      metrics: {
+        reconciliationPhase: feeStatus === "VERIFIED" ? "verified" : fee ? "failed" : "projected",
+      },
       blockingCount: feeBlocking,
       warningCount: 0,
     });
@@ -543,7 +602,7 @@ export function computeUniversalMigrationReadiness(input: {
   ) {
     overallStatus = "READY_TO_MIGRATE";
     plainLanguageOverall = financeApplicable
-      ? "Ready to complete migration."
+      ? "Ready to import. Finance looks staged (projected) — actual R0.00 match is confirmed only after import."
       : "Ready to migrate supplied school information (no finance export detected).";
   }
 

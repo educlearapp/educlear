@@ -6,8 +6,13 @@ import fs from "fs";
 import path from "path";
 import type { CompiledMigrationPlan } from "./CompiledMigrationPlan";
 import { COMPILED_MIGRATION_PLAN_VERSION } from "./CompiledMigrationPlan";
+import {
+  ensureMigrationArtifactWriteDir,
+  resolveMigrationArtifactReadPath,
+} from "../core/migrationPersistentArtifacts";
 
-const PLANS_DIR = path.join(process.cwd(), "storage", "migration-compiled-plans");
+const ARTIFACT_KEY = "compiled-plans";
+const PLANS_DIR = (() => ensureMigrationArtifactWriteDir(ARTIFACT_KEY))();
 
 function ensureDir(): void {
   if (!fs.existsSync(PLANS_DIR)) {
@@ -56,8 +61,8 @@ export function saveCompiledPlan(plan: CompiledMigrationPlan): CompiledMigration
 export function getCompiledPlan(planId: string): CompiledMigrationPlan | null {
   const safe = sanitizeId(planId);
   if (!safe) return null;
-  const filePath = planPath(safe);
-  if (!fs.existsSync(filePath)) return null;
+  const filePath = resolveMigrationArtifactReadPath(ARTIFACT_KEY, safe);
+  if (!filePath) return null;
   try {
     const raw = JSON.parse(fs.readFileSync(filePath, "utf8")) as CompiledMigrationPlan;
     return raw;

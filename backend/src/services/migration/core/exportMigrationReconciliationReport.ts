@@ -3,8 +3,12 @@ import path from "path";
 import type { MigrationReconciliationResult } from "../types/MigrationReconciliation";
 import { buildCsvContent } from "./migrationReportCsv";
 import { ensureMigrationReportsDir } from "./exportValidationReport";
+import {
+  ensureMigrationArtifactWriteDir,
+} from "./migrationPersistentArtifacts";
 
-const REPORTS_DIR = path.join(process.cwd(), "storage", "migration-reports");
+const ARTIFACT_KEY = "reports";
+const REPORTS_DIR = (() => ensureMigrationArtifactWriteDir(ARTIFACT_KEY))();
 
 const HEADERS = ["Section", "Check", "Expected", "Actual", "Status", "Message"];
 

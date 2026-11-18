@@ -6,6 +6,9 @@
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
+import {
+  ensureMigrationArtifactWriteDir,
+} from "../../core/migrationPersistentArtifacts";
 
 export type SameDateSupersessionAudit = {
   auditId: string;
@@ -23,7 +26,8 @@ export type SameDateSupersessionAudit = {
   confirmed: true;
 };
 
-const DIR = path.join(process.cwd(), "storage", "migration-same-date-supersessions");
+const ARTIFACT_KEY = "same-date-supersessions";
+const DIR = (() => ensureMigrationArtifactWriteDir(ARTIFACT_KEY))();
 
 function ensureDir(): void {
   if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true });

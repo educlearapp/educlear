@@ -1,13 +1,26 @@
 import fs from "fs";
 import path from "path";
 import type { OrchestratorRunRecord, UniversalMigrationReadiness } from "./OrchestratorTypes";
+import {
+  ensureMigrationArtifactWriteDir,
+  getMigrationArtifactLegacyDir,
+  getMigrationArtifactWriteDir,
+} from "../core/migrationPersistentArtifacts";
 
-const ROOT = path.join(process.cwd(), "storage", "migration-orchestrator");
+const ARTIFACT = "orchestrator";
 
-function ensureDir(sub?: string): string {
-  const dir = sub ? path.join(ROOT, sub) : ROOT;
+function writeRoot(sub: string): string {
+  const base = ensureMigrationArtifactWriteDir(ARTIFACT);
+  const dir = path.join(base, sub);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   return dir;
+}
+
+function readRoots(sub: string): string[] {
+  return [
+    path.join(getMigrationArtifactWriteDir(ARTIFACT), sub),
+    path.join(getMigrationArtifactLegacyDir(ARTIFACT), sub),
+  ];
 }
 
 function sanitizeId(id: string): string | null {
@@ -27,16 +40,19 @@ function writeJson(dir: string, id: string, data: unknown): void {
   fs.renameSync(tmp, fp);
 }
 
-function readJson<T>(dir: string, id: string): T | null {
-  try {
-    const safe = sanitizeId(id);
-    if (!safe) return null;
-    const fp = path.join(dir, `${safe}.json`);
-    if (!fs.existsSync(fp)) return null;
-    return JSON.parse(fs.readFileSync(fp, "utf8")) as T;
-  } catch {
-    return null;
+function readJson<T>(dirs: string[], id: string): T | null {
+  const safe = sanitizeId(id);
+  if (!safe) return null;
+  for (const dir of dirs) {
+    try {
+      const fp = path.join(dir, `${safe}.json`);
+      if (!fs.existsSync(fp)) continue;
+      return JSON.parse(fs.readFileSync(fp, "utf8")) as T;
+    } catch {
+      /* try next root */
+    }
   }
+  return null;
 }
 
 /** In-process Completing locks (process-local concurrency guard). */
@@ -55,7 +71,7 @@ export function releaseCompleteLock(stageId: string): void {
 export function saveOrchestratorReadiness(
   readiness: UniversalMigrationReadiness
 ): UniversalMigrationReadiness {
-  const dir = ensureDir("readiness");
+  const dir = writeRoot("readiness");
   writeJson(dir, readiness.readinessId, readiness);
   if (readiness.stageId) writeJson(dir, `stage_${readiness.stageId}`, readiness);
   return readiness;
@@ -64,16 +80,16 @@ export function saveOrchestratorReadiness(
 export function getOrchestratorReadinessByStage(
   stageId: string
 ): UniversalMigrationReadiness | null {
-  return readJson(ensureDir("readiness"), `stage_${stageId}`);
+  return readJson(readRoots("readiness"), `stage_${stageId}`);
 }
 
 export function saveOrchestratorRun(run: OrchestratorRunRecord): OrchestratorRunRecord {
-  const dir = ensureDir("runs");
+  const dir = writeRoot("runs");
   writeJson(dir, run.runId, run);
   writeJson(dir, `stage_${run.stageId}`, run);
   return run;
 }
 
 export function getOrchestratorRunByStage(stageId: string): OrchestratorRunRecord | null {
-  return readJson(ensureDir("runs"), `stage_${stageId}`);
+  return readJson(readRoots("runs"), `stage_${stageId}`);
 }

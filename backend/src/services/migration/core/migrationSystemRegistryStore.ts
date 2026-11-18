@@ -12,8 +12,15 @@ import {
 import { MIGRATION_ADAPTERS } from "../adapters";
 import { listTemplates } from "../templates/migrationTemplateStore";
 import { MIGRATION_SYSTEM_REGISTRY_SEED } from "./migrationSystemRegistrySeed";
+import {
+  ensureMigrationArtifactWriteDir,
+  getMigrationArtifactLegacyDir,
+  listMigrationArtifactIds,
+  resolveMigrationArtifactReadPath,
+} from "./migrationPersistentArtifacts";
 
-const REGISTRY_DIR = path.join(process.cwd(), "storage", "migration-system-registry");
+const ARTIFACT_KEY = "system-registry";
+const REGISTRY_DIR = (() => ensureMigrationArtifactWriteDir(ARTIFACT_KEY))();
 
 /** Prevents re-entrant seeding when saveSystem calls getSystem before the first file is written. */
 let registrySeedInProgress = false;
@@ -109,9 +116,7 @@ function withLiveTemplateCount(system: MigrationSystemResearch): MigrationSystem
 export function seedMigrationSystemRegistryIfEmpty(): number {
   if (registrySeedInProgress) return 0;
   ensureRegistryDir();
-  const hasSystems = fs
-    .readdirSync(REGISTRY_DIR, { withFileTypes: true })
-    .some((e) => e.isFile() && e.name.endsWith(".json"));
+  const hasSystems = listMigrationArtifactIds(ARTIFACT_KEY).length > 0;
   if (hasSystems) return 0;
 
   registrySeedInProgress = true;
@@ -131,15 +136,11 @@ export function listSystems(): MigrationSystemResearch[] {
   ensureRegistryDir();
   seedMigrationSystemRegistryIfEmpty();
 
-  const entries = fs.readdirSync(REGISTRY_DIR, { withFileTypes: true });
   const systems: MigrationSystemResearch[] = [];
 
-  for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
-    const fileId = entry.name.replace(/\.json$/i, "");
+  for (const fileId of listMigrationArtifactIds(ARTIFACT_KEY)) {
     try {
-      const raw = fs.readFileSync(path.join(REGISTRY_DIR, entry.name), "utf8");
-      const system = parseSystemFile(raw, fileId);
+      const system = getSystemWithoutSeed(fileId);
       if (system) systems.push(withLiveTemplateCount(system));
     } catch {
       // Skip corrupt files
@@ -147,6 +148,19 @@ export function listSystems(): MigrationSystemResearch[] {
   }
 
   return systems.sort((a, b) => a.systemName.localeCompare(b.systemName));
+}
+
+function getSystemWithoutSeed(systemId: string): MigrationSystemResearch | null {
+  const safeId = sanitizeSystemId(systemId);
+  if (!safeId) return null;
+  const filePath = resolveMigrationArtifactReadPath(ARTIFACT_KEY, safeId);
+  if (!filePath) return null;
+  try {
+    const raw = fs.readFileSync(filePath, "utf8");
+    return parseSystemFile(raw, safeId);
+  } catch {
+    return null;
+  }
 }
 
 /** Registry systemId when adapter `source` differs (see resolveMigrationAdapterSource). */
@@ -224,18 +238,8 @@ export function getMigrationSystemForApi(systemId: string): MigrationSystemResea
 export function getSystem(systemId: string): MigrationSystemResearch | null {
   ensureRegistryDir();
   seedMigrationSystemRegistryIfEmpty();
-
-  const safeId = sanitizeSystemId(systemId);
-  if (!safeId) return null;
-  const filePath = systemFilePath(safeId);
-  if (!fs.existsSync(filePath)) return null;
-  try {
-    const raw = fs.readFileSync(filePath, "utf8");
-    const system = parseSystemFile(raw, safeId);
-    return system ? withLiveTemplateCount(system) : null;
-  } catch {
-    return null;
-  }
+  const system = getSystemWithoutSeed(systemId);
+  return system ? withLiveTemplateCount(system) : null;
 }
 
 export function saveSystem(input: MigrationSystemResearch): MigrationSystemResearch {
@@ -287,11 +291,17 @@ export function saveSystem(input: MigrationSystemResearch): MigrationSystemResea
 }
 
 export function deleteSystem(systemId: string): boolean {
-  ensureRegistryDir();
   const safeId = sanitizeSystemId(systemId);
   if (!safeId) return false;
-  const filePath = systemFilePath(safeId);
-  if (!fs.existsSync(filePath)) return false;
-  fs.unlinkSync(filePath);
-  return true;
+  let removed = false;
+  for (const filePath of [
+    path.join(REGISTRY_DIR, `${safeId}.json`),
+    path.join(getMigrationArtifactLegacyDir(ARTIFACT_KEY), `${safeId}.json`),
+  ]) {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      removed = true;
+    }
+  }
+  return removed;
 }

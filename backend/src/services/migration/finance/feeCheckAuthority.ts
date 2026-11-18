@@ -12,6 +12,10 @@ import type { MigrationStatementAuthorityCheck } from "./statementAuthority/Migr
 import { resolveAuthoritativeFamilyAccountBalance } from "../../financeAuthority/resolveAuthoritativeFamilyAccountBalance";
 import { centsEqual } from "./moneyCents";
 import { readSchoolLedger } from "../../../utils/billingLedgerStore";
+import {
+  ensureMigrationArtifactWriteDir,
+  resolveMigrationArtifactReadPath,
+} from "../core/migrationPersistentArtifacts";
 
 export const FEE_CHECK_AUTHORITY_VERSION = "1I.1" as const;
 
@@ -44,7 +48,8 @@ export type MigrationFeeCheckAuthorityCheck = {
   stale: boolean;
 };
 
-const DIR = path.join(process.cwd(), "storage", "migration-feecheck-authority");
+const ARTIFACT_KEY = "feecheck-authority";
+const DIR = (() => ensureMigrationArtifactWriteDir(ARTIFACT_KEY))();
 
 function ensureDir(): void {
   if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true });
@@ -80,8 +85,8 @@ export function getFeeCheckAuthorityCheck(
   try {
     const safe = sanitizeId(checkId);
     if (!safe) return null;
-    const fp = path.join(DIR, `${safe}.json`);
-    if (!fs.existsSync(fp)) return null;
+    const fp = resolveMigrationArtifactReadPath(ARTIFACT_KEY, safe);
+    if (!fp) return null;
     return JSON.parse(fs.readFileSync(fp, "utf8")) as MigrationFeeCheckAuthorityCheck;
   } catch {
     return null;
@@ -94,8 +99,8 @@ export function getFeeCheckAuthorityCheckByStage(
   try {
     const safe = sanitizeId(stageId);
     if (!safe) return null;
-    const fp = path.join(DIR, `stage_${safe}.json`);
-    if (!fs.existsSync(fp)) return null;
+    const fp = resolveMigrationArtifactReadPath(ARTIFACT_KEY, `stage_${safe}`);
+    if (!fp) return null;
     return JSON.parse(fs.readFileSync(fp, "utf8")) as MigrationFeeCheckAuthorityCheck;
   } catch {
     return null;

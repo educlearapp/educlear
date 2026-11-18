@@ -9,8 +9,15 @@ import type {
   MigrationRequiredFile,
 } from "../types/MigrationAdapterReadinessTemplate";
 import { MIGRATION_ADAPTER_READINESS_SEED } from "./migrationAdapterReadinessSeed";
+import {
+  ensureMigrationArtifactWriteDir,
+  getMigrationArtifactLegacyDir,
+  listMigrationArtifactIds,
+  resolveMigrationArtifactReadPath,
+} from "./migrationPersistentArtifacts";
 
-const READINESS_DIR = path.join(process.cwd(), "storage", "migration-adapter-readiness");
+const ARTIFACT_KEY = "adapter-readiness";
+const READINESS_DIR = (() => ensureMigrationArtifactWriteDir(ARTIFACT_KEY))();
 
 /** Prevents re-entrant seeding when saveReadinessTemplate calls getReadinessTemplate before the first file is written. */
 let readinessSeedInProgress = false;
@@ -142,9 +149,7 @@ function parseTemplateFile(raw: string, fileId: string): MigrationAdapterReadine
 export function seedMigrationAdapterReadinessIfEmpty(): number {
   if (readinessSeedInProgress) return 0;
   ensureReadinessDir();
-  const hasTemplates = fs
-    .readdirSync(READINESS_DIR, { withFileTypes: true })
-    .some((e) => e.isFile() && e.name.endsWith(".json"));
+  const hasTemplates = listMigrationArtifactIds(ARTIFACT_KEY).length > 0;
   if (hasTemplates) return 0;
 
   readinessSeedInProgress = true;
@@ -164,14 +169,13 @@ export function listReadinessTemplates(): MigrationAdapterReadinessTemplate[] {
   ensureReadinessDir();
   seedMigrationAdapterReadinessIfEmpty();
 
-  const entries = fs.readdirSync(READINESS_DIR, { withFileTypes: true });
   const templates: MigrationAdapterReadinessTemplate[] = [];
 
-  for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
-    const fileId = entry.name.replace(/\.json$/i, "");
+  for (const fileId of listMigrationArtifactIds(ARTIFACT_KEY)) {
     try {
-      const raw = fs.readFileSync(path.join(READINESS_DIR, entry.name), "utf8");
+      const filePath = resolveMigrationArtifactReadPath(ARTIFACT_KEY, fileId);
+      if (!filePath) continue;
+      const raw = fs.readFileSync(filePath, "utf8");
       const template = parseTemplateFile(raw, fileId);
       if (template) templates.push(template);
     } catch {
@@ -188,8 +192,8 @@ export function getReadinessTemplate(systemId: string): MigrationAdapterReadines
 
   const safeId = sanitizeSystemId(systemId);
   if (!safeId) return null;
-  const filePath = readinessFilePath(safeId);
-  if (!fs.existsSync(filePath)) return null;
+  const filePath = resolveMigrationArtifactReadPath(ARTIFACT_KEY, safeId);
+  if (!filePath) return null;
   try {
     const raw = fs.readFileSync(filePath, "utf8");
     return parseTemplateFile(raw, safeId);
@@ -245,11 +249,17 @@ export function saveReadinessTemplate(
 }
 
 export function deleteReadinessTemplate(systemId: string): boolean {
-  ensureReadinessDir();
   const safeId = sanitizeSystemId(systemId);
   if (!safeId) return false;
-  const filePath = readinessFilePath(safeId);
-  if (!fs.existsSync(filePath)) return false;
-  fs.unlinkSync(filePath);
-  return true;
+  let removed = false;
+  for (const filePath of [
+    path.join(READINESS_DIR, `${safeId}.json`),
+    path.join(getMigrationArtifactLegacyDir(ARTIFACT_KEY), `${safeId}.json`),
+  ]) {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      removed = true;
+    }
+  }
+  return removed;
 }

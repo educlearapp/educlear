@@ -5,13 +5,19 @@ import type {
   PaymentReceiveListStageData,
   PaymentReceiveListStagedRow,
 } from "../core/paymentReceiveListReconciliation";
+import {
+  ensureMigrationArtifactWriteDir,
+  getMigrationArtifactLegacyDir,
+  getMigrationArtifactWriteDir,
+  listMigrationArtifactIds,
+  resolveMigrationArtifactReadPath,
+} from "../core/migrationPersistentArtifacts";
 
-const STAGES_DIR = path.join(process.cwd(), "storage", "migration-stages");
+const ARTIFACT = "stages";
 
 function ensureStagesDir(): void {
-  if (!fs.existsSync(STAGES_DIR)) {
-    fs.mkdirSync(STAGES_DIR, { recursive: true });
-  }
+  // Always resolve lazily so test root overrides apply.
+  ensureMigrationArtifactWriteDir(ARTIFACT);
 }
 
 function sanitizeStageId(id: string): string | null {
@@ -22,11 +28,13 @@ function sanitizeStageId(id: string): string | null {
   return trimmed;
 }
 
-function stageFilePath(id: string): string {
+/** Write path — always persistent data/. */
+function stageWritePath(id: string): string {
   const safe = sanitizeStageId(id);
   if (!safe) throw new Error("Invalid stage id");
-  const resolved = path.resolve(STAGES_DIR, `${safe}.json`);
-  if (!resolved.startsWith(path.resolve(STAGES_DIR) + path.sep)) {
+  const dir = ensureMigrationArtifactWriteDir(ARTIFACT);
+  const resolved = path.resolve(dir, `${safe}.json`);
+  if (!resolved.startsWith(path.resolve(dir) + path.sep)) {
     throw new Error("Invalid stage path");
   }
   return resolved;
@@ -273,11 +281,11 @@ export function createStage(stage: MigrationStage): MigrationStage {
     throw new Error("Stage targetSchoolId is required");
   }
 
-  const filePath = stageFilePath(safeId);
-  if (fs.existsSync(filePath)) {
+  if (resolveMigrationArtifactReadPath(ARTIFACT, safeId)) {
     throw new Error("Stage id already exists");
   }
 
+  const filePath = stageWritePath(safeId);
   const tmpPath = `${filePath}.${process.pid}.tmp`;
   fs.writeFileSync(tmpPath, JSON.stringify(stage, null, 2), "utf8");
   fs.renameSync(tmpPath, filePath);
@@ -285,11 +293,10 @@ export function createStage(stage: MigrationStage): MigrationStage {
 }
 
 export function getStage(stageId: string): MigrationStage | null {
-  ensureStagesDir();
   const safeId = sanitizeStageId(stageId);
   if (!safeId) return null;
-  const filePath = stageFilePath(safeId);
-  if (!fs.existsSync(filePath)) return null;
+  const filePath = resolveMigrationArtifactReadPath(ARTIFACT, safeId);
+  if (!filePath) return null;
   try {
     const raw = fs.readFileSync(filePath, "utf8");
     return parseStageFile(raw, safeId);
@@ -299,16 +306,14 @@ export function getStage(stageId: string): MigrationStage | null {
 }
 
 export function listStages(opts?: { targetSchoolId?: string }): MigrationStageListItem[] {
-  ensureStagesDir();
   const filterSchool = String(opts?.targetSchoolId || "").trim();
-  const entries = fs.readdirSync(STAGES_DIR, { withFileTypes: true });
   const items: MigrationStageListItem[] = [];
 
-  for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
-    const fileId = entry.name.replace(/\.json$/i, "");
+  for (const fileId of listMigrationArtifactIds(ARTIFACT)) {
     try {
-      const raw = fs.readFileSync(path.join(STAGES_DIR, entry.name), "utf8");
+      const filePath = resolveMigrationArtifactReadPath(ARTIFACT, fileId);
+      if (!filePath) continue;
+      const raw = fs.readFileSync(filePath, "utf8");
       const stage = parseStageFile(raw, fileId);
       if (!stage) continue;
       if (filterSchool && String(stage.targetSchoolId || "").trim() !== filterSchool) continue;
@@ -324,11 +329,17 @@ export function listStages(opts?: { targetSchoolId?: string }): MigrationStageLi
 }
 
 export function deleteStage(stageId: string): boolean {
-  ensureStagesDir();
   const safeId = sanitizeStageId(stageId);
   if (!safeId) return false;
-  const filePath = stageFilePath(safeId);
-  if (!fs.existsSync(filePath)) return false;
-  fs.unlinkSync(filePath);
-  return true;
+  let removed = false;
+  for (const filePath of [
+    path.join(getMigrationArtifactWriteDir(ARTIFACT), `${safeId}.json`),
+    path.join(getMigrationArtifactLegacyDir(ARTIFACT), `${safeId}.json`),
+  ]) {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      removed = true;
+    }
+  }
+  return removed;
 }

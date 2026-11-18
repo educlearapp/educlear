@@ -2,8 +2,16 @@ import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
 import type { MigrationSignoffPack } from "../types/MigrationSignoff";
+import {
+  ensureMigrationArtifactWriteDir,
+  getMigrationArtifactLegacyDir,
+  listMigrationArtifactIds,
+  migrationArtifactExists,
+  resolveMigrationArtifactReadPath,
+} from "./migrationPersistentArtifacts";
 
-const SIGNOFFS_DIR = path.join(process.cwd(), "storage", "migration-signoffs");
+const ARTIFACT_KEY = "signoffs";
+const SIGNOFFS_DIR = (() => ensureMigrationArtifactWriteDir(ARTIFACT_KEY))();
 
 export function ensureMigrationSignoffsDir(): void {
   if (!fs.existsSync(SIGNOFFS_DIR)) {
@@ -47,10 +55,10 @@ export function createSignoff(
   const safeId = sanitizeSignoffId(signoffId);
   if (!safeId) throw new Error("Invalid signoff id");
 
-  const filePath = signoffFilePath(safeId);
-  if (fs.existsSync(filePath)) {
+  if (migrationArtifactExists(ARTIFACT_KEY, safeId)) {
     throw new Error("Sign-off id already exists");
   }
+  const filePath = signoffFilePath(safeId);
 
   const pack: MigrationSignoffPack = {
     ...partial,
@@ -74,11 +82,10 @@ export function updateSignoff(
 }
 
 export function getSignoff(signoffId: string): MigrationSignoffPack | null {
-  ensureMigrationSignoffsDir();
   const safeId = sanitizeSignoffId(signoffId);
   if (!safeId) return null;
-  const filePath = signoffFilePath(safeId);
-  if (!fs.existsSync(filePath)) return null;
+  const filePath = resolveMigrationArtifactReadPath(ARTIFACT_KEY, safeId);
+  if (!filePath) return null;
   try {
     return JSON.parse(fs.readFileSync(filePath, "utf8")) as MigrationSignoffPack;
   } catch {
@@ -88,13 +95,8 @@ export function getSignoff(signoffId: string): MigrationSignoffPack | null {
 
 export function listSignoffs(): MigrationSignoffPack[] {
   ensureMigrationSignoffsDir();
-  const files = fs
-    .readdirSync(SIGNOFFS_DIR)
-    .filter((name) => name.endsWith(".json") && !name.includes(".tmp"));
-
   const packs: MigrationSignoffPack[] = [];
-  for (const file of files) {
-    const id = file.replace(/\.json$/, "");
+  for (const id of listMigrationArtifactIds(ARTIFACT_KEY)) {
     const pack = getSignoff(id);
     if (pack) packs.push(pack);
   }
@@ -115,8 +117,10 @@ export function resolveMigrationSignoffFilePath(filename: string): string | null
   }
   if (!/^[a-zA-Z0-9_.-]+$/.test(trimmed)) return null;
   ensureMigrationSignoffsDir();
-  const resolved = path.resolve(SIGNOFFS_DIR, trimmed);
-  if (!resolved.startsWith(path.resolve(SIGNOFFS_DIR) + path.sep)) return null;
-  if (!fs.existsSync(resolved)) return null;
-  return resolved;
+  for (const dir of [SIGNOFFS_DIR, getMigrationArtifactLegacyDir(ARTIFACT_KEY)]) {
+    const resolved = path.resolve(dir, trimmed);
+    if (!resolved.startsWith(path.resolve(dir) + path.sep)) continue;
+    if (fs.existsSync(resolved)) return resolved;
+  }
+  return null;
 }

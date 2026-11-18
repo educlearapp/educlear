@@ -1,6 +1,7 @@
 import type { MigrationTargetField } from "../types/MigrationTargetField";
 import {
   classifyTransactionReadiness,
+  shouldMigrationImportBeHistoricalOnly,
   shouldTransactionBeHistoricalOnly,
 } from "./transactionEligibility";
 import type { LearnerIndexEntry } from "./computeTransactionReadiness";
@@ -20,6 +21,12 @@ export type ClassifyLedgerTransactionInput = {
   hasLearnerOrAccountMatch: boolean;
   accountStatus?: string | null;
   accountClosed?: boolean;
+  /**
+   * newBillingEligibility — ACTIVE learner required (unchanged monthly billing rules).
+   * migrationImportPosting — Phase 1E: matched account/learner may post without ACTIVE status;
+   * pre-cutover remains historical-only to avoid double-counting openings.
+   */
+  purpose?: "newBillingEligibility" | "migrationImportPosting";
 };
 
 function cleanString(v: unknown): string {
@@ -213,11 +220,16 @@ export function classifyLedgerTransaction(
     };
   }
 
+  const purpose = input.purpose || "newBillingEligibility";
   const learnerStatus: MigrationLearnerStatus | null = learnerEntry?.status ?? null;
   const accountStatus =
     cleanString(input.accountStatus) || learnerEntry?.accountStatus || "";
   const accountClosed =
     Boolean(input.accountClosed) || isClosedOrInactiveAccountStatus(accountStatus);
+
+  // Migration import: account number alone can resolve at apply time to a unique family account.
+  const hasImportMatch =
+    hasLearnerOrAccountMatch || (purpose === "migrationImportPosting" && Boolean(accountRef));
 
   const readinessBucket = classifyTransactionReadiness({
     learnerStatus,
@@ -227,18 +239,25 @@ export function classifyLedgerTransaction(
     accountClosed,
     transactionDate: txDateRaw,
     cutoverDate,
-    hasLearnerOrAccountMatch,
+    hasLearnerOrAccountMatch: hasImportMatch,
     amountValid: true,
     datePresent: true,
+    purpose,
   });
 
-  const historicalOnly = shouldTransactionBeHistoricalOnly({
-    learnerStatus,
-    accountStatus,
-    accountClosed,
-    transactionDate: txDateRaw,
-    cutoverDate,
-  });
+  const historicalOnly =
+    purpose === "migrationImportPosting"
+      ? shouldMigrationImportBeHistoricalOnly({
+          transactionDate: txDateRaw,
+          cutoverDate,
+        })
+      : shouldTransactionBeHistoricalOnly({
+          learnerStatus,
+          accountStatus,
+          accountClosed,
+          transactionDate: txDateRaw,
+          cutoverDate,
+        });
 
   const duplicateKey = migrationTransactionProvenance({
     accountRef: accountRef || "unknown",
@@ -256,7 +275,10 @@ export function classifyLedgerTransaction(
       amount,
       date: dateIso,
       reference,
-      reason: "No matching active learner or billing account — transaction not posted",
+      reason:
+        purpose === "migrationImportPosting"
+          ? "No matching learner or billing account — transaction not posted"
+          : "No matching active learner or billing account — transaction not posted",
       duplicateKey,
       historicalOnly: false,
       bucket: "unmatched",
@@ -270,7 +292,8 @@ export function classifyLedgerTransaction(
       amount,
       date: dateIso,
       reference,
-      reason: "Historical-only transaction preserved; not posted to active ledger.",
+      reason:
+        "Historical-only transaction preserved; not posted to active ledger (covered by opening balance / cutover).",
       duplicateKey,
       historicalOnly: true,
       bucket: "historicalOnly",
@@ -333,7 +356,8 @@ export function classifyLedgerTransaction(
       amount,
       date: dateIso,
       reference,
-      reason: "Historical-only transaction preserved; not posted to active ledger.",
+      reason:
+        "Historical-only transaction preserved; not posted to active ledger (covered by opening balance / cutover).",
       duplicateKey,
       historicalOnly: true,
       bucket: "historicalOnly",
@@ -346,7 +370,10 @@ export function classifyLedgerTransaction(
     amount,
     date: dateIso,
     reference,
-    reason: "Eligible active transaction — post to billing ledger",
+    reason:
+      purpose === "migrationImportPosting"
+        ? "Migration import — matched account transaction eligible to post (new-billing ACTIVE rules unchanged)"
+        : "Eligible active transaction — post to billing ledger",
     duplicateKey,
     historicalOnly: false,
     bucket: "eligibleActive",

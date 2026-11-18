@@ -7,8 +7,13 @@ import path from "path";
 import { randomUUID } from "crypto";
 import type { FamilyAccountAgeAnalysisSnapshot } from "../../../../utils/familyAccountAgeAnalysisStore";
 import type { AgeAnalysisArchiveRecord } from "./MigrationStatementAuthority";
+import {
+  ensureMigrationArtifactWriteDir,
+  resolveMigrationArtifactReadPath,
+} from "../../core/migrationPersistentArtifacts";
 
-const DIR = path.join(process.cwd(), "storage", "migration-age-analysis-archives");
+const ARTIFACT_KEY = "age-analysis-archives";
+const DIR = (() => ensureMigrationArtifactWriteDir(ARTIFACT_KEY))();
 
 function ensureDir(): void {
   if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true });
@@ -62,8 +67,8 @@ export function getAgeAnalysisArchive(archiveId: string): AgeAnalysisArchiveReco
   try {
     const safe = sanitizeId(archiveId);
     if (!safe) return null;
-    const fp = path.join(DIR, `${safe}.json`);
-    if (!fs.existsSync(fp)) return null;
+    const fp = resolveMigrationArtifactReadPath(ARTIFACT_KEY, safe);
+    if (!fp) return null;
     return JSON.parse(fs.readFileSync(fp, "utf8")) as AgeAnalysisArchiveRecord;
   } catch {
     return null;

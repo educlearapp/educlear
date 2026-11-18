@@ -40,6 +40,7 @@ export function migrationProjectManifestPath(schoolId: string, projectId: string
 export function getAllowedMigrationReadRoots(): string[] {
   const roots = [
     path.resolve(STAGING_ROOT),
+    path.resolve(process.cwd(), "data", "migration-staging"),
     path.resolve(process.cwd(), "storage", "migration-staging"),
     path.resolve(process.cwd(), "..", "storage", "migration-staging"),
   ];

@@ -2,8 +2,16 @@ import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
 import type { MigrationMappingTemplate } from "../types/MigrationMappingTemplate";
+import {
+  ensureMigrationArtifactWriteDir,
+  getMigrationArtifactLegacyDir,
+  listMigrationArtifactIds,
+  migrationArtifactExists,
+  resolveMigrationArtifactReadPath,
+} from "../core/migrationPersistentArtifacts";
 
-const TEMPLATES_DIR = path.join(process.cwd(), "storage", "migration-templates");
+const ARTIFACT_KEY = "templates";
+const TEMPLATES_DIR = (() => ensureMigrationArtifactWriteDir(ARTIFACT_KEY))();
 
 function ensureTemplatesDir(): void {
   if (!fs.existsSync(TEMPLATES_DIR)) {
@@ -64,15 +72,11 @@ function parseTemplateFile(raw: string, fileId: string): MigrationMappingTemplat
 
 export function listTemplates(): MigrationMappingTemplate[] {
   ensureTemplatesDir();
-  const entries = fs.readdirSync(TEMPLATES_DIR, { withFileTypes: true });
   const templates: MigrationMappingTemplate[] = [];
 
-  for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
-    const fileId = entry.name.replace(/\.json$/i, "");
+  for (const fileId of listMigrationArtifactIds(ARTIFACT_KEY)) {
     try {
-      const raw = fs.readFileSync(path.join(TEMPLATES_DIR, entry.name), "utf8");
-      const template = parseTemplateFile(raw, fileId);
+      const template = getTemplate(fileId);
       if (template) templates.push(template);
     } catch {
       // Skip corrupt files — do not crash list
@@ -83,11 +87,10 @@ export function listTemplates(): MigrationMappingTemplate[] {
 }
 
 export function getTemplate(id: string): MigrationMappingTemplate | null {
-  ensureTemplatesDir();
   const safeId = sanitizeTemplateId(id);
   if (!safeId) return null;
-  const filePath = templateFilePath(safeId);
-  if (!fs.existsSync(filePath)) return null;
+  const filePath = resolveMigrationArtifactReadPath(ARTIFACT_KEY, safeId);
+  if (!filePath) return null;
   try {
     const raw = fs.readFileSync(filePath, "utf8");
     return parseTemplateFile(raw, safeId);
@@ -138,10 +141,10 @@ export function saveTemplate(input: {
     updatedAt: now,
   };
 
-  const filePath = templateFilePath(templateId);
-  if (!existing && fs.existsSync(filePath)) {
+  if (!existing && migrationArtifactExists(ARTIFACT_KEY, templateId)) {
     throw new Error("Template id already exists");
   }
+  const filePath = templateFilePath(templateId);
 
   const tmpPath = `${filePath}.${process.pid}.tmp`;
   fs.writeFileSync(tmpPath, JSON.stringify(template, null, 2), "utf8");
@@ -151,11 +154,17 @@ export function saveTemplate(input: {
 }
 
 export function deleteTemplate(id: string): boolean {
-  ensureTemplatesDir();
   const safeId = sanitizeTemplateId(id);
   if (!safeId) return false;
-  const filePath = templateFilePath(safeId);
-  if (!fs.existsSync(filePath)) return false;
-  fs.unlinkSync(filePath);
-  return true;
+  let removed = false;
+  for (const filePath of [
+    path.join(TEMPLATES_DIR, `${safeId}.json`),
+    path.join(getMigrationArtifactLegacyDir(ARTIFACT_KEY), `${safeId}.json`),
+  ]) {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      removed = true;
+    }
+  }
+  return removed;
 }

@@ -7,6 +7,10 @@ import { createHash } from "crypto";
 import fs from "fs";
 import path from "path";
 import type { MigrationDomainId } from "./OrchestratorTypes";
+import {
+  ensureMigrationArtifactWriteDir,
+  resolveMigrationArtifactReadPath,
+} from "../core/migrationPersistentArtifacts";
 
 export const MIGRATION_SOURCE_MANIFEST_VERSION = "1M.1" as const;
 
@@ -38,10 +42,10 @@ export type MigrationSourceManifest = {
   files: SourceManifestFile[];
 };
 
-const ROOT = path.join(process.cwd(), "storage", "migration-source-manifests");
+const ARTIFACT = "source-manifests";
 
 function ensureDir(): void {
-  if (!fs.existsSync(ROOT)) fs.mkdirSync(ROOT, { recursive: true });
+  ensureMigrationArtifactWriteDir(ARTIFACT);
 }
 
 function sanitize(id: string): string | null {
@@ -141,7 +145,8 @@ function writeJson(id: string, data: unknown): void {
   ensureDir();
   const safe = sanitize(id);
   if (!safe) throw new Error("Invalid manifest id");
-  const fp = path.join(ROOT, `${safe}.json`);
+  const dir = ensureMigrationArtifactWriteDir(ARTIFACT);
+  const fp = path.join(dir, `${safe}.json`);
   const tmp = `${fp}.${process.pid}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(data, null, 2), "utf8");
   fs.renameSync(tmp, fp);
@@ -151,8 +156,8 @@ function readJson(id: string): MigrationSourceManifest | null {
   try {
     const safe = sanitize(id);
     if (!safe) return null;
-    const fp = path.join(ROOT, `${safe}.json`);
-    if (!fs.existsSync(fp)) return null;
+    const fp = resolveMigrationArtifactReadPath(ARTIFACT, safe);
+    if (!fp) return null;
     return JSON.parse(fs.readFileSync(fp, "utf8")) as MigrationSourceManifest;
   } catch {
     return null;

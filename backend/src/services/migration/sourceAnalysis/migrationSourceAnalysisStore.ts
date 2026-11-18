@@ -6,8 +6,14 @@ import fs from "fs";
 import path from "path";
 import type { MigrationSourceAnalysis } from "./MigrationSourceAnalysis";
 import { MIGRATION_SOURCE_ANALYSIS_VERSION } from "./MigrationSourceAnalysis";
+import {
+  ensureMigrationArtifactWriteDir,
+  listMigrationArtifactIds,
+  resolveMigrationArtifactReadPath,
+} from "../core/migrationPersistentArtifacts";
 
-const ANALYSES_DIR = path.join(process.cwd(), "storage", "migration-source-analyses");
+const ARTIFACT_KEY = "source-analyses";
+const ANALYSES_DIR = (() => ensureMigrationArtifactWriteDir(ARTIFACT_KEY))();
 
 function ensureDir(): void {
   if (!fs.existsSync(ANALYSES_DIR)) {
@@ -53,8 +59,8 @@ export function saveSourceAnalysis(analysis: MigrationSourceAnalysis): Migration
 export function getSourceAnalysis(analysisId: string): MigrationSourceAnalysis | null {
   const safe = sanitizeId(analysisId);
   if (!safe) return null;
-  const filePath = analysisPath(safe);
-  if (!fs.existsSync(filePath)) return null;
+  const filePath = resolveMigrationArtifactReadPath(ARTIFACT_KEY, safe);
+  if (!filePath) return null;
   try {
     return JSON.parse(fs.readFileSync(filePath, "utf8")) as MigrationSourceAnalysis;
   } catch {
@@ -88,13 +94,10 @@ export function listSourceAnalysesForSchool(targetSchoolId: string): MigrationSo
   const schoolId = String(targetSchoolId || "").trim();
   if (!schoolId) return [];
   const out: MigrationSourceAnalysis[] = [];
-  for (const name of fs.readdirSync(ANALYSES_DIR)) {
-    if (!name.endsWith(".json")) continue;
+  for (const id of listMigrationArtifactIds(ARTIFACT_KEY)) {
     try {
-      const raw = JSON.parse(
-        fs.readFileSync(path.join(ANALYSES_DIR, name), "utf8")
-      ) as MigrationSourceAnalysis;
-      if (raw.targetSchoolId === schoolId) out.push(raw);
+      const raw = getSourceAnalysis(id);
+      if (raw && raw.targetSchoolId === schoolId) out.push(raw);
     } catch {
       // skip corrupt
     }

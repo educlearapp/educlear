@@ -5,6 +5,10 @@
 
 import fs from "fs";
 import path from "path";
+import {
+  ensureMigrationArtifactWriteDir,
+  resolveMigrationArtifactReadPath,
+} from "./migrationPersistentArtifacts";
 
 export type MigrationIntegrityFinding = {
   findingId: string;
@@ -23,7 +27,8 @@ export type MigrationIntegrityRecord = {
   blockingCount: number;
 };
 
-const DIR = path.join(process.cwd(), "storage", "migration-integrity");
+const ARTIFACT_KEY = "integrity";
+const DIR = (() => ensureMigrationArtifactWriteDir(ARTIFACT_KEY))();
 
 function ensureDir(): void {
   if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true });
@@ -64,8 +69,10 @@ export function saveMigrationIntegrity(record: MigrationIntegrityRecord): Migrat
 
 export function getMigrationIntegrityByStage(stageId: string): MigrationIntegrityRecord | null {
   try {
-    const fp = filePath(stageId);
-    if (!fs.existsSync(fp)) return null;
+    const safe = sanitizeId(stageId);
+    if (!safe) return null;
+    const fp = resolveMigrationArtifactReadPath(ARTIFACT_KEY, `stage_${safe}`);
+    if (!fp) return null;
     return JSON.parse(fs.readFileSync(fp, "utf8")) as MigrationIntegrityRecord;
   } catch {
     return null;

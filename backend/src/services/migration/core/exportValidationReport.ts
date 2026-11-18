@@ -5,8 +5,13 @@ import type {
   MigrationValidationSummary,
 } from "../types/MigrationValidation";
 import { buildCsvContent } from "./migrationReportCsv";
+import {
+  ensureMigrationArtifactWriteDir,
+  getMigrationArtifactLegacyDir,
+} from "./migrationPersistentArtifacts";
 
-const REPORTS_DIR = path.join(process.cwd(), "storage", "migration-reports");
+const ARTIFACT_KEY = "reports";
+const REPORTS_DIR = (() => ensureMigrationArtifactWriteDir(ARTIFACT_KEY))();
 
 const HEADERS = [
   "File",
@@ -81,8 +86,10 @@ export function resolveMigrationReportPath(filename: string): string | null {
     return null;
   }
   if (!/^[a-zA-Z0-9._-]+\.csv$/.test(trimmed)) return null;
-  const resolved = path.resolve(REPORTS_DIR, trimmed);
-  if (!resolved.startsWith(path.resolve(REPORTS_DIR) + path.sep)) return null;
-  if (!fs.existsSync(resolved)) return null;
-  return resolved;
+  for (const dir of [REPORTS_DIR, getMigrationArtifactLegacyDir(ARTIFACT_KEY)]) {
+    const resolved = path.resolve(dir, trimmed);
+    if (!resolved.startsWith(path.resolve(dir) + path.sep)) continue;
+    if (fs.existsSync(resolved)) return resolved;
+  }
+  return null;
 }

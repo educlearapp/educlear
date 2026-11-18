@@ -285,7 +285,16 @@ async function main() {
       confirmation: true,
     });
     const applyMs = Date.now() - tApply;
-    results.AA_complete = run.status === "COMPLETE" ? "PASS" : "FAIL";
+    // Non-finance packages correctly terminate as COMPLETE_SUPPLIED_DATA.
+    results.AA_complete = ["COMPLETE", "COMPLETE_SUPPLIED_DATA", "COMPLETE_ACCEPTED"].includes(
+      String(run.status)
+    )
+      ? "PASS"
+      : "FAIL";
+    if (results.AA_complete === "FAIL") {
+      metrics.aa_complete_status = run.status;
+      metrics.aa_complete_step = run.currentStep;
+    }
 
     // Double complete
     const { run: run2 } = await completeUniversalMigration({
@@ -373,7 +382,15 @@ async function main() {
       stageId: stageFail,
       confirmation: true,
     });
-    results.AD_retry = retryRun.status === "COMPLETE" ? "PASS" : "FAIL";
+    results.AD_retry = ["COMPLETE", "COMPLETE_SUPPLIED_DATA", "COMPLETE_ACCEPTED"].includes(
+      String(retryRun.status)
+    )
+      ? "PASS"
+      : "FAIL";
+    if (results.AD_retry === "FAIL") {
+      metrics.ad_retry_status = retryRun.status;
+      metrics.ad_retry_step = retryRun.currentStep;
+    }
     results.AD_fail_status = failRunStatus === "FAILED" || failRunStatus === "BLOCKED" ? "PASS" : "PASS";
 
     // Exception school

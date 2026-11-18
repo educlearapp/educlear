@@ -21,6 +21,44 @@
   font-weight: 500;
 }
 
+.uc-migration-phase1-steps {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 18px 0 0;
+  padding: 0;
+}
+
+.uc-migration-phase1-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  background: #0a0a0a;
+  color: #f7d56a;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.uc-migration-phase1-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f7d56a, #d4af37);
+  color: #0a0a0a;
+  font-size: 0.75rem;
+}
+
+.uc-migration-phase1-step-label {
+  letter-spacing: 0.02em;
+}
+
 .uc-migration-center-nav {
   display: flex;
   flex-wrap: wrap;
@@ -145,6 +183,208 @@
   margin: 0;
   font-size: 0.88rem;
   color: #64748b;
+}
+
+.uc-migration-destination-banner {
+  margin: 14px 0 0;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1608 100%);
+  color: #f7d56a;
+}
+
+.uc-migration-destination-banner-label {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(247, 213, 106, 0.75);
+}
+
+.uc-migration-destination-banner-name {
+  margin: 4px 0 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #fff8dc;
+}
+
+.uc-migration-destination-banner-meta {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: rgba(247, 213, 106, 0.7);
+}
+
+.uc-migration-destination-banner-hint {
+  margin: 6px 0 0;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: rgba(247, 213, 106, 0.9);
+  line-height: 1.4;
+}
+
+.uc-migration-upload-source-row--picker {
+  align-items: flex-start;
+}
+
+.uc-migration-school-picker {
+  flex: 1 1 320px;
+  min-width: 260px;
+  position: relative;
+}
+
+.uc-migration-school-picker-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.uc-migration-school-picker-search {
+  flex: 1 1 220px;
+}
+
+.uc-migration-school-picker-list {
+  position: absolute;
+  z-index: 40;
+  left: 0;
+  right: 0;
+  top: calc(100% - 4px);
+  max-height: 280px;
+  overflow: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(15, 15, 15, 0.16);
+}
+
+.uc-migration-school-picker-option {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.uc-migration-school-picker-option:hover,
+.uc-migration-school-picker-option--selected {
+  background: rgba(212, 175, 55, 0.12);
+}
+
+.uc-migration-school-picker-option-name {
+  font-weight: 700;
+  color: #1d2736;
+}
+
+.uc-migration-school-picker-option-id {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.uc-migration-school-picker-empty {
+  padding: 10px 12px;
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.uc-migration-school-picker-confirm {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  background: rgba(212, 175, 55, 0.06);
+}
+
+.uc-migration-school-picker-confirm-label {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.uc-migration-school-picker-confirm-name {
+  margin: 4px 0 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #1d2736;
+}
+
+.uc-migration-school-picker-confirm-id {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.uc-migration-school-picker-confirm-hint {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.4;
+}
+
+.uc-migration-completion-card {
+  margin-top: 14px;
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(27, 122, 61, 0.25);
+  background: linear-gradient(180deg, #f3faf5 0%, #ffffff 100%);
+}
+
+.uc-migration-completion-card--blocked {
+  border-color: rgba(185, 28, 28, 0.3);
+  background: linear-gradient(180deg, #fef2f2 0%, #ffffff 100%);
+}
+
+.uc-migration-completion-card h3 {
+  margin: 0 0 8px;
+}
+
+.uc-migration-completion-totals {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 4px;
+}
+
+.uc-migration-completion-actions {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.uc-migration-advanced-details {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px dashed rgba(100, 116, 139, 0.45);
+  background: #f8fafc;
+}
+
+.uc-migration-advanced-details > summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.uc-migration-advanced-details[open] > summary {
+  margin-bottom: 10px;
 }
 
 .uc-migration-center-research-preview {

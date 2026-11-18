@@ -4,8 +4,12 @@ import PDFDocument from "pdfkit";
 import type { MigrationSignoffPack } from "../types/MigrationSignoff";
 import { buildCsvContent } from "./migrationReportCsv";
 import { ensureMigrationSignoffsDir } from "./migrationSignoffStore";
+import {
+  ensureMigrationArtifactWriteDir,
+} from "./migrationPersistentArtifacts";
 
-const SIGNOFFS_DIR = path.join(process.cwd(), "storage", "migration-signoffs");
+const ARTIFACT_KEY = "signoffs";
+const SIGNOFFS_DIR = (() => ensureMigrationArtifactWriteDir(ARTIFACT_KEY))();
 
 const INK = "#0a0a0a";
 const MUTED = "#6b7280";

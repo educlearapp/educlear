@@ -124,9 +124,52 @@ export type ClassifyTransactionRowInput = {
   datePresent: boolean;
 };
 
+/**
+ * Migration-import ledger posting (Phase 1E).
+ *
+ * Distinct from new-billing eligibility:
+ * - Does NOT require ACTIVE learner status.
+ * - Still requires a resolved learner/account match (caller responsibility).
+ * - Pre-cutover rows remain historical-only so openings are not double-counted.
+ * - Does not change monthly invoice-run / head-count rules.
+ */
+export function shouldMigrationImportBeHistoricalOnly(input: {
+  transactionDate?: unknown;
+  cutoverDate?: string | null;
+}): boolean {
+  const cutover = parseCutoverDate(input.cutoverDate);
+  const txDate = parseTransactionDate(input.transactionDate);
+  if (cutover && txDate && txDate.getTime() < cutover.getTime()) {
+    return true;
+  }
+  return false;
+}
+
+export function isEligibleForMigrationImportLedgerPosting(input: {
+  hasLearnerOrAccountMatch: boolean;
+  amountValid: boolean;
+  datePresent: boolean;
+  transactionDate?: unknown;
+  cutoverDate?: string | null;
+}): TransactionReadinessBucket {
+  if (!input.hasLearnerOrAccountMatch) return "unmatched";
+  if (!input.datePresent || !input.amountValid) return "blocked";
+  if (shouldMigrationImportBeHistoricalOnly(input)) return "historicalOnly";
+  return "eligibleActive";
+}
+
 export function classifyTransactionReadiness(
-  input: ClassifyTransactionRowInput
+  input: ClassifyTransactionRowInput & {
+    /** Default: new billing eligibility. Migration import posting ignores ACTIVE-only. */
+    purpose?: "newBillingEligibility" | "migrationImportPosting";
+  }
 ): TransactionReadinessBucket {
+  const purpose = input.purpose || "newBillingEligibility";
+
+  if (purpose === "migrationImportPosting") {
+    return isEligibleForMigrationImportLedgerPosting(input);
+  }
+
   if (!input.hasLearnerOrAccountMatch) return "unmatched";
   if (!input.datePresent || !input.amountValid) return "blocked";
 

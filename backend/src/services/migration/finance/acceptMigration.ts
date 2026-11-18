@@ -31,8 +31,13 @@ import {
   getParentFamilyPlanByStage,
   getParentFamilyCheckByStage,
 } from "../parentFamily/parentFamilyPlanStore";
+import {
+  ensureMigrationArtifactWriteDir,
+  resolveMigrationArtifactReadPath,
+} from "../core/migrationPersistentArtifacts";
 
-const DIR = path.join(process.cwd(), "storage", "migration-acceptances");
+const ARTIFACT_KEY = "acceptances";
+const DIR = (() => ensureMigrationArtifactWriteDir(ARTIFACT_KEY))();
 
 function ensureDir(): void {
   if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true });
@@ -73,6 +78,10 @@ export function getAcceptanceByStage(stageId: string): MigrationAcceptanceRecord
   try {
     const safe = sanitizeId(stageId);
     if (!safe) return null;
+    const dual = resolveMigrationArtifactReadPath(ARTIFACT_KEY, `stage_${safe}`);
+    if (dual) {
+      return JSON.parse(fs.readFileSync(dual, "utf8")) as MigrationAcceptanceRecord;
+    }
     const fp = path.join(DIR, `stage_${safe}.json`);
     if (!fs.existsSync(fp)) return null;
     return JSON.parse(fs.readFileSync(fp, "utf8")) as MigrationAcceptanceRecord;

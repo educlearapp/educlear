@@ -9,9 +9,16 @@ import type {
   MigrationStatementBaselineArtifact,
 } from "./MigrationStatementAuthority";
 import { MIGRATION_STATEMENT_AUTHORITY_VERSION } from "./MigrationStatementAuthority";
+import {
+  ensureMigrationArtifactWriteDir,
+  getMigrationArtifactLegacyDir,
+  resolveMigrationArtifactReadPath,
+} from "../../core/migrationPersistentArtifacts";
 
-const CHECK_DIR = path.join(process.cwd(), "storage", "migration-statement-authority");
-const BASELINE_DIR = path.join(process.cwd(), "storage", "migration-statement-baselines");
+const CHECK_KEY = "statement-authority";
+const BASELINE_KEY = "statement-baselines";
+const CHECK_DIR = ensureMigrationArtifactWriteDir(CHECK_KEY);
+const BASELINE_DIR = ensureMigrationArtifactWriteDir(BASELINE_KEY);
 
 function ensure(dir: string): void {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -36,13 +43,18 @@ function writeJson(dir: string, id: string, data: unknown): void {
   fs.renameSync(tmp, fp);
 }
 
-function readJson<T>(dir: string, id: string): T | null {
+function readJson<T>(artifactKey: string, writeDir: string, id: string): T | null {
   try {
     const safe = sanitizeId(id);
     if (!safe) return null;
-    const fp = path.join(dir, `${safe}.json`);
-    if (!fs.existsSync(fp)) return null;
-    return JSON.parse(fs.readFileSync(fp, "utf8")) as T;
+    const dual = resolveMigrationArtifactReadPath(artifactKey, safe);
+    if (dual) return JSON.parse(fs.readFileSync(dual, "utf8")) as T;
+    // Explicit legacy fallback if helper missed nested layouts
+    const legacy = path.join(getMigrationArtifactLegacyDir(artifactKey), `${safe}.json`);
+    if (fs.existsSync(legacy)) return JSON.parse(fs.readFileSync(legacy, "utf8")) as T;
+    const primary = path.join(writeDir, `${safe}.json`);
+    if (fs.existsSync(primary)) return JSON.parse(fs.readFileSync(primary, "utf8")) as T;
+    return null;
   } catch {
     return null;
   }
@@ -60,13 +72,13 @@ export function saveStatementAuthorityCheck(
 export function getStatementAuthorityCheck(
   checkId: string
 ): MigrationStatementAuthorityCheck | null {
-  return readJson(CHECK_DIR, checkId);
+  return readJson(CHECK_KEY, CHECK_DIR, checkId);
 }
 
 export function getStatementAuthorityCheckByStage(
   stageId: string
 ): MigrationStatementAuthorityCheck | null {
-  return readJson(CHECK_DIR, `stage_${stageId}`);
+  return readJson(CHECK_KEY, CHECK_DIR, `stage_${stageId}`);
 }
 
 export function saveStatementBaseline(
@@ -81,11 +93,11 @@ export function saveStatementBaseline(
 export function getStatementBaselineByStage(
   stageId: string
 ): MigrationStatementBaselineArtifact | null {
-  return readJson(BASELINE_DIR, `stage_${stageId}`);
+  return readJson(BASELINE_KEY, BASELINE_DIR, `stage_${stageId}`);
 }
 
 export function getStatementBaseline(
   baselineId: string
 ): MigrationStatementBaselineArtifact | null {
-  return readJson(BASELINE_DIR, baselineId);
+  return readJson(BASELINE_KEY, BASELINE_DIR, baselineId);
 }

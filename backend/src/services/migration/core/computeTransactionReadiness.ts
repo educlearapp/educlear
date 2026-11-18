@@ -280,7 +280,7 @@ export function resolveLearnerForRow(
     const entry = index.get(key);
     if (entry) return { entry, matched: true };
   }
-  return { entry: null, matched: keys.length > 0 };
+  return { entry: null, matched: false };
 }
 
 function rowAmountValid(
@@ -370,6 +370,12 @@ export function investigateTransactionReadiness(input: {
         "";
       const accountClosed = isClosedOrInactiveAccountStatus(accountStatus);
 
+      const accountNumber = cellString(
+        getMappedValue(row, targetToSource, "accountNumber")
+      );
+      // Migration dry-run readiness uses import posting rules (Phase 1E): account
+      // number can resolve at apply even when learner status is UNKNOWN.
+      const hasImportMatch = matched || accountNumber.length > 0;
       const bucket = classifyTransactionReadiness({
         learnerStatus: entry?.status ?? null,
         grade: entry?.grade,
@@ -378,9 +384,10 @@ export function investigateTransactionReadiness(input: {
         accountClosed,
         transactionDate: txDate,
         cutoverDate,
-        hasLearnerOrAccountMatch: matched,
+        hasLearnerOrAccountMatch: hasImportMatch,
         amountValid,
         datePresent,
+        purpose: "migrationImportPosting",
       });
 
       bumpBucket(counts, bucket);

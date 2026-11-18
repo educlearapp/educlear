@@ -4,8 +4,12 @@ import type { MigrationImportReportRow } from "../types/MigrationApply";
 import { getImportBatch } from "./migrationImportBatchStore";
 import { buildCsvContent } from "./migrationReportCsv";
 import { ensureMigrationReportsDir } from "./exportValidationReport";
+import {
+  ensureMigrationArtifactWriteDir,
+} from "./migrationPersistentArtifacts";
 
-const REPORTS_DIR = path.join(process.cwd(), "storage", "migration-reports");
+const ARTIFACT_KEY = "reports";
+const REPORTS_DIR = (() => ensureMigrationArtifactWriteDir(ARTIFACT_KEY))();
 
 const HEADERS = [
   "Batch ID",

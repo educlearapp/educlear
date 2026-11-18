@@ -1,0 +1,5 @@
+Account Number,Transaction Date,Amount,Reference,Description,Type
+ACC-P1E-01,2026-06-10,50.00,PAY-DUP,First of duplicate pair,Payment
+ACC-P1E-01,2026-06-10,50.00,PAY-DUP,Duplicate same provenance,Payment
+ACC-P1E-MISSING,2026-06-15,99.00,PAY-ORPHAN,Unmatched account,Payment
+ACC-P1E-01,2026-06-16,40.00,PAY-NOTYPE,Missing transaction type,

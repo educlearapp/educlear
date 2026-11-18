@@ -38,6 +38,7 @@ import {
   resolveBoundTargetSchoolId,
   MigrationSchoolBindingError,
 } from "./migrationSchoolBinding";
+import { requireMigrationWriteAllowed } from "./migrationProductionExecutionGuard";
 import { parseStagedMigrationSource, resolveSafeMigrationFilePath } from "./parseStagedMigrationFile";
 import { applyParentIdentityPlan } from "../parentIdentity";
 import {
@@ -460,6 +461,16 @@ export async function applyMigrationStage(
       });
     }
     throw e;
+  }
+
+  try {
+    requireMigrationWriteAllowed({
+      targetSchoolId,
+      operation: "Apply Migration",
+    });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Migration write blocked";
+    throw new MigrationApplyError(message, { success: false, error: message });
   }
 
   if (!stage.canApply) {

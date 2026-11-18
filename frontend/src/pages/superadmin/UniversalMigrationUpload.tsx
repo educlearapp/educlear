@@ -6,6 +6,7 @@ import UniversalMigrationTemplateSaveModal from "./UniversalMigrationTemplateSav
 import UniversalMigrationReadinessGuidance from "../../components/migration/UniversalMigrationReadinessGuidance";
 import UniversalMigrationAdapterTestPanel from "../../components/migration/UniversalMigrationAdapterTestPanel";
 import KidESysMigrationReadinessPanel from "../../components/migration/KidESysMigrationReadinessPanel";
+import UniversalMigrationSchoolPicker from "./UniversalMigrationSchoolPicker";
 import { useUniversalMigrationWorkflow } from "./UniversalMigrationWorkflowContext";
 
 const ACCEPTED_EXTENSIONS = [".csv", ".xls", ".xlsx", ".pdf"];
@@ -121,6 +122,8 @@ export default function UniversalMigrationUpload() {
     kidESysReadiness,
     kidESysReadinessBusy,
     kidESysReadinessError,
+    cutoverDate,
+    setCutoverDate,
   } = useUniversalMigrationWorkflow();
 
   const isKidESys = sourceSystem.trim() === "kideesys";
@@ -151,30 +154,15 @@ export default function UniversalMigrationUpload() {
         </p>
       ) : null}
 
-      <div className="uc-migration-upload-source-row">
-        <label className="uc-migration-staging-source-label">
-          Migration Target
-          <select
-            className="uc-migration-staging-source-input"
-            value={selectedSessionSchoolId}
-            onChange={(e) => setSelectedSessionSchoolId(e.target.value)}
-            disabled={
-              busy ||
-              sessionRestoreBusy ||
-              targetSchoolsLoading ||
-              migrationLocked
-            }
-          >
-            <option value="">
-              {targetSchoolsLoading ? "Loading schools…" : "Choose school for this migration"}
-            </option>
-            {targetSchools.map((school) => (
-              <option key={school.id} value={school.id}>
-                {school.name}
-              </option>
-            ))}
-          </select>
-        </label>
+      <div className="uc-migration-upload-source-row uc-migration-upload-source-row--picker">
+        <UniversalMigrationSchoolPicker
+          schools={targetSchools}
+          selectedSchoolId={selectedSessionSchoolId}
+          onSchoolChange={setSelectedSessionSchoolId}
+          disabled={busy || sessionRestoreBusy}
+          loading={targetSchoolsLoading}
+          locked={migrationLocked}
+        />
         <label className="uc-migration-staging-source-label">
           Source system
           <select
@@ -196,6 +184,17 @@ export default function UniversalMigrationUpload() {
             )}
           </select>
         </label>
+        <label className="uc-migration-staging-source-label">
+          Money cutover date
+          <input
+            type="date"
+            className="uc-migration-staging-source-input"
+            value={cutoverDate}
+            onChange={(e) => setCutoverDate(e.target.value)}
+            disabled={busy || sessionRestoreBusy}
+            aria-label="Money cutover date"
+          />
+        </label>
         {selectedSessionSchoolId ? (
           <button
             type="button"
@@ -208,15 +207,17 @@ export default function UniversalMigrationUpload() {
         ) : null}
       </div>
 
-      {migrationLocked && selectedSchool ? (
-        <p className="uc-migration-dry-run-hint" role="status">
-          Migration locked to <strong>{selectedSchool.name}</strong>. To target another school,
-          use Start New Migration.
-        </p>
-      ) : selectedSchool ? (
-        <p className="uc-migration-dry-run-hint" role="status">
-          Migration Target: <strong>{selectedSchool.name}</strong>
-        </p>
+      {selectedSchool ? (
+        <div className="uc-migration-destination-banner" role="status">
+          <p className="uc-migration-destination-banner-label">Destination school</p>
+          <p className="uc-migration-destination-banner-name">{selectedSchool.name}</p>
+          <p className="uc-migration-destination-banner-meta">School id: {selectedSchool.id}</p>
+          <p className="uc-migration-destination-banner-hint">
+            {migrationLocked
+              ? "This migration is locked to this school. Use Start New Migration to choose a different school."
+              : "All imported learners, families and money will go into this school only."}
+          </p>
+        </div>
       ) : null}
 
       {sessionNotice || sessionRestoreBusy ? (
@@ -229,39 +230,6 @@ export default function UniversalMigrationUpload() {
         <p className="uc-migration-upload-error" role="alert">
           {registrySystemsError}
         </p>
-      ) : null}
-
-      <UniversalMigrationReadinessGuidance
-        template={readinessTemplate}
-        templateLoading={readinessLoading}
-        uploadedFiles={uploadedFiles}
-        mappings={effectiveMappings}
-      />
-
-      <div className="uc-migration-adapter-test-actions">
-        <button
-          type="button"
-          className="uc-migration-template-toolbar-btn uc-migration-template-toolbar-btn--secondary"
-          onClick={() => void handleTestAdapter()}
-          disabled={busy || previewBusy || mappingBusy || adapterTestBusy || !canTestAdapter}
-        >
-          {adapterTestBusy ? "Testing adapter…" : "Test Adapter Readiness"}
-        </button>
-        {!canTestAdapter ? (
-          <p className="uc-migration-dry-run-hint" role="note">
-            Select a source system, upload files, and wait for previews before running the adapter test.
-          </p>
-        ) : null}
-      </div>
-
-      <UniversalMigrationAdapterTestPanel result={adapterTestResult} busy={adapterTestBusy} />
-
-      {isKidESys ? (
-        <KidESysMigrationReadinessPanel
-          result={kidESysReadiness}
-          busy={kidESysReadinessBusy}
-          error={kidESysReadinessError}
-        />
       ) : null}
 
       <div
@@ -304,9 +272,13 @@ export default function UniversalMigrationUpload() {
         <span className="uc-migration-center-dropzone-icon" aria-hidden="true">
           ⬆
         </span>
-        <p className="uc-migration-center-dropzone-title">Drag and drop export files</p>
+        <p className="uc-migration-center-dropzone-title">
+          {selectedSchool
+            ? "Drop the school’s export files here"
+            : "Choose a destination school first, then drop files here"}
+        </p>
         <p className="uc-migration-center-dropzone-text">
-          CSV, XLS, XLSX, PDF — multi-file and multi-sheet workbooks supported. Each worksheet is classified separately.
+          Accepts CSV, Excel (XLS/XLSX) and PDF. You can drop several files at once.
         </p>
         {uploadProgress != null ? (
           <p className="uc-migration-upload-progress" aria-live="polite">
@@ -391,10 +363,42 @@ export default function UniversalMigrationUpload() {
         </p>
       ) : null}
 
+      <details className="uc-migration-advanced-details">
+        <summary>Advanced technical checks (optional)</summary>
+        <p className="uc-migration-center-section-hint">
+          Ordinary migrations do not need these tools. Open only if EduClear asks you to review
+          technical mapping or adapter readiness.
+        </p>
+        <UniversalMigrationReadinessGuidance
+          template={readinessTemplate}
+          templateLoading={readinessLoading}
+          uploadedFiles={uploadedFiles}
+          mappings={effectiveMappings}
+        />
+        <div className="uc-migration-adapter-test-actions">
+          <button
+            type="button"
+            className="uc-migration-template-toolbar-btn uc-migration-template-toolbar-btn--secondary"
+            onClick={() => void handleTestAdapter()}
+            disabled={busy || previewBusy || mappingBusy || adapterTestBusy || !canTestAdapter}
+          >
+            {adapterTestBusy ? "Testing adapter…" : "Test Adapter Readiness"}
+          </button>
+        </div>
+        <UniversalMigrationAdapterTestPanel result={adapterTestResult} busy={adapterTestBusy} />
+        {isKidESys ? (
+          <KidESysMigrationReadinessPanel
+            result={kidESysReadiness}
+            busy={kidESysReadinessBusy}
+            error={kidESysReadinessError}
+          />
+        ) : null}
+      </details>
+
       {previews.length > 0 ? (
-        <div className="uc-migration-preview-section">
+        <details className="uc-migration-preview-section uc-migration-advanced-details">
+          <summary>File previews &amp; column mapping (optional)</summary>
           <div className="uc-migration-preview-section-header">
-            <h3 className="uc-migration-upload-list-title">File previews &amp; mapping</h3>
             <div className="uc-migration-preview-section-actions">
               <button
                 type="button"
@@ -441,7 +445,7 @@ export default function UniversalMigrationUpload() {
               );
             })}
           </div>
-        </div>
+        </details>
       ) : null}
 
       {saveTemplateOpen ? (

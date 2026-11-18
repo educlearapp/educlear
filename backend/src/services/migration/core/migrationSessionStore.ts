@@ -12,8 +12,14 @@ import type { MigrationSourceSystem } from "../migrationTypes";
 import type { ParentIdentityResolution } from "../parentIdentity/parentIdentityTypes";
 import { resolveSafeMigrationReadPath } from "../migrationProjectPaths";
 import { deleteStage } from "../staging";
+import {
+  ensureMigrationArtifactWriteDir,
+  getMigrationArtifactLegacyDir,
+  getMigrationArtifactWriteDir,
+  resolveMigrationArtifactReadPath,
+} from "./migrationPersistentArtifacts";
 
-const SESSIONS_DIR = path.join(process.cwd(), "storage", "migration-sessions");
+const ARTIFACT = "sessions";
 
 export type PersistentParentIdentityResolutions = {
   stageId: string;
@@ -50,9 +56,7 @@ export type PersistentMigrationSessionPatch = Partial<
 >;
 
 function ensureSessionsDir(): void {
-  if (!fs.existsSync(SESSIONS_DIR)) {
-    fs.mkdirSync(SESSIONS_DIR, { recursive: true });
-  }
+  ensureMigrationArtifactWriteDir(ARTIFACT);
 }
 
 function sanitizeSchoolId(schoolId: string): string | null {
@@ -63,11 +67,13 @@ function sanitizeSchoolId(schoolId: string): string | null {
   return trimmed;
 }
 
-function sessionPath(schoolId: string): string {
+/** Write path — always persistent data/. */
+function sessionWritePath(schoolId: string): string {
   const safe = sanitizeSchoolId(schoolId);
   if (!safe) throw new Error("Invalid school id");
-  const resolved = path.resolve(SESSIONS_DIR, `${safe}.json`);
-  if (!resolved.startsWith(path.resolve(SESSIONS_DIR) + path.sep)) {
+  const dir = ensureMigrationArtifactWriteDir(ARTIFACT);
+  const resolved = path.resolve(dir, `${safe}.json`);
+  if (!resolved.startsWith(path.resolve(dir) + path.sep)) {
     throw new Error("Invalid migration session path");
   }
   return resolved;
@@ -187,9 +193,8 @@ function normalizeSession(raw: unknown, schoolId: string): PersistentMigrationSe
 export function getMigrationSession(schoolId: string): PersistentMigrationSession | null {
   const safe = sanitizeSchoolId(schoolId);
   if (!safe) return null;
-  ensureSessionsDir();
-  const filePath = sessionPath(safe);
-  if (!fs.existsSync(filePath)) return null;
+  const filePath = resolveMigrationArtifactReadPath(ARTIFACT, safe);
+  if (!filePath) return null;
   try {
     return normalizeSession(JSON.parse(fs.readFileSync(filePath, "utf8")), safe);
   } catch {
@@ -212,7 +217,7 @@ export function saveMigrationSession(
     createdAt: existing.createdAt,
     updatedAt: new Date().toISOString(),
   };
-  const filePath = sessionPath(safe);
+  const filePath = sessionWritePath(safe);
   const tmpPath = `${filePath}.${process.pid}.tmp`;
   fs.writeFileSync(tmpPath, JSON.stringify(next, null, 2), "utf8");
   fs.renameSync(tmpPath, filePath);
@@ -237,7 +242,6 @@ function deleteUploadedFiles(session: PersistentMigrationSession): void {
 export function clearMigrationSession(schoolId: string): boolean {
   const safe = sanitizeSchoolId(schoolId);
   if (!safe) return false;
-  ensureSessionsDir();
   const existing = getMigrationSession(safe);
   if (existing) {
     deleteUploadedFiles(existing);
@@ -245,8 +249,16 @@ export function clearMigrationSession(schoolId: string): boolean {
       deleteStage(existing.dryRunStage.stageId);
     }
   }
-  const filePath = sessionPath(safe);
-  if (!fs.existsSync(filePath)) return false;
-  fs.unlinkSync(filePath);
-  return true;
+  let removed = false;
+  const candidates = [
+    path.join(getMigrationArtifactWriteDir(ARTIFACT), `${safe}.json`),
+    path.join(getMigrationArtifactLegacyDir(ARTIFACT), `${safe}.json`),
+  ];
+  for (const filePath of candidates) {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      removed = true;
+    }
+  }
+  return removed;
 }

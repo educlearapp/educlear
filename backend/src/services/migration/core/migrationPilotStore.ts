@@ -2,8 +2,15 @@ import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
 import type { MigrationPilotRun } from "../types/MigrationPilot";
+import {
+  ensureMigrationArtifactWriteDir,
+  listMigrationArtifactIds,
+  migrationArtifactExists,
+  resolveMigrationArtifactReadPath,
+} from "./migrationPersistentArtifacts";
 
-const PILOTS_DIR = path.join(process.cwd(), "storage", "migration-pilots");
+const ARTIFACT_KEY = "pilots";
+const PILOTS_DIR = (() => ensureMigrationArtifactWriteDir(ARTIFACT_KEY))();
 
 export function ensureMigrationPilotsDir(): void {
   if (!fs.existsSync(PILOTS_DIR)) {
@@ -47,10 +54,10 @@ export function createPilot(
   const safeId = sanitizePilotId(pilotId);
   if (!safeId) throw new Error("Invalid pilot id");
 
-  const filePath = pilotFilePath(safeId);
-  if (fs.existsSync(filePath)) {
+  if (migrationArtifactExists(ARTIFACT_KEY, safeId)) {
     throw new Error("Pilot id already exists");
   }
+  const filePath = pilotFilePath(safeId);
 
   const pilot: MigrationPilotRun = {
     ...partial,
@@ -74,11 +81,10 @@ export function updatePilot(
 }
 
 export function getPilot(pilotId: string): MigrationPilotRun | null {
-  ensureMigrationPilotsDir();
   const safeId = sanitizePilotId(pilotId);
   if (!safeId) return null;
-  const filePath = pilotFilePath(safeId);
-  if (!fs.existsSync(filePath)) return null;
+  const filePath = resolveMigrationArtifactReadPath(ARTIFACT_KEY, safeId);
+  if (!filePath) return null;
   try {
     return JSON.parse(fs.readFileSync(filePath, "utf8")) as MigrationPilotRun;
   } catch {
@@ -88,13 +94,8 @@ export function getPilot(pilotId: string): MigrationPilotRun | null {
 
 export function listPilots(): MigrationPilotRun[] {
   ensureMigrationPilotsDir();
-  const files = fs
-    .readdirSync(PILOTS_DIR)
-    .filter((name) => name.endsWith(".json") && !name.includes(".tmp"));
-
   const pilots: MigrationPilotRun[] = [];
-  for (const file of files) {
-    const id = file.replace(/\.json$/, "");
+  for (const id of listMigrationArtifactIds(ARTIFACT_KEY)) {
     const pilot = getPilot(id);
     if (pilot) pilots.push(pilot);
   }
