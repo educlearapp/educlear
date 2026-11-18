@@ -56,6 +56,27 @@ function testNetworkContractFromSource() {
   assert(invoiceRuns.includes("executeInvoiceRun(buildRunExecutePayload(run, { forExecute: true }))"), "execute is explicit");
   const executeCalls = invoiceRuns.split("executeInvoiceRun(").length - 1;
   assert(executeCalls === 1, "only one execute call site");
+  assert(
+    invoiceRuns.includes("reviewedPreview: opts?.forExecute ? true : undefined"),
+    "Create Invoices locks execute to the reviewed preview"
+  );
+  assert(
+    invoiceRuns.includes(
+      "excludedLearnerIds:\n        opts?.forExecute && excludedLearnerIds.length ? excludedLearnerIds : undefined"
+    ) ||
+      invoiceRuns.includes(
+        "excludedLearnerIds: opts?.forExecute && excludedLearnerIds.length ? excludedLearnerIds : undefined"
+      ),
+    "Create Invoices passes operator exclusions explicitly"
+  );
+  assert(
+    invoiceRuns.includes("expectedAmountsByLearnerId"),
+    "Create Invoices sends reviewed preview amounts"
+  );
+  assert(
+    invoiceRuns.includes("wizardPreviewKeyRef.current = \"\""),
+    "Create Invoices forces a fresh preview before execute"
+  );
 
   assert(
     dashboard.includes("includeHistoricLedger: false"),

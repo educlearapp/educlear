@@ -65,7 +65,20 @@ export type InvoiceRunExecuteRequest = {
   dueDate?: string;
   description?: string;
   dryRun?: boolean;
+  /**
+   * Reviewed preview lock: invoiced learner IDs from the preview the operator just reviewed.
+   * Create Invoices must send this so execute cannot silently add extras.
+   */
   learnerIds?: string[];
+  /** Operator × removals — kept in scope as EXCLUDED_BY_OPERATOR skips. */
+  excludedLearnerIds?: string[];
+  /** Amounts shown on the reviewed preview; mismatch forces a fresh preview. */
+  expectedAmountsByLearnerId?: Record<string, number>;
+  /**
+   * When true (Create Invoices write path), refuse to write unless learnerIds
+   * match current school-wide eligibility (no silent extras / omissions).
+   */
+  reviewedPreview?: boolean;
   extraFeesByLearnerId?: Record<string, StoredBillingPlanItem[]>;
 };
 
@@ -340,6 +353,7 @@ export function validateSiblingAccounts(
   invoicePeriodIndex?: Set<string>
 ): InvoiceRunAccountValidation[] {
   const rowsById = new Map(learnerRows.map((row) => [row.learnerId, row]));
+  const scopedLearnerIds = new Set(learnerRows.map((row) => row.learnerId));
   const groupKeys = new Set<string>();
 
   for (const learner of allActiveLearners) {
@@ -359,6 +373,14 @@ export function validateSiblingAccounts(
       (learner) => resolveBillingGroupKeyForRun(learner) === billingGroupKey
     );
     if (!groupLearners.length) continue;
+
+    // Scoped executes (preview invoiced IDs / UI exclusions) only invoice a subset.
+    // Sibling integrity must still require every eligible sibling inside a touched
+    // billing group — but must not fail on unrelated eligible families outside scope.
+    const intersectsRunScope = groupLearners.some((learner) =>
+      scopedLearnerIds.has(learner.id)
+    );
+    if (!intersectsRunScope) continue;
 
     const accountNo =
       groupLearners
@@ -396,7 +418,10 @@ export function validateSiblingAccounts(
         continue;
       }
 
-      if (row.status === "skipped" && row.skipReason === "DUPLICATE_INVOICE") {
+      if (
+        row.status === "skipped" &&
+        (row.skipReason === "DUPLICATE_INVOICE" || row.skipReason === "EXCLUDED_BY_OPERATOR")
+      ) {
         skippedCount += 1;
         continue;
       }
@@ -508,6 +533,64 @@ function writeIntegrityAuditReport(
   }
 }
 
+
+export type ReviewedPreviewDrift = {
+  missingEligibleLearnerIds: string[];
+  unexpectedScopedLearnerIds: string[];
+  amountMismatchLearnerIds: string[];
+};
+
+/**
+ * Compare a reviewed preview lock against current school-wide eligibility.
+ * Missing billable learners or amount changes mean the preview is stale.
+ */
+export function findReviewedPreviewDrift(input: {
+  allActiveLearners: LearnerRecord[];
+  eligibilityByLearnerId: Map<string, LearnerEligibilityResult>;
+  scopedLearnerIds: string[];
+  excludedLearnerIds: Set<string>;
+  expectedAmountsByLearnerId?: Record<string, number>;
+}): ReviewedPreviewDrift {
+  const scopeSet = new Set(input.scopedLearnerIds);
+  const missingEligibleLearnerIds: string[] = [];
+  const unexpectedScopedLearnerIds: string[] = [];
+  const amountMismatchLearnerIds: string[] = [];
+  const expected = input.expectedAmountsByLearnerId || {};
+
+  for (const learner of input.allActiveLearners) {
+    if (input.excludedLearnerIds.has(learner.id)) continue;
+    const eligibility = input.eligibilityByLearnerId.get(learner.id);
+    if (!eligibility) continue;
+    const inScope = scopeSet.has(learner.id);
+    if (eligibility.status === "invoiced" && eligibility.billableEligible) {
+      if (!inScope) {
+        missingEligibleLearnerIds.push(learner.id);
+        continue;
+      }
+      if (Object.prototype.hasOwnProperty.call(expected, learner.id)) {
+        if (!moneyEqual(eligibility.amount, Number(expected[learner.id]) || 0)) {
+          amountMismatchLearnerIds.push(learner.id);
+        }
+      }
+    } else if (inScope) {
+      unexpectedScopedLearnerIds.push(learner.id);
+    }
+  }
+
+  for (const learnerId of input.scopedLearnerIds) {
+    if (input.excludedLearnerIds.has(learnerId)) continue;
+    if (!input.allActiveLearners.some((learner) => learner.id === learnerId)) {
+      unexpectedScopedLearnerIds.push(learnerId);
+    }
+  }
+
+  return {
+    missingEligibleLearnerIds: Array.from(new Set(missingEligibleLearnerIds)),
+    unexpectedScopedLearnerIds: Array.from(new Set(unexpectedScopedLearnerIds)),
+    amountMismatchLearnerIds: Array.from(new Set(amountMismatchLearnerIds)),
+  };
+}
+
 export async function executeInvoiceRun(
   request: InvoiceRunExecuteRequest
 ): Promise<InvoiceRunExecuteResult> {
@@ -520,6 +603,21 @@ export async function executeInvoiceRun(
   const scopeLearnerIds = Array.isArray(request.learnerIds)
     ? request.learnerIds.map((id) => String(id || "").trim()).filter(Boolean)
     : [];
+  const excludedLearnerIds = new Set(
+    Array.isArray(request.excludedLearnerIds)
+      ? request.excludedLearnerIds.map((id) => String(id || "").trim()).filter(Boolean)
+      : []
+  );
+  const expectedAmountsByLearnerId =
+    request.expectedAmountsByLearnerId && typeof request.expectedAmountsByLearnerId === "object"
+      ? Object.fromEntries(
+          Object.entries(request.expectedAmountsByLearnerId).map(([id, amount]) => [
+            String(id || "").trim(),
+            Number(amount),
+          ])
+        )
+      : undefined;
+  const reviewedPreview = request.reviewedPreview === true;
 
   if (!schoolId) {
     return {
@@ -625,15 +723,19 @@ export async function executeInvoiceRun(
     },
   })) as LearnerRecord[];
 
+  const processIdSet = new Set<string>([
+    ...scopeLearnerIds,
+    ...Array.from(excludedLearnerIds),
+  ]);
   const learnersInScope =
-    scopeLearnerIds.length > 0
-      ? allActiveLearners.filter((learner) => scopeLearnerIds.includes(learner.id))
+    processIdSet.size > 0
+      ? allActiveLearners.filter((learner) => processIdSet.has(learner.id))
       : allActiveLearners;
 
-  const inactiveInScope = scopeLearnerIds.length
+  const inactiveInScope = processIdSet.size
     ? (
         await prisma.learner.findMany({
-          where: { schoolId, id: { in: scopeLearnerIds }, enrollmentStatus: { not: "ACTIVE" } },
+          where: { schoolId, id: { in: Array.from(processIdSet) }, enrollmentStatus: { not: "ACTIVE" } },
           select: {
             id: true,
             firstName: true,
@@ -718,6 +820,19 @@ export async function executeInvoiceRun(
       accountResolvedByLearnerId.set(learner.id, accountResolved);
     }
 
+    if (excludedLearnerIds.has(learner.id)) {
+      // Keep a row in scope so sibling validation sees an explicit skip, not an omission.
+      const excludedEligibility: LearnerEligibilityResult = {
+        billableEligible: false,
+        status: "skipped",
+        amount: 0,
+        skipReason: "EXCLUDED_BY_OPERATOR",
+        skipDetail: "Excluded from this invoice run by the operator",
+      };
+      eligibility = excludedEligibility;
+      eligibilityByLearnerId.set(learner.id, excludedEligibility);
+    }
+
     const accountNo = accountResolved?.accountNo || "";
 
     learnerRows.push({
@@ -730,6 +845,82 @@ export async function executeInvoiceRun(
       skipDetail: eligibility.skipDetail,
       billingGroupKey: resolveBillingGroupKeyForRun(learner),
     });
+  }
+
+  // Create Invoices write path: refuse silent extras / omissions vs reviewed preview.
+  if (!dryRun && reviewedPreview) {
+    if (!scopeLearnerIds.length) {
+      const failed: InvoiceRunExecuteResult = {
+        success: false,
+        dryRun,
+        runId,
+        invoicePeriod,
+        integrity: {
+          passed: false,
+          eligibleCount: 0,
+          invoiceLineCount: 0,
+          skippedCount: 0,
+          skipReasonCounts: {},
+          processedCount: 0,
+        },
+        learners: learnerRows,
+        accounts: [],
+        error:
+          "Create Invoices requires a fresh reviewed preview before posting. Open Preview, confirm the learner list and amounts, then try again.",
+        errorCode: "PREVIEW_REQUIRED",
+      };
+      writeIntegrityAuditReport(schoolId, runId, failed);
+      return failed;
+    }
+    const drift = findReviewedPreviewDrift({
+      allActiveLearners,
+      eligibilityByLearnerId,
+      scopedLearnerIds: scopeLearnerIds,
+      excludedLearnerIds,
+      expectedAmountsByLearnerId,
+    });
+    if (
+      drift.missingEligibleLearnerIds.length ||
+      drift.unexpectedScopedLearnerIds.length ||
+      drift.amountMismatchLearnerIds.length
+    ) {
+      const parts: string[] = [];
+      if (drift.missingEligibleLearnerIds.length) {
+        parts.push(
+          `${drift.missingEligibleLearnerIds.length} billable learner(s) missing from the reviewed preview`
+        );
+      }
+      if (drift.unexpectedScopedLearnerIds.length) {
+        parts.push(
+          `${drift.unexpectedScopedLearnerIds.length} preview learner(s) are no longer billable`
+        );
+      }
+      if (drift.amountMismatchLearnerIds.length) {
+        parts.push(
+          `${drift.amountMismatchLearnerIds.length} learner amount(s) changed since preview`
+        );
+      }
+      const failed: InvoiceRunExecuteResult = {
+        success: false,
+        dryRun,
+        runId,
+        invoicePeriod,
+        integrity: {
+          passed: false,
+          eligibleCount: 0,
+          invoiceLineCount: 0,
+          skippedCount: 0,
+          skipReasonCounts: {},
+          processedCount: learnerRows.length,
+        },
+        learners: learnerRows,
+        accounts: [],
+        error: `Reviewed preview is stale or incomplete (${parts.join("; ")}). Refresh Preview and review before Create Invoices.`,
+        errorCode: "PREVIEW_STALE",
+      };
+      writeIntegrityAuditReport(schoolId, runId, failed);
+      return failed;
+    }
   }
 
   const accounts = validateSiblingAccounts(

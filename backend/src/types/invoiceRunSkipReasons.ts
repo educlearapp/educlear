@@ -8,6 +8,7 @@ export const INVOICE_RUN_SKIP_REASONS = [
   "SIBLING_VALIDATION_FAILED",
   "ONCE_OFF_ALREADY_INVOICED",
   "FEE_EXCLUDED_FOR_PERIOD",
+  "EXCLUDED_BY_OPERATOR",
 ] as const;
 
 export type InvoiceRunSkipReason = (typeof INVOICE_RUN_SKIP_REASONS)[number];

@@ -186,6 +186,14 @@ async function handleExecute(req: InvoiceRunExecuteAuthRequest, res: any, dryRun
       learnerIds: Array.isArray(body.learnerIds)
         ? body.learnerIds.map((id: unknown) => String(id || "").trim()).filter(Boolean)
         : undefined,
+      excludedLearnerIds: Array.isArray(body.excludedLearnerIds)
+        ? body.excludedLearnerIds.map((id: unknown) => String(id || "").trim()).filter(Boolean)
+        : undefined,
+      expectedAmountsByLearnerId:
+        body.expectedAmountsByLearnerId && typeof body.expectedAmountsByLearnerId === "object"
+          ? (body.expectedAmountsByLearnerId as Record<string, number>)
+          : undefined,
+      reviewedPreview: body.reviewedPreview === true,
       extraFeesByLearnerId:
         body.extraFeesByLearnerId && typeof body.extraFeesByLearnerId === "object"
           ? (body.extraFeesByLearnerId as Record<string, { feeDescription: string; amount: number }[]>)
@@ -194,6 +202,13 @@ async function handleExecute(req: InvoiceRunExecuteAuthRequest, res: any, dryRun
 
     if (!result.success && result.errorCode === "INTEGRITY_GATE_FAILED") {
       return res.status(422).json(result);
+    }
+
+    if (
+      !result.success &&
+      (result.errorCode === "PREVIEW_STALE" || result.errorCode === "PREVIEW_REQUIRED")
+    ) {
+      return res.status(409).json(result);
     }
 
     if (!result.success) {

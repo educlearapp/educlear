@@ -9,9 +9,14 @@ import path from "path";
 import {
   buildInvoiceRunPlanForTest,
   evaluateLearnerEligibility,
+  findReviewedPreviewDrift,
   sumBillingPlanAmount,
   validateIntegrityGate,
 } from "./invoiceRunExecuteService";
+import {
+  applyFeeFrequencyExclusionGuard,
+  feeExclusionAliasesForSchool,
+} from "./invoiceFeeFrequencyExclusion";
 import {
   appendSchoolEntriesSafe,
   buildInvoiceRunEntryId,
@@ -235,6 +240,226 @@ function testFailedIntegrityGateSiblingMissed() {
   assert(!integrity.passed, "integrity fail: gate should fail");
   assert(accounts[0].siblingValidationPassed === false, "integrity fail: sibling validation");
   console.log("✓ failed integrity gate (sibling missed)");
+}
+
+
+/**
+ * Fly Eagle Dec-2026 failure shape: scoped execute of N invoiced learners while other
+ * eligible single-learner families remain active school-wide. Those out-of-scope families
+ * must not trip sibling validation — but Create Invoices preview-lock must still catch
+ * omissions before writes.
+ */
+function testScopedRunIgnoresUnrelatedEligibleFamiliesOutsideScope() {
+  const inScope = learner("scope-1", "In", "Scope", "fam-scope", "SCOPE001");
+  const maja = learner("cmt7tnqzi00vuilml0k7sua16", "Amogelang", "MAJA", "fam-maja", "MAJA AMOGELANG CONNY CAIRO");
+  const smith = learner("cmt7to88o0186ilmlo5akd4tv", "Avuzwa", "SMITH", "fam-smith", "SMITH AVUZWA");
+  const keagile = learner(
+    "cmt7tnx1u0106ilml809sxanv",
+    "Leballa",
+    "KEAGILE",
+    "fam-keagile",
+    "KEAGILE LEBALLA OTSHEPENG"
+  );
+  const { accounts, integrity, learnerRows } = buildInvoiceRunPlanForTest({
+    allActiveLearners: [inScope, maja, smith, keagile],
+    processedLearners: [inScope],
+    plansByLearnerId: {
+      "scope-1": plan(1800),
+      [maja.id]: plan(1400),
+      [smith.id]: plan(1450),
+      [keagile.id]: plan(1400),
+    },
+    explicitlyEmpty: new Set(),
+    accountNoByLearnerId: {
+      "scope-1": "SCOPE001",
+      [maja.id]: "MAJA AMOGELANG CONNY CAIRO",
+      [smith.id]: "SMITH AVUZWA",
+      [keagile.id]: "KEAGILE LEBALLA OTSHEPENG",
+    },
+    existingLedger: [],
+    invoicePeriod: "2026-12",
+  });
+
+  assert(learnerRows.length === 1 && learnerRows[0].status === "invoiced", "scoped row invoiced");
+  assert(integrity.passed, "out-of-scope eligible families must not fail scoped integrity");
+  assert(integrity.eligibleCount === 1, "integrity counts only scoped rows");
+  assert(
+    accounts.every((account) => account.siblingValidationPassed),
+    "no sibling issues for untouched families"
+  );
+  assert(
+    !accounts.some((account) =>
+      (account.issues || []).some((issue) => /missing from run scope/i.test(issue))
+    ),
+    "reported Fly Eagle missing-from-scope false positive is gone"
+  );
+  console.log("✓ scoped run ignores unrelated eligible families outside scope");
+}
+
+/**
+ * Fly Eagle Dec-2026: full reviewed preview must include Maja R1,400, Smith R1,450,
+ * Leballa Keagile R1,400. Fly Eagle has no December plan-description alias allowlist.
+ */
+function testFullDecemberPreviewIncludesFlyEagleFlaggedLearners() {
+  const other = learner("other-1", "Other", "Learner", "fam-other", "OTHER001");
+  const maja = learner("cmt7tnqzi00vuilml0k7sua16", "Amogelang", "MAJA", "fam-maja", "MAJA AMOGELANG CONNY CAIRO");
+  const smith = learner("cmt7to88o0186ilmlo5akd4tv", "Avuzwa", "SMITH", "fam-smith", "SMITH AVUZWA");
+  const keagile = learner(
+    "cmt7tnx1u0106ilml809sxanv",
+    "Leballa",
+    "KEAGILE",
+    "fam-keagile",
+    "KEAGILE LEBALLA OTSHEPENG"
+  );
+  const all = [other, maja, smith, keagile];
+  const MAJA_DEC = 1400;
+  const SMITH_DEC = 1450;
+  const KEAGILE_DEC = 1400;
+  const fixturePlans = {
+    "other-1": plan(1800),
+    [maja.id]: plan(MAJA_DEC),
+    [smith.id]: plan(SMITH_DEC),
+    [keagile.id]: plan(KEAGILE_DEC),
+  };
+  const { learnerRows, integrity } = buildInvoiceRunPlanForTest({
+    allActiveLearners: all,
+    processedLearners: all,
+    plansByLearnerId: fixturePlans,
+    explicitlyEmpty: new Set(),
+    accountNoByLearnerId: {
+      "other-1": "OTHER001",
+      [maja.id]: "MAJA AMOGELANG CONNY CAIRO",
+      [smith.id]: "SMITH AVUZWA",
+      [keagile.id]: "KEAGILE LEBALLA OTSHEPENG",
+    },
+    existingLedger: [],
+    invoicePeriod: "2026-12",
+  });
+
+  assert(integrity.passed, "full December preview integrity passes");
+  for (const flagged of [maja, smith, keagile]) {
+    const row = learnerRows.find((item) => item.learnerId === flagged.id);
+    assert(Boolean(row), `${flagged.firstName} reaches preview learner rows`);
+    assert(row?.status === "invoiced", `${flagged.firstName} selected for December`);
+    assert(
+      row?.amount === fixturePlans[flagged.id][0].amount,
+      `${flagged.firstName} fixture amount follows billing plan`
+    );
+  }
+  assert(integrity.invoiceLineCount === 4, "all four billable learners invoiced");
+
+  const flyEagle = "cmt1e8bjp0jo8lcjeketlynhl";
+  assert(
+    feeExclusionAliasesForSchool(flyEagle).length === 0,
+    "Fly Eagle has no December plan-description alias allowlist"
+  );
+  const decGuard = applyFeeFrequencyExclusionGuard({
+    planItems: [
+      { feeDescription: "Tuition", amount: MAJA_DEC },
+      { feeDescription: "School fees", amount: SMITH_DEC },
+      { feeDescription: "Fees", amount: KEAGILE_DEC },
+    ],
+    catalogue: [
+      { id: "fee-aftercare", name: "Aftercare", amount: 550, type: "MONTHLY_EXCL_DEC" },
+      { id: "fee-tuition", name: "Tuition", amount: MAJA_DEC, type: "MONTHLY" },
+    ],
+    invoicePeriod: "2026-12",
+    schoolId: flyEagle,
+  });
+  assert(decGuard.planItems.length === 3, "December keeps all three screenshot plan amounts");
+  assert(
+    sumBillingPlanAmount(decGuard.planItems) === MAJA_DEC + SMITH_DEC + KEAGILE_DEC,
+    "December applicable total is R1,400 + R1,450 + R1,400"
+  );
+  console.log("✓ full December preview includes Fly Eagle flagged learners");
+}
+
+function testReviewedPreviewDriftCatchesOmissionsAndAmountChanges() {
+  const a = learner("a1", "A", "One", "fam-a", "A001");
+  const b = learner("b1", "B", "Two", "fam-b", "B001");
+  const c = learner("c1", "C", "Three", "fam-c", "C001");
+  const eligibilityByLearnerId = new Map([
+    [a.id, { billableEligible: true, status: "invoiced" as const, amount: 1400 }],
+    [b.id, { billableEligible: true, status: "invoiced" as const, amount: 1450 }],
+    [c.id, { billableEligible: true, status: "invoiced" as const, amount: 1400 }],
+  ]);
+
+  const incomplete = findReviewedPreviewDrift({
+    allActiveLearners: [a, b, c],
+    eligibilityByLearnerId,
+    scopedLearnerIds: [a.id, b.id],
+    excludedLearnerIds: new Set(),
+    expectedAmountsByLearnerId: { [a.id]: 1400, [b.id]: 1450 },
+  });
+  assert(
+    incomplete.missingEligibleLearnerIds.includes(c.id),
+    "stale preview missing Keagile-shaped learner is caught"
+  );
+
+  const amountDrift = findReviewedPreviewDrift({
+    allActiveLearners: [a, b, c],
+    eligibilityByLearnerId,
+    scopedLearnerIds: [a.id, b.id, c.id],
+    excludedLearnerIds: new Set(),
+    expectedAmountsByLearnerId: { [a.id]: 1400, [b.id]: 999, [c.id]: 1400 },
+  });
+  assert(
+    amountDrift.amountMismatchLearnerIds.includes(b.id),
+    "amount change vs reviewed preview is caught"
+  );
+
+  const withExclusion = findReviewedPreviewDrift({
+    allActiveLearners: [a, b, c],
+    eligibilityByLearnerId,
+    scopedLearnerIds: [a.id, b.id],
+    excludedLearnerIds: new Set([c.id]),
+    expectedAmountsByLearnerId: { [a.id]: 1400, [b.id]: 1450 },
+  });
+  assert(
+    withExclusion.missingEligibleLearnerIds.length === 0,
+    "intentional exclusion is not treated as stale omission"
+  );
+  console.log("✓ reviewed preview drift catches omissions and amount changes");
+}
+
+function testOperatorExclusionRespectedInSiblingGroup() {
+  const fam = "fam-excl";
+  const l1 = learner("ex1", "Keep", "One", fam, "EX001");
+  const l2 = learner("ex2", "Drop", "Two", fam, "EX001");
+  const excludedRows = [
+    {
+      learnerId: l1.id,
+      learnerName: "Keep One",
+      accountNo: "EX001",
+      status: "invoiced" as const,
+      amount: 1000,
+      billingGroupKey: `family:${fam}`,
+    },
+    {
+      learnerId: l2.id,
+      learnerName: "Drop Two",
+      accountNo: "EX001",
+      status: "skipped" as const,
+      amount: 0,
+      skipReason: "EXCLUDED_BY_OPERATOR" as const,
+      billingGroupKey: `family:${fam}`,
+    },
+  ];
+  const gate = validateIntegrityGate(excludedRows, [
+    {
+      accountNo: "EX001",
+      billingGroupKey: `family:${fam}`,
+      activeCount: 2,
+      eligibleCount: 1,
+      invoicedCount: 1,
+      skippedCount: 1,
+      expectedTotal: 1000,
+      actualTotal: 1000,
+      siblingValidationPassed: true,
+    },
+  ]);
+  assert(gate.passed, "operator exclusion keeps integrity when sibling skipped explicitly");
+  console.log("✓ operator exclusion respected in sibling group");
 }
 
 async function testIntegrityFailureWritesNothing() {
@@ -699,6 +924,10 @@ async function main() {
   testPreviewRouteStaysReadOnly();
   testIsolatedRetryDoesNotDuplicateOrTouchPayments();
   testFailedIntegrityGateSiblingMissed();
+  testScopedRunIgnoresUnrelatedEligibleFamiliesOutsideScope();
+  testFullDecemberPreviewIncludesFlyEagleFlaggedLearners();
+  testReviewedPreviewDriftCatchesOmissionsAndAmountChanges();
+  testOperatorExclusionRespectedInSiblingGroup();
   await testIntegrityFailureWritesNothing();
   console.log("invoiceRunExecute.test.ts: OK");
 }

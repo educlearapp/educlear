@@ -1364,18 +1364,37 @@ export default function InvoiceRuns(props: any) {
     const invoicePeriod = String(
       thin.month || thin.period || invoiceRunSettings?.month || ""
     ).trim();
-    const excluded = new Set(
-      (Array.isArray(thin.excludedLearnerIds) ? thin.excludedLearnerIds : []).map(String)
+    const excludedLearnerIds = Array.from(
+      new Set(
+        (Array.isArray(thin.excludedLearnerIds) ? thin.excludedLearnerIds : [])
+          .map((id: unknown) => String(id || "").trim())
+          .filter(Boolean)
+      )
     );
-    const invoicedIds = (Array.isArray(invoiceRunServerPreview?.learners)
-      ? invoiceRunServerPreview.learners
-      : []
-    )
-      .filter((row: any) => String(row.status || "") === "invoiced")
+    const excluded = new Set(excludedLearnerIds);
+    const previewInvoicedRows = (
+      Array.isArray(invoiceRunServerPreview?.learners) ? invoiceRunServerPreview.learners : []
+    ).filter((row: any) => {
+      const id = String(row.learnerId || "").trim();
+      return id && String(row.status || "") === "invoiced" && !excluded.has(id);
+    });
+    const invoicedIds = previewInvoicedRows
       .map((row: any) => String(row.learnerId || "").trim())
-      .filter((id: string) => id && !excluded.has(id));
+      .filter(Boolean);
+    const expectedAmountsByLearnerId: Record<string, number> = {};
+    for (const row of previewInvoicedRows) {
+      const id = String(row.learnerId || "").trim();
+      if (!id) continue;
+      expectedAmountsByLearnerId[id] = Number(row.amount) || 0;
+    }
+    const draftExtraKeys = Object.keys(
+      (thin.extraFeesByLearnerId as Record<string, unknown>) || {}
+    )
+      .map((id) => String(id || "").trim())
+      .filter((id) => id && !excluded.has(id));
+    const extraFeeTargetIds = Array.from(new Set([...invoicedIds, ...draftExtraKeys]));
     const extraFeesByLearnerId = buildInvoiceRunExtraFeesByLearnerId(
-      invoicedIds,
+      extraFeeTargetIds,
       thin.extraFeesByLearnerId as any,
       thin.extraFeesAll as any
     );
@@ -1390,7 +1409,13 @@ export default function InvoiceRuns(props: any) {
       description:
         String(thin.description || `Invoice Run For ${invoicePeriod}`).trim() || undefined,
       extraFeesByLearnerId,
+      // Preview: full-school dry-run (omit learnerIds). Execute: lock to reviewed preview.
       learnerIds: opts?.forExecute && invoicedIds.length ? invoicedIds : undefined,
+      excludedLearnerIds:
+        opts?.forExecute && excludedLearnerIds.length ? excludedLearnerIds : undefined,
+      expectedAmountsByLearnerId:
+        opts?.forExecute && invoicedIds.length ? expectedAmountsByLearnerId : undefined,
+      reviewedPreview: opts?.forExecute ? true : undefined,
     };
   };
 
@@ -1445,9 +1470,24 @@ export default function InvoiceRuns(props: any) {
     }
     setInvoiceRunExecuteLoading(true);
     try {
+      // Force a fresh preview so execute cannot post against a stale/incomplete review.
+      wizardPreviewKeyRef.current = "";
+      invoiceRunPreviewPromiseRef.current = null;
+      const freshPreview = await loadInvoiceRunPreview(run);
+      if (!freshPreview?.integrity?.passed) {
+        throw new Error(
+          formatInvoiceRunErrorReport(freshPreview) ||
+            "Server integrity check must pass before creating invoices. Refresh Preview and try again."
+        );
+      }
       const result = await executeInvoiceRun(buildRunExecutePayload(run, { forExecute: true }));
       setInvoiceRunExecuteResult(result);
-      if (!result?.success || result?.integrity?.passed === false) {
+      if (
+        !result?.success ||
+        result?.integrity?.passed === false ||
+        result?.errorCode === "PREVIEW_STALE" ||
+        result?.errorCode === "PREVIEW_REQUIRED"
+      ) {
         const detail = formatInvoiceRunErrorReport(result);
         throw new Error(detail || result?.error || "Invoice run execute failed");
       }
@@ -5683,16 +5723,6 @@ export default function InvoiceRuns(props: any) {
           if (!run?.id) {
             window.alert("No invoice run selected.");
             return false;
-          }
-          if (!invoiceRunServerPreview?.integrity?.passed) {
-            const refreshed = await loadInvoiceRunPreview(run);
-            if (!refreshed?.integrity?.passed) {
-              window.alert(
-                formatInvoiceRunErrorReport(refreshed) ||
-                  "Server integrity check must pass before creating invoices."
-              );
-              return false;
-            }
           }
           try {
             await runInvoiceRunExecute(run);

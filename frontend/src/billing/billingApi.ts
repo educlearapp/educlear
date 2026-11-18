@@ -830,6 +830,9 @@ export type InvoiceRunExecutePayload = {
   description?: string;
   dryRun?: boolean;
   learnerIds?: string[];
+  excludedLearnerIds?: string[];
+  expectedAmountsByLearnerId?: Record<string, number>;
+  reviewedPreview?: boolean;
   extraFeesByLearnerId?: Record<string, { feeDescription: string; amount: number }[]>;
 };
 
@@ -1053,15 +1056,29 @@ async function postInvoiceRunEndpoint(
     cache: "no-store",
   });
   const body = await response.json().catch(() => ({}));
-  if (response.status === 422) {
-    return body;
+  if (response.status === 422 || response.status === 409) {
+    const errorCode = String((body as { errorCode?: string })?.errorCode || "");
+    if (
+      errorCode === "INTEGRITY_GATE_FAILED" ||
+      errorCode === "PREVIEW_STALE" ||
+      errorCode === "PREVIEW_REQUIRED" ||
+      errorCode === "DUPLICATE_RUN_ID"
+    ) {
+      return body;
+    }
   }
   if (!response.ok) {
     throw new Error(readApiErrorMessage(response, body, fallback));
   }
   if (body && typeof body === "object" && (body as { success?: boolean }).success === false) {
     const errorCode = String((body as { errorCode?: string }).errorCode || "");
-    if (errorCode === "INTEGRITY_GATE_FAILED") return body;
+    if (
+      errorCode === "INTEGRITY_GATE_FAILED" ||
+      errorCode === "PREVIEW_STALE" ||
+      errorCode === "PREVIEW_REQUIRED"
+    ) {
+      return body;
+    }
     throw new Error(readApiErrorMessage(response, body, fallback));
   }
   return body;
