@@ -371,7 +371,143 @@ function testFullDecemberPreviewIncludesFlyEagleFlaggedLearners() {
     sumBillingPlanAmount(decGuard.planItems) === MAJA_DEC + SMITH_DEC + KEAGILE_DEC,
     "December applicable total is R1,400 + R1,450 + R1,400"
   );
+  assert(
+    MAJA_DEC + SMITH_DEC + KEAGILE_DEC === 4250,
+    "combined December charge for the three learners is R4,250"
+  );
+  const threeTotal = [maja, smith, keagile]
+    .map((flagged) => learnerRows.find((row) => row.learnerId === flagged.id)?.amount || 0)
+    .reduce((sum, amount) => sum + amount, 0);
+  assert(threeTotal === 4250, "preview learner rows combine to R4,250");
   console.log("✓ full December preview includes Fly Eagle flagged learners");
+}
+
+
+/**
+ * Reproduces the live Fly Eagle Dec-2026 Create Invoices failure path:
+ * reviewed preview / execute learnerIds omitted Maja/Smith/Keagile (428 scoped,
+ * three missing), while school-wide eligibility still sees them as billable.
+ * Sibling-only scoping would pass and silently omit them; preview-lock must
+ * refuse writes until a fresh complete preview is reviewed.
+ */
+function testPreviewToExecuteOmitsFlyEagleLearnersRequiresFreshPreview() {
+  const inScopeA = learner("scope-a", "In", "A", "fam-a", "A001");
+  const inScopeB = learner("scope-b", "In", "B", "fam-b", "B001");
+  const maja = learner("cmt7tnqzi00vuilml0k7sua16", "Amogelang", "MAJA", "fam-maja", "MAJA AMOGELANG CONNY CAIRO");
+  const smith = learner("cmt7to88o0186ilmlo5akd4tv", "Avuzwa", "SMITH", "fam-smith", "SMITH AVUZWA");
+  const keagile = learner(
+    "cmt7tnx1u0106ilml809sxanv",
+    "Leballa",
+    "KEAGILE",
+    "fam-keagile",
+    "KEAGILE LEBALLA OTSHEPENG"
+  );
+  const all = [inScopeA, inScopeB, maja, smith, keagile];
+  const plans = {
+    "scope-a": plan(1800),
+    "scope-b": plan(1800),
+    [maja.id]: plan(1400),
+    [smith.id]: plan(1450),
+    [keagile.id]: plan(1400),
+  };
+  const accounts = {
+    "scope-a": "A001",
+    "scope-b": "B001",
+    [maja.id]: "MAJA AMOGELANG CONNY CAIRO",
+    [smith.id]: "SMITH AVUZWA",
+    [keagile.id]: "KEAGILE LEBALLA OTSHEPENG",
+  };
+
+  // 1) Fresh full-school preview (no learnerIds narrowing) includes the three.
+  const preview = buildInvoiceRunPlanForTest({
+    allActiveLearners: all,
+    processedLearners: all,
+    plansByLearnerId: plans,
+    explicitlyEmpty: new Set(),
+    accountNoByLearnerId: accounts,
+    existingLedger: [],
+    invoicePeriod: "2026-12",
+  });
+  assert(preview.integrity.passed, "fresh preview integrity passes");
+  const previewInvoiced = preview.learnerRows.filter((row) => row.status === "invoiced");
+  const previewIds = previewInvoiced.map((row) => row.learnerId);
+  for (const flagged of [maja, smith, keagile]) {
+    assert(previewIds.includes(flagged.id), `fresh preview includes ${flagged.firstName}`);
+  }
+  const expectedAmounts = Object.fromEntries(
+    previewInvoiced.map((row) => [row.learnerId, Number(row.amount) || 0])
+  );
+  assert(
+    expectedAmounts[maja.id] + expectedAmounts[smith.id] + expectedAmounts[keagile.id] === 4250,
+    "fresh preview locks R4,250 for the three learners"
+  );
+
+  // 2) Live failure shape: execute scoped to incomplete preview (missing the three).
+  const incompleteScope = previewIds.filter(
+    (id) => id !== maja.id && id !== smith.id && id !== keagile.id
+  );
+  const incompletePlan = buildInvoiceRunPlanForTest({
+    allActiveLearners: all,
+    processedLearners: all.filter((learner) => incompleteScope.includes(learner.id)),
+    plansByLearnerId: plans,
+    explicitlyEmpty: new Set(),
+    accountNoByLearnerId: accounts,
+    existingLedger: [],
+    invoicePeriod: "2026-12",
+  });
+  assert(incompletePlan.integrity.passed, "sibling-scope alone would pass incomplete execute");
+  assert(
+    !incompletePlan.learnerRows.some((row) =>
+      [maja.id, smith.id, keagile.id].includes(row.learnerId)
+    ),
+    "incomplete execute rows omit the three — the live dropout"
+  );
+
+  const eligibilityByLearnerId = new Map(
+    all.map((learner) => {
+      const row = preview.learnerRows.find((item) => item.learnerId === learner.id)!;
+      return [
+        learner.id,
+        {
+          billableEligible: row.status === "invoiced",
+          status: row.status,
+          amount: row.amount || 0,
+          skipReason: row.skipReason,
+        },
+      ] as const;
+    })
+  );
+  const drift = findReviewedPreviewDrift({
+    allActiveLearners: all,
+    eligibilityByLearnerId: eligibilityByLearnerId as any,
+    scopedLearnerIds: incompleteScope,
+    excludedLearnerIds: new Set(),
+    expectedAmountsByLearnerId: Object.fromEntries(
+      incompleteScope.map((id) => [id, expectedAmounts[id]])
+    ),
+  });
+  assert(
+    drift.missingEligibleLearnerIds.includes(maja.id) &&
+      drift.missingEligibleLearnerIds.includes(smith.id) &&
+      drift.missingEligibleLearnerIds.includes(keagile.id),
+    "preview-lock catches the three omitted billable learners before writes"
+  );
+
+  // 3) Complete reviewed preview lock matches execute scope and amounts.
+  const completeDrift = findReviewedPreviewDrift({
+    allActiveLearners: all,
+    eligibilityByLearnerId: eligibilityByLearnerId as any,
+    scopedLearnerIds: previewIds,
+    excludedLearnerIds: new Set(),
+    expectedAmountsByLearnerId: expectedAmounts,
+  });
+  assert(completeDrift.missingEligibleLearnerIds.length === 0, "complete lock has no omissions");
+  assert(completeDrift.amountMismatchLearnerIds.length === 0, "complete lock has no amount drift");
+  assert(
+    completeDrift.unexpectedScopedLearnerIds.length === 0,
+    "complete lock has no unexpected extras"
+  );
+  console.log("✓ preview-to-execute omission requires fresh preview (Fly Eagle Dec path)");
 }
 
 function testReviewedPreviewDriftCatchesOmissionsAndAmountChanges() {
@@ -926,6 +1062,7 @@ async function main() {
   testFailedIntegrityGateSiblingMissed();
   testScopedRunIgnoresUnrelatedEligibleFamiliesOutsideScope();
   testFullDecemberPreviewIncludesFlyEagleFlaggedLearners();
+  testPreviewToExecuteOmitsFlyEagleLearnersRequiresFreshPreview();
   testReviewedPreviewDriftCatchesOmissionsAndAmountChanges();
   testOperatorExclusionRespectedInSiblingGroup();
   await testIntegrityFailureWritesNothing();
