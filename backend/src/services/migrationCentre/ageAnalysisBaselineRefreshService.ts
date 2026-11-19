@@ -4,6 +4,7 @@ import {
   type FamilyAccountAgeAnalysisSnapshot,
 } from "../../utils/familyAccountAgeAnalysisStore";
 import { roundBillingMoney } from "../billingSummary";
+import { requireMigrationWriteAllowed } from "../migration/core/migrationProductionExecutionGuard";
 
 export type AgeAnalysisBaselineSnapshotInput = {
   accountRef: string;
@@ -37,6 +38,10 @@ export async function refreshAgeAnalysisBaseline(opts: {
   if (!Array.isArray(opts.snapshots) || !opts.snapshots.length) {
     throw new Error("snapshots required");
   }
+  requireMigrationWriteAllowed({
+    targetSchoolId: schoolId,
+    operation: "Refresh Age Analysis Baseline",
+  });
 
   const school = await prisma.school.findUnique({
     where: { id: schoolId },

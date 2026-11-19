@@ -22,6 +22,7 @@ import {
   type LearnerRepairWritePatch,
 } from "./learnerRepairWrite";
 import { parseSasamsLearnerUploadFile } from "./parseSasamsUpload";
+import { requireMigrationWriteAllowed } from "../migration/core/migrationProductionExecutionGuard";
 
 const SESSION_ROOT = path.join(process.cwd(), "uploads", "migration-centre", "learner-gender-repair");
 const PREVIEW_SAMPLE = 200;
@@ -416,6 +417,10 @@ export async function applyMigrationLearnerGenderRepair(opts: {
   if (!schoolId || !sessionId) {
     throw new Error("schoolId and sessionId required");
   }
+  requireMigrationWriteAllowed({
+    targetSchoolId: schoolId,
+    operation: "Apply Migration Learner Gender Repair",
+  });
 
   const file = sessionPath(schoolId, sessionId);
   if (!fs.existsSync(file)) {

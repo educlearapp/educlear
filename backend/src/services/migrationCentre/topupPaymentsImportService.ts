@@ -18,6 +18,7 @@ import {
   type BillingLedgerEntry,
 } from "../../utils/billingLedgerStore";
 import { readMigrationSpreadsheetMatrix } from "../../utils/migrationLearnerFileParser";
+import { requireMigrationWriteAllowed } from "../migration/core/migrationProductionExecutionGuard";
 
 type ParsedTopupPaymentRow = {
   rowNumber: number;
@@ -525,6 +526,10 @@ export async function applyMigrationTopupPaymentsImport(opts: {
   const schoolId = String(opts.schoolId || "").trim();
   const sessionId = String(opts.sessionId || "").trim();
   if (!schoolId || !sessionId) throw new Error("schoolId and sessionId required");
+  requireMigrationWriteAllowed({
+    targetSchoolId: schoolId,
+    operation: "Apply Migration Top-up Payments",
+  });
 
   const file = sessionPath(schoolId, sessionId);
   if (!fs.existsSync(file)) throw new Error("Import session expired or not found — run preview again");

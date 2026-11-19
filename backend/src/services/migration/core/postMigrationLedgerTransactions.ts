@@ -28,6 +28,7 @@ import type { MigrationFileColumnMappings } from "../types/MigrationValidation";
 import type { MigrationStage } from "../types/MigrationStage";
 import type { LedgerPostingType } from "../types/MigrationLedgerPosting";
 import type { MigrationLearnerStatus } from "../types/MigrationLearnerStatus";
+import { requireMigrationWriteAllowed } from "./migrationProductionExecutionGuard";
 
 type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
@@ -217,6 +218,10 @@ export async function postSingleMigrationLedgerTransaction(
     rowNumber: number;
   }
 ): Promise<void> {
+  requireMigrationWriteAllowed({
+    targetSchoolId: ctx.schoolId,
+    operation: "Post Migration Ledger Transaction",
+  });
   const { mapped, sourceFileId, sourceFilename, rowNumber } = input;
   const { entry, matched } = resolveIndexEntry(mapped, ctx.learnerIndex);
   const accountStatus = cleanString(mapped.status) || entry?.accountStatus;

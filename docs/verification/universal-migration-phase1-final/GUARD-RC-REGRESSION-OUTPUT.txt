@@ -1,0 +1,139 @@
+=== migrationProductionExecutionGuard ===
+npm warn Unknown env config "devdir". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+✓ disposable school allowed locally
+✓ Da Silva + Fly Eagle blocked without explicit allow
+✓ missing global confirmation → BLOCKED
+✓ missing exact-school ID → BLOCKED
+✓ wrong destination school → BLOCKED
+✓ correct destination school with both controls → ALLOWED
+✓ protected Da Silva / Fly Eagle → BLOCKED (allow override still required)
+✓ wildcard / empty school-id config → fail-closed BLOCKED
+✓ empty destination school blocked
+✓ direct API-style bypass attempts for wrong school → BLOCKED
+
+All migrationProductionExecutionGuard unit tests passed.
+EXIT_GUARD=0
+=== phase1bTenantIsolationHttp ===
+npm warn Unknown env config "devdir". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+[billing-plans] file=/Users/tony-/Development/educlear-rc-migration-school-guard/backend/data/learner-billing-plans.json
+[billing-plans] daSilvaPlanCount=388
+✓ http_complete_without_confirmation_rejected
+✓ http_school_a_stage_cannot_write_school_b
+✓ stage_remains_bound_to_school_a
+✓ da_silva_protected
+✓ fly_eagle_protected
+✓ production_write_guard_blocks_without_confirm
+✓ production_write_guard_blocks_without_school_id
+✓ production_write_guard_allows_with_confirm_and_school_id
+✓ production_write_guard_blocks_wrong_school_id
+✓ no_invoice_run_in_production_guard_module
+
+Tenant isolation HTTP: 10 passed, 0 failed
+EXIT_TENANT=0
+=== phase1SafeOnboarding ===
+npm warn Unknown env config "devdir". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+✓ incorrect_destination_protected_schools_blocked
+· tenant_isolation_school_mismatch — existing migrationSchoolBinding.phase1c.unit.test.ts
+· interrupted_migration_safe_resumption — existing completeUniversalMigration idempotentReplay + completion lock
+· repeated_import_without_duplication — existing orchestrator complete idempotent path + import batch keys
+✓ recovery_following_restart_preserves_unresolved_rows
+✓ accountability_unsupported_until_samples
+✓ missing_source_rows_retained_in_artifact
+· successful_complete_migration — disposableOrchestratorE2E / phase1n harness (ALLOW_DISPOSABLE_MIGRATION_E2E)
+· multiple_siblings_one_family — parentFamily phase1k + disposableParentFamilyMigrationE2E
+· duplicate_learner_records — migrationLearnerIdentity + applyMigrationStage duplicate keys
+· payment_credit_preservation — finance.phase1g + disposableFinanceMigrationE2E
+· opening_balance_reconciliation — migrationOpeningBalanceSafety + finance reconciliation R0 gate
+· historical_transactions_no_double_count — classifyFinanceSourceRow + openingBalanceRowsToPost
+· rollback_failed_import — rollbackMigrationBatch + reverseMigrationLedgerBatch
+· post_migration_statement_integrity — statementAuthority + feeCheckAuthority MATCH gates
+· financial_difference_blocks_approval — acceptMigration requires finance difference R0.00
+⚠ full_four_step_ui_e2e_browser — UI restructured; browser E2E not executed in this phase
+
+Phase 1 scenario matrix: { pass: 4, coveredElsewhere: 12, pending: 1 }
+EXIT_SAFE=0
+=== phase1bFailureRecovery ===
+npm warn Unknown env config "devdir". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+[billing-plans] file=/Users/tony-/Development/educlear-rc-migration-school-guard/backend/data/learner-billing-plans.json
+[billing-plans] daSilvaPlanCount=388
+✓ server_interruption_mid_run_artifact_preserved
+✓ repeated_import_batch_id_refused
+✓ resume_updates_same_batch_no_duplicate
+✓ incorrect_destination_school_blocked
+✓ interrupted_approval_without_confirmation_blocked
+✓ financial_discrepancy_blocks_approval
+✓ duplicate_payment_ids_flagged_not_silent
+✓ missing_source_records_retained
+✓ rollback_path_still_respects_protected_school_guard
+✓ partial_rollback_preserves_batch_evidence
+✓ stage_survives_failure_paths
+
+Failure recovery: 11 passed
+EXIT_RECOVER=0
+=== phase1eMigrationImportPosting ===
+npm warn Unknown env config "devdir". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+✓ new-billing ACTIVE rules unchanged
+✓ default purpose still blocks UNKNOWN (billing rules preserved)
+✓ migration import posts for UNKNOWN/HISTORICAL/UNENROLLED when matched
+✓ migration import allows account-number resolution path
+✓ pre-cutover stays historical-only (openings not double-counted)
+✓ unmatched without account rejected
+✓ empty/unknown type rejected (no silent guess)
+✓ readiness purpose split correct
+
+Phase 1E migration import posting: all passed
+EXIT_1E=0
+=== invoiceFeeFrequencyExclusion ===
+npm warn Unknown env config "devdir". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+[billing-plans] file=/Users/tony-/Development/educlear-rc-migration-school-guard/backend/data/learner-billing-plans.json
+[billing-plans] daSilvaPlanCount=388
+✓ period month + fee-type exclusion helpers
+✓ catalogue matching by id and name
+✓ December exclusion + January resumption + November partial exclusion
+✓ cross-year periods; exclusion uses billing period not run date
+✓ eligibility amounts match charge lines; Aftercare-only Dec skipped
+✓ invoice-run preview plan shares exclusion logic
+✓ empty catalogue is a no-op
+✓ extra-charge path respects December exclusion
+✓ exclusion follows the calling school's catalogue only (tenant-safe)
+✓ Transport MONTHLY is not silently overridden; EXCL_DEC catalogue change required
+✓ prod-shaped Dec exclusions (R75,800) + January 2027 full resume
+✓ after Transport MONTHLY_EXCL_DEC catalogue fix, full R99,000 excludes
+✓ AFTERCARE resolves to Aftercare primary without renaming plans
+✓ combined Aftercare/Intervention requires both catalogue fees to exclude December
+✓ other tenants and unrelated descriptions are not keyword-suppressed
+✓ alias resolution prefers feeStructureId when present
+✓ exact-name matching preserved alongside aliases; Jan resumes
+✓ invoice-run preview eligibility applies Da Silva aliases without Transport override
+invoiceFeeFrequencyExclusion.test.ts: OK
+EXIT_FEE=0
+=== invoiceRunExecute ===
+npm warn Unknown env config "devdir". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+[billing-plans] file=/Users/tony-/Development/educlear-rc-migration-school-guard/backend/data/learner-billing-plans.json
+[billing-plans] daSilvaPlanCount=388
+✓ period normalization helpers
+✓ integrity gate equation
+✓ single learner account
+✓ sibling account with 2 learners
+✓ sibling account with 3 learners
+✓ valid server plan (localStorage ignored on server)
+✓ missing billing plan
+✓ duplicate period invoice
+✓ sibling duplicate after anchor relink (billedLearnerId)
+✓ three siblings all duplicate after execute
+✓ inactive learner exclusion
+✓ unrelated account unaffected by sibling duplicate
+✓ Fly Eagle Express name eligible; unlinked/historical excluded
+✓ duplicate protection keeps Express period history
+✓ November preview plans without creating invoices or payments
+✓ preview route is forced read-only
+✓ isolated Fly Eagle and Da Silva retries do not duplicate invoices or create payments
+✓ failed integrity gate (sibling missed)
+✓ scoped run ignores unrelated eligible families outside scope
+✓ full December preview includes Fly Eagle flagged learners
+✓ preview-to-execute omission requires fresh preview (Fly Eagle Dec path)
+✓ reviewed preview drift catches omissions and amount changes
+✓ operator exclusion respected in sibling group
+✓ failed integrity gate rolls back without writing
+invoiceRunExecute.test.ts: OK
+EXIT_INV=0

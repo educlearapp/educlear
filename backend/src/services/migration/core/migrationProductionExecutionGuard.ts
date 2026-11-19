@@ -3,6 +3,9 @@
  * Blocks accidental Complete/Apply against protected live tenants and requires
  * an explicit production confirmation env when running on production hosts.
  *
+ * On production, writes also require an exact authorised school ID match via
+ * CONFIRM_PRODUCTION_MIGRATION_SCHOOL_ID (fail-closed; no wildcards).
+ *
  * Does not change billing, invoice-run, or statement calculation logic.
  */
 
@@ -15,10 +18,14 @@ export const PROTECTED_DA_SILVA_SCHOOL_ID = "cmpideqeq0000108xb6ouv9zi";
 export const PROTECTED_FLY_EAGLE_SCHOOL_ID = "cmt1e8bjp0jo8lcjeketlynhl";
 
 export const CONFIRM_PRODUCTION_MIGRATION_WRITE_ENV = "CONFIRM_PRODUCTION_MIGRATION_WRITE";
+/** Exact database school id authorised for production migration writes (no wildcards). */
+export const CONFIRM_PRODUCTION_MIGRATION_SCHOOL_ID_ENV =
+  "CONFIRM_PRODUCTION_MIGRATION_SCHOOL_ID";
 export const ALLOW_PROTECTED_SCHOOL_MIGRATION_ENV = "ALLOW_PROTECTED_SCHOOL_MIGRATION";
 
 export const MIGRATION_PRODUCTION_GUARD_BLOCKED = "MIGRATION_PRODUCTION_GUARD_BLOCKED" as const;
 export const MIGRATION_PROTECTED_SCHOOL_BLOCKED = "MIGRATION_PROTECTED_SCHOOL_BLOCKED" as const;
+export const MIGRATION_SCHOOL_ID_GUARD_BLOCKED = "MIGRATION_SCHOOL_ID_GUARD_BLOCKED" as const;
 
 const PROTECTED_SCHOOLS: ReadonlyArray<{ id: string; name: string }> = [
   { id: PROTECTED_DA_SILVA_SCHOOL_ID, name: "Da Silva Academy" },
@@ -35,19 +42,38 @@ export function protectedLiveMigrationSchoolName(schoolId: string): string | nul
   return PROTECTED_SCHOOLS.find((s) => s.id === sid)?.name ?? null;
 }
 
+/** True if configured authorised id is missing, empty, or contains wildcard characters. */
+export function isInvalidAuthorisedMigrationSchoolIdConfig(raw: string | undefined): boolean {
+  const v = String(raw ?? "").trim();
+  if (!v) return true;
+  if (v.includes("*") || v.includes("?") || v.includes(",")) return true;
+  return false;
+}
+
+export function readConfiguredAuthorisedMigrationSchoolId(): string | null {
+  const raw = process.env[CONFIRM_PRODUCTION_MIGRATION_SCHOOL_ID_ENV];
+  if (isInvalidAuthorisedMigrationSchoolIdConfig(raw)) return null;
+  return String(raw).trim();
+}
+
 export type MigrationProductionGuardResult =
   | { ok: true }
   | {
       ok: false;
-      code: typeof MIGRATION_PRODUCTION_GUARD_BLOCKED | typeof MIGRATION_PROTECTED_SCHOOL_BLOCKED;
+      code:
+        | typeof MIGRATION_PRODUCTION_GUARD_BLOCKED
+        | typeof MIGRATION_PROTECTED_SCHOOL_BLOCKED
+        | typeof MIGRATION_SCHOOL_ID_GUARD_BLOCKED;
       message: string;
     };
 
 /**
  * Gate Complete / Apply (and any school-mutating migration write).
- * Local disposable schools: pass.
+ * Local disposable schools: pass (non-production).
  * Protected live schools: require ALLOW_PROTECTED_SCHOOL_MIGRATION=true (explicit).
- * Production runtime: also require CONFIRM_PRODUCTION_MIGRATION_WRITE=true.
+ * Production runtime: require BOTH
+ *   CONFIRM_PRODUCTION_MIGRATION_WRITE=true AND
+ *   CONFIRM_PRODUCTION_MIGRATION_SCHOOL_ID === targetSchoolId (exact).
  */
 export function assertMigrationWriteAllowed(input: {
   targetSchoolId: string;
@@ -92,6 +118,28 @@ export function assertMigrationWriteAllowed(input: {
         message:
           `${MIGRATION_PRODUCTION_GUARD_BLOCKED}: ${input.operation} refused on production without ` +
           `${CONFIRM_PRODUCTION_MIGRATION_WRITE_ENV}=true. No school writes occurred.`,
+      };
+    }
+
+    const authorisedSchoolId = readConfiguredAuthorisedMigrationSchoolId();
+    if (!authorisedSchoolId) {
+      return {
+        ok: false,
+        code: MIGRATION_SCHOOL_ID_GUARD_BLOCKED,
+        message:
+          `${MIGRATION_SCHOOL_ID_GUARD_BLOCKED}: ${input.operation} refused on production without a valid exact ` +
+          `${CONFIRM_PRODUCTION_MIGRATION_SCHOOL_ID_ENV} (missing, empty, or wildcard). No school writes occurred.`,
+      };
+    }
+
+    if (authorisedSchoolId !== targetSchoolId) {
+      return {
+        ok: false,
+        code: MIGRATION_SCHOOL_ID_GUARD_BLOCKED,
+        message:
+          `${MIGRATION_SCHOOL_ID_GUARD_BLOCKED}: ${input.operation} refused — destination school ` +
+          `"${targetSchoolId}" does not match authorised ${CONFIRM_PRODUCTION_MIGRATION_SCHOOL_ID_ENV}. ` +
+          `No school writes occurred.`,
       };
     }
   }

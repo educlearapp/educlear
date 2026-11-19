@@ -12,6 +12,8 @@ import path from "path";
 
 import { prisma } from "../../prisma";
 
+import { requireMigrationWriteAllowed } from "../migration/core/migrationProductionExecutionGuard";
+
 
 
 import { parseBillingPlanFile } from "../migration/adapters/kideesys/parseBillingPlanFile";
@@ -937,6 +939,11 @@ export async function applyMigrationBillingPlansImport(opts: {
 
 
   }
+
+  requireMigrationWriteAllowed({
+    targetSchoolId: schoolId,
+    operation: "Apply Migration Billing Plans",
+  });
 
 
 

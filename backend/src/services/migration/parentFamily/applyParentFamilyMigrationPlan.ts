@@ -15,6 +15,7 @@ import {
 } from "../parentIdentity/normalizeParentIdentity";
 import type { ParentFamilyApplyResult, ParentFamilyMigrationPlan } from "./ParentFamilyMigrationTypes";
 import { getParentFamilyApplyByPlan, saveParentFamilyApply } from "./parentFamilyPlanStore";
+import { requireMigrationWriteAllowed } from "../core/migrationProductionExecutionGuard";
 
 export async function applyParentFamilyMigrationPlan(input: {
   plan: ParentFamilyMigrationPlan;
@@ -27,11 +28,16 @@ export async function applyParentFamilyMigrationPlan(input: {
   }
   if (plan.stale) throw new Error("Parent/family plan is stale — recompile before apply.");
 
+  const schoolId = plan.targetSchoolId;
+  requireMigrationWriteAllowed({
+    targetSchoolId: schoolId,
+    operation: "Apply Parent/Family Migration",
+  });
+
   const skipped: ParentFamilyApplyResult["skipped"] = [];
   let parentsCreated = 0;
   let parentsReused = 0;
   let linksUpserted = 0;
-  const schoolId = plan.targetSchoolId;
   const proposalToParentId = new Map<string, string>();
 
   for (const person of plan.people) {

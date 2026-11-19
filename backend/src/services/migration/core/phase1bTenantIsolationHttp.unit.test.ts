@@ -12,6 +12,7 @@ import {
   PROTECTED_DA_SILVA_SCHOOL_ID,
   PROTECTED_FLY_EAGLE_SCHOOL_ID,
   CONFIRM_PRODUCTION_MIGRATION_WRITE_ENV,
+  CONFIRM_PRODUCTION_MIGRATION_SCHOOL_ID_ENV,
   ALLOW_PROTECTED_SCHOOL_MIGRATION_ENV,
   assertMigrationWriteAllowed,
 } from "./migrationProductionExecutionGuard";
@@ -176,27 +177,42 @@ async function main(): Promise<void> {
     check("fly_eagle_protected", !fe.ok);
   }
 
-  // Production guard
+  // Production guard (confirm + exact school id)
   {
     const prevNode = process.env.NODE_ENV;
     const prevConfirm = process.env[CONFIRM_PRODUCTION_MIGRATION_WRITE_ENV];
+    const prevSchool = process.env[CONFIRM_PRODUCTION_MIGRATION_SCHOOL_ID_ENV];
     process.env.NODE_ENV = "production";
     delete process.env[CONFIRM_PRODUCTION_MIGRATION_WRITE_ENV];
+    delete process.env[CONFIRM_PRODUCTION_MIGRATION_SCHOOL_ID_ENV];
     const blocked = assertMigrationWriteAllowed({
       targetSchoolId: "synthetic_ok",
       operation: "Complete Migration",
     });
     check("production_write_guard_blocks_without_confirm", !blocked.ok);
     process.env[CONFIRM_PRODUCTION_MIGRATION_WRITE_ENV] = "true";
+    const blockedNoSchool = assertMigrationWriteAllowed({
+      targetSchoolId: "synthetic_ok",
+      operation: "Complete Migration",
+    });
+    check("production_write_guard_blocks_without_school_id", !blockedNoSchool.ok);
+    process.env[CONFIRM_PRODUCTION_MIGRATION_SCHOOL_ID_ENV] = "synthetic_ok";
     const allowed = assertMigrationWriteAllowed({
       targetSchoolId: "synthetic_ok",
       operation: "Complete Migration",
     });
-    check("production_write_guard_allows_with_confirm", allowed.ok);
+    check("production_write_guard_allows_with_confirm_and_school_id", allowed.ok);
+    const wrong = assertMigrationWriteAllowed({
+      targetSchoolId: "synthetic_other",
+      operation: "Complete Migration",
+    });
+    check("production_write_guard_blocks_wrong_school_id", !wrong.ok);
     if (prevNode === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = prevNode;
     if (prevConfirm === undefined) delete process.env[CONFIRM_PRODUCTION_MIGRATION_WRITE_ENV];
     else process.env[CONFIRM_PRODUCTION_MIGRATION_WRITE_ENV] = prevConfirm;
+    if (prevSchool === undefined) delete process.env[CONFIRM_PRODUCTION_MIGRATION_SCHOOL_ID_ENV];
+    else process.env[CONFIRM_PRODUCTION_MIGRATION_SCHOOL_ID_ENV] = prevSchool;
   }
 
   // Invoice run not initiated by migration guard module (static evidence)

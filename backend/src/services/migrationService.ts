@@ -8,6 +8,7 @@ import {
 } from "../utils/classroomNormalization";
 import { normalizeStaffEmail } from "../utils/staffJwt";
 import { syncParentThreadsForClassroom } from "./parentPortalService";
+import { requireMigrationWriteAllowed } from "./migration/core/migrationProductionExecutionGuard";
 
 const STAGING_ROOT = path.join(process.cwd(), "uploads", "migration-staging");
 
@@ -600,6 +601,10 @@ export async function commitMigrationImport(_opts: {
   imported: { learners: number; parents: number; links: number; classrooms: number };
   manifest: MigrationImportManifest;
 }> {
+  requireMigrationWriteAllowed({
+    targetSchoolId: String(_opts.schoolId || "").trim(),
+    operation: "Legacy Migration Import",
+  });
   throw new Error(
     "LEGACY_MIGRATION_IMPORT_DISABLED: POST /api/super-admin/migration/import is disabled. " +
       "It bypassed the Parent Identity Resolver and could create duplicate Parent rows. " +
@@ -611,6 +616,10 @@ export async function rollbackMigrationImport(opts: {
   schoolId: string;
   projectId: string;
 }): Promise<{ success: boolean; removed: Record<string, number> }> {
+  requireMigrationWriteAllowed({
+    targetSchoolId: String(opts.schoolId || "").trim(),
+    operation: "Legacy Migration Rollback",
+  });
   const file = manifestPath(opts.schoolId, opts.projectId);
   if (!fs.existsSync(file)) {
     throw new Error("No import manifest found for this project — nothing to roll back");
@@ -668,6 +677,10 @@ export async function repairSchoolClassroomNames(schoolId: string): Promise<{
   classroomsMerged: number;
   threadsSynced: number;
 }> {
+  requireMigrationWriteAllowed({
+    targetSchoolId: String(schoolId || "").trim(),
+    operation: "Migration Classroom Repair",
+  });
   const learners = await prisma.learner.findMany({
     where: { schoolId, className: { not: null } },
     select: { id: true, className: true, grade: true },

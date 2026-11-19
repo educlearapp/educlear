@@ -8,6 +8,7 @@ import { prisma } from "../../../prisma";
 import type { AcademicApplyResult, AcademicMigrationPlan } from "./AcademicMigrationTypes";
 import { getAcademicApplyByPlan, saveAcademicApply } from "./academicPlanStore";
 import { syncLegacyPrimaryTeacherAssignment } from "../../../utils/classroomTeachers";
+import { requireMigrationWriteAllowed } from "../core/migrationProductionExecutionGuard";
 
 function normalizeIdDigits(v: string | null | undefined): string {
   return String(v || "").replace(/\D/g, "");
@@ -27,6 +28,11 @@ export async function applyAcademicMigrationPlan(input: {
   if (plan.stale) {
     throw new Error("Academic plan is stale — recompile before apply.");
   }
+
+  requireMigrationWriteAllowed({
+    targetSchoolId: plan.targetSchoolId,
+    operation: "Apply Academic Migration",
+  });
 
   const criticalOpen = plan.learnerPlacements.filter(
     (p) => p.severity === "CRITICAL" && p.state !== "MATCHED" && p.state !== "ACCEPTED"
