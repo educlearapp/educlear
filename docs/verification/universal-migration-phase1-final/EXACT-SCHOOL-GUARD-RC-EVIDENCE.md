@@ -10,7 +10,11 @@
 
 ## 1. Release-candidate SHA
 
-See commit created on this branch (parent must be `7024217`).
+| Item | Value |
+|------|-------|
+| RC SHA | `08ec132c10854dfa0da671c8a2cc16e33e87ef98` |
+| Parent (live) | `702421787d75ff48a32f34bcdea4bec278cc32c1` |
+| Branch | `release/migration-exact-school-guard-on-7024217` |
 
 ---
 
