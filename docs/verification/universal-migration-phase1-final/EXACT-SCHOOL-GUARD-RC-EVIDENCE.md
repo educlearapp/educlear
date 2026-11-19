@@ -12,7 +12,8 @@
 
 | Item | Value |
 |------|-------|
-| RC SHA | `08ec132c10854dfa0da671c8a2cc16e33e87ef98` |
+| RC tip SHA | `be005d2b13dcfbccbfc3f63cc7b76dbc0270f30e` |
+| Guard commit | `08ec132c10854dfa0da671c8a2cc16e33e87ef98` |
 | Parent (live) | `702421787d75ff48a32f34bcdea4bec278cc32c1` |
 | Branch | `release/migration-exact-school-guard-on-7024217` |
 
