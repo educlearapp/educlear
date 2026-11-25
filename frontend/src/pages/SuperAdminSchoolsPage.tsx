@@ -3,6 +3,7 @@ import SchoolsSummaryCards from "../superAdmin/components/SchoolsSummaryCards";
 import SchoolsTable from "../superAdmin/components/SchoolsTable";
 import SchoolsToolbar from "../superAdmin/components/SchoolsToolbar";
 import { updateSchoolLifecycleStatus, updateSuperAdminSchool } from "../superAdmin/api/schoolsApi";
+import { superAdminApiFetch } from "../superAdmin/superAdminApi";
 import { useSchoolsManagement } from "../superAdmin/hooks/useSchoolsManagement";
 import type { SchoolRecord } from "../superAdmin/types/schools";
 import { SCHOOL_STATUS_OPTIONS } from "../superAdmin/types/schools";
@@ -98,6 +99,53 @@ function ConfirmModal({
         </div>
       </div>
     </div>
+  );
+}
+
+function EftRenewalForm({ school }: { school: SchoolRecord }) {
+  const [recording, setRecording] = useState(false);
+  const [message, setMessage] = useState("");
+  return (
+    <details style={{ marginTop: 16 }}>
+      <summary>Record verified EFT renewal</summary>
+      <form style={{ display: "grid", gap: 8, marginTop: 8 }} onSubmit={async (event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const data = new FormData(form);
+        setRecording(true);
+        setMessage("");
+        try {
+          await superAdminApiFetch(`/api/super-admin/schools/${encodeURIComponent(school.id)}/eft-renewal`, {
+            method: "POST",
+            body: JSON.stringify({
+              reference: data.get("reference"),
+              paidOn: data.get("paidOn"),
+              amountCents: Math.round(Number(data.get("amount")) * 100),
+              billingCycle: data.get("billingCycle"),
+            }),
+          });
+          form.reset();
+          setMessage("EFT recorded and the subscription renewed.");
+        } catch (error) {
+          setMessage(error instanceof Error ? error.message : "Could not record EFT.");
+        } finally {
+          setRecording(false);
+        }
+      }}>
+        <p>Record the payment once you have verified it against the bank statement.</p>
+        <label>Bank transaction reference <input name="reference" required maxLength={120} /></label>
+        <label>Payment date <input name="paidOn" type="date" required /></label>
+        <label>Amount received (R) <input name="amount" type="number" min="0.01" step="0.01" required /></label>
+        <label>Billing cycle <select name="billingCycle" defaultValue="MONTHLY">
+          <option value="MONTHLY">Monthly</option>
+          <option value="ANNUAL">Annual</option>
+        </select></label>
+        <button type="submit" className="sa-schools-btn" disabled={recording}>
+          {recording ? "Recording…" : "Record EFT renewal"}
+        </button>
+        {message ? <p role="status">{message}</p> : null}
+      </form>
+    </details>
   );
 }
 
@@ -312,6 +360,8 @@ function ManageSchoolModal({ school, saving = false, onClose, onRequestSave }: M
             </label>
           </fieldset>
         </div>
+
+        <EftRenewalForm school={school} />
 
         <div className="sa-schools-modal-actions" style={{ gap: 12 }}>
           <button type="button" className="sa-schools-btn" onClick={onClose} disabled={saving}>

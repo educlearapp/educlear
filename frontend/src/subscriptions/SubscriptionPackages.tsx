@@ -466,7 +466,7 @@ export default function SubscriptionPackages() {
               style={{ margin: "12px 0 0", color: "#d1d5db", lineHeight: 1.5 }}
               data-testid="no-paid-package-message"
             >
-              No paid package yet. Choose an EduClear package below to get started.
+              Choose an EduClear package below and pay through PayFast to activate your school.
             </p>
           </div>
         ) : null}

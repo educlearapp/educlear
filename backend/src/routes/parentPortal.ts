@@ -148,14 +148,10 @@ router.use(async (req, res, next) => {
     const body = (req.body ?? {}) as Record<string, unknown>;
     const query = (req.query ?? {}) as Record<string, unknown>;
     let schoolId = String(body.schoolId || query.schoolId || "").trim();
-    if (!schoolId) {
-      const authHeader = String(req.headers.authorization || "");
-      const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
-      if (token) {
-        const payload = verifyParentToken(token);
-        if (payload?.schoolId) schoolId = payload.schoolId;
-      }
-    }
+    const authHeader = String(req.headers.authorization || "");
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    const payload = token ? verifyParentToken(token) : null;
+    if (payload?.schoolId) schoolId = payload.schoolId;
     if (!schoolId) {
       // Routes that resolve school later (e.g. lookup-by-cell) still proceed;
       // authenticated parent paths always carry schoolId in the JWT.

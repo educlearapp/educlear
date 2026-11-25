@@ -1,4 +1,4 @@
-import { ProductModule, type SchoolModuleEntitlement } from "@prisma/client";
+import { ProductModule, SchoolSubscriptionStatus, type SchoolModuleEntitlement } from "@prisma/client";
 
 import { prisma } from "../prisma";
 
@@ -47,10 +47,10 @@ function emptyEntitlementsMap(allEnabled = true): SchoolModuleEntitlementsMap {
 }
 
 function rowsToMap(
-  rows: Pick<SchoolModuleEntitlement, "module" | "enabled">[]
+  rows: Pick<SchoolModuleEntitlement, "module" | "enabled">[],
+  missingEnabled = true
 ): SchoolModuleEntitlementsMap {
-  // Fail-open: missing rows count as enabled so phased rollout cannot silently strip modules.
-  const map = emptyEntitlementsMap(true);
+  const map = emptyEntitlementsMap(missingEnabled);
   for (const row of rows) {
     if (row.module === ProductModule.CORE) map.CORE = row.enabled;
     else if (row.module === ProductModule.ACCOUNTING) map.ACCOUNTING = row.enabled;
@@ -112,90 +112,46 @@ export async function ensureSchoolModuleEntitlements(schoolId: string): Promise<
   }
 }
 
-/**
- * Read-only entitlement snapshot. Does NOT create rows.
- * Missing rows → fail-open Full via rowsToMap (Phase 1 backwards compatibility).
- */
+/** Effective access. A configured module is usable only with an active subscription. */
 export async function getSchoolModuleEntitlementsReadOnly(
   schoolId: string
 ): Promise<SchoolModuleEntitlementsMap> {
   const id = String(schoolId || "").trim();
   if (!id) throw new SchoolModuleEntitlementError("Missing schoolId", 400);
 
-  try {
-    const rows = await prisma.schoolModuleEntitlement.findMany({
-      where: { schoolId: id },
-      select: { module: true, enabled: true },
-    });
-    return rowsToMap(rows);
-  } catch (error) {
-    const code =
-      error && typeof error === "object" && "code" in error
-        ? String((error as { code?: string }).code || "")
-        : "";
-    if (code !== "P2021") {
-      console.warn(
-        "[schoolModuleEntitlements] getSchoolModuleEntitlementsReadOnly fail-open after read error:",
-        error instanceof Error ? error.message : error
-      );
-    }
-    return emptyEntitlementsMap(true);
-  }
-}
-
-/** Read entitlements for a school. Ensures default all-on rows if any are missing. */
-export async function getSchoolModuleEntitlements(
-  schoolId: string
-): Promise<SchoolModuleEntitlementsMap> {
-  const id = String(schoolId || "").trim();
-  if (!id) throw new SchoolModuleEntitlementError("Missing schoolId", 400);
-
-  await ensureSchoolModuleEntitlements(id);
-
-  const rows = await prisma.schoolModuleEntitlement.findMany({
-    where: { schoolId: id },
-    select: { module: true, enabled: true },
+  const school = await prisma.school.findUnique({
+    where: { id },
+    select: {
+      schoolSubscription: { select: { status: true, activationSource: true } },
+      moduleEntitlements: { select: { module: true, enabled: true } },
+    },
   });
-  return rowsToMap(rows);
+  const subscription = school?.schoolSubscription;
+  if (!school || subscription?.status !== SchoolSubscriptionStatus.ACTIVE) {
+    return emptyEntitlementsMap(false);
+  }
+
+  // Modular payment writes all three flags atomically. A missing flag must
+  // never grant a module outside that purchase.
+  return rowsToMap(
+    school.moduleEntitlements,
+    subscription.activationSource !== "payfast_modular_itn"
+  );
 }
 
-/** Whether a product module is enabled for the school. Missing row = enabled (fail-open). */
+export const getSchoolModuleEntitlements = getSchoolModuleEntitlementsReadOnly;
+
 export async function isSchoolModuleEnabled(
   schoolId: string,
   module: ProductModule | ProductModuleKey | string
 ): Promise<boolean> {
-  const id = String(schoolId || "").trim();
-  if (!id) throw new SchoolModuleEntitlementError("Missing schoolId", 400);
-
   const moduleKey = String(module || "").trim().toUpperCase() as ProductModule;
   if (!PRODUCT_MODULES.includes(moduleKey as ProductModuleKey)) {
     throw new SchoolModuleEntitlementError(`Unknown product module: ${module}`, 400);
   }
 
-  try {
-    const row = await prisma.schoolModuleEntitlement.findUnique({
-      where: {
-        schoolId_module: { schoolId: id, module: moduleKey },
-      },
-      select: { enabled: true },
-    });
-
-    if (!row) return true;
-    return row.enabled === true;
-  } catch (error) {
-    // Pre-migration / missing table: fail-open so Core Billing and employee CRUD stay available.
-    const code =
-      error && typeof error === "object" && "code" in error
-        ? String((error as { code?: string }).code || "")
-        : "";
-    if (code !== "P2021") {
-      console.warn(
-        "[schoolModuleEntitlements] isSchoolModuleEnabled fail-open after read error:",
-        error instanceof Error ? error.message : error
-      );
-    }
-    return true;
-  }
+  const entitlements = await getSchoolModuleEntitlementsReadOnly(schoolId);
+  return entitlements[moduleKey];
 }
 
 export type UpdateSchoolModuleEntitlementsInput = {
@@ -249,8 +205,13 @@ export async function updateSchoolModuleEntitlements(
   });
   if (!school) throw new SchoolModuleEntitlementError("School not found", 404);
 
-  await ensureSchoolModuleEntitlements(schoolId);
-  const current = await getSchoolModuleEntitlements(schoolId);
+  // Operators can configure a package while payment is pending. Read the
+  // stored configuration here so partial updates retain existing flags.
+  const rows = await prisma.schoolModuleEntitlement.findMany({
+    where: { schoolId },
+    select: { module: true, enabled: true },
+  });
+  const current = rowsToMap(rows);
 
   const patches: Array<{ module: ProductModule; enabled: boolean }> = [];
   if (hasCore) {
@@ -317,7 +278,7 @@ export async function updateSchoolModuleEntitlements(
     )
   );
 
-  return getSchoolModuleEntitlements(schoolId);
+  return resulting;
 }
 
 /** Map many schools' entitlement rows without per-school round trips (list endpoint). */

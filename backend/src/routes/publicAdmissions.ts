@@ -17,6 +17,7 @@ import {
   rateLimitSubmit,
 } from "../middleware/publicAdmissionsRateLimit";
 import { prisma } from "../prisma";
+import { isSchoolModuleEnabled } from "../services/schoolModuleEntitlements";
 import {
   ADMISSIONS_MAX_UPLOAD_BYTES,
   deleteApplicantDocument,
@@ -36,6 +37,7 @@ import { getApplicantPaymentView } from "../services/admissions/paymentInstructi
 import {
   getPublicAdmissionsConfig,
   PublicAdmissionsError,
+  resolvePublicAdmissionsBySlug,
 } from "../services/admissions/publicAdmissionsConfig";
 import { submitApplication } from "../services/admissions/submitApplicationService";
 import { scheduleSubmissionNotifications } from "../services/admissions/admissionsSubmissionNotificationService";
@@ -94,6 +96,18 @@ function param(req: import("express").Request, key: string): string {
   const value = (req.params as Record<string, string | undefined>)[key];
   return String(value || "");
 }
+
+router.use(async (req, res, next) => {
+  try {
+    const { school } = await resolvePublicAdmissionsBySlug(prisma, param(req, "schoolSlug"));
+    if (!(await isSchoolModuleEnabled(school.id, "CORE"))) {
+      throw new PublicAdmissionsError("Admissions not found", 404, "ADMISSIONS_NOT_FOUND");
+    }
+    return next();
+  } catch (error) {
+    return sendPublicError(res, error);
+  }
+});
 
 /** GET /api/public/admissions/:schoolSlug/config */
 router.get("/config", rateLimitPublicConfig, async (req, res) => {

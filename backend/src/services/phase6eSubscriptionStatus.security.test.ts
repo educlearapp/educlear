@@ -15,6 +15,13 @@ import {
   getSchoolModuleEntitlementsReadOnly,
   updateSchoolModuleEntitlements,
 } from "./schoolModuleEntitlements";
+import {
+  applyExactCommercialModuleEntitlements,
+  computeSubscriptionPeriodEnd,
+  resolveModularCheckoutQuote,
+} from "./modularPayfastCheckout";
+import { recordEftRenewal } from "./superAdmin/recordEftRenewal";
+import { ensureSchoolSubscription } from "./ensureSchoolSubscription";
 import { hashAuthPassword } from "./authCredentials";
 import { STAFF_JWT_SECRET } from "../utils/staffJwt";
 import { PLATFORM_SUPER_ADMIN_EMAIL } from "../utils/superAdmin";
@@ -99,6 +106,9 @@ async function main() {
   const b = await createSchoolWithOwner("B");
   const sa = await createSchoolWithOwner("SA", PLATFORM_SUPER_ADMIN_EMAIL);
 
+  await ensureSchoolSubscription(a.school.id, { status: "ACTIVE" });
+  await ensureSchoolSubscription(b.school.id);
+
   // School A authorized → may retrieve School A
   const allowA = await authorizeSchoolSubscriptionStatusAccess({
     authHeader: bearerFor(a.user),
@@ -157,19 +167,85 @@ async function main() {
   assert.strictEqual(resolved.commercialPackage?.code, "CORE");
   console.log("✓ Explicit module false values returned correctly (read-only)");
 
-  // Missing rows → fail-open Full without creating rows
+  // A pending school with no rows remains locked without creating rows.
   await prisma.schoolModuleEntitlement.deleteMany({ where: { schoolId: b.school.id } });
   const beforeCount = await prisma.schoolModuleEntitlement.count({
     where: { schoolId: b.school.id },
   });
   assert.strictEqual(beforeCount, 0);
   const missing = await getSchoolModuleEntitlementsReadOnly(b.school.id);
-  assert.deepStrictEqual(missing, { CORE: true, ACCOUNTING: true, PAYROLL: true });
+  assert.deepStrictEqual(missing, { CORE: false, ACCOUNTING: false, PAYROLL: false });
   const afterCount = await prisma.schoolModuleEntitlement.count({
     where: { schoolId: b.school.id },
   });
   assert.strictEqual(afterCount, 0);
-  console.log("✓ Missing entitlement rows → fail-open Full; no GET-side write");
+  console.log("✓ Pending subscription stays locked; no GET-side write");
+
+  const eft = {
+    schoolId: b.school.id,
+    reference: "TEST-EFT-001",
+    paidOn: "2026-11-25",
+    amountCents: 100000,
+    billingCycle: "MONTHLY",
+    actorId: sa.user.id,
+  };
+  await assert.rejects(recordEftRenewal(eft), /requires an active/);
+  await assert.rejects(
+    recordEftRenewal({ ...eft, schoolId: a.school.id, amountCents: 99999 }),
+    /authoritative catalogue price/
+  );
+  const recordedEft = { ...eft, schoolId: a.school.id };
+  const beforeRenewal = await prisma.schoolSubscription.findUniqueOrThrow({ where: { schoolId: a.school.id } });
+  await recordEftRenewal(recordedEft);
+  const afterRenewal = await prisma.schoolSubscription.findUniqueOrThrow({ where: { schoolId: a.school.id } });
+  assert.ok(afterRenewal.currentPeriodEnd! > beforeRenewal.currentPeriodEnd!);
+  assert.strictEqual((await resolveSchoolCommercialPackageReadOnly(a.school.id)).commercialPackage?.code, "CORE");
+  assert.strictEqual(await prisma.subscriptionPaymentLog.count({
+    where: { schoolId: a.school.id, gateway: "EFT", status: "PAID" },
+  }), 1);
+  await assert.rejects(recordEftRenewal(recordedEft), /already recorded/);
+  console.log("✓ Verified EFT renews existing Core once and cannot activate a pending school");
+
+  const activationDate = new Date("2026-11-25T08:00:00.000Z");
+  for (const sku of [
+    "CORE", "ACCOUNTING", "PAYROLL", "BUSINESS", "CORE_ACCOUNTING",
+    "CORE_PAYROLL", "FULL_100", "FULL_UNLIMITED",
+  ]) {
+    for (const billingCycle of ["MONTHLY", "ANNUAL"] as const) {
+      const quote = resolveModularCheckoutQuote({ sku, billingCycle });
+      const capacity = await prisma.eduClearPackage.findUniqueOrThrow({
+        where: { code: quote.legacyCapacityCode },
+      });
+      const periodEnd = computeSubscriptionPeriodEnd(activationDate, billingCycle);
+      await prisma.$transaction(async (tx) => {
+        await tx.schoolSubscription.update({
+          where: { schoolId: b.school.id },
+          data: {
+            status: "ACTIVE",
+            activationSource: "payfast_modular_itn",
+            packageId: capacity.id,
+            packageCode: capacity.code,
+            currentPeriodStart: activationDate,
+            currentPeriodEnd: periodEnd,
+          },
+        });
+        await applyExactCommercialModuleEntitlements({
+          schoolId: b.school.id,
+          modules: quote.modules,
+          tx,
+        });
+      });
+
+      const access = await resolveSchoolCommercialPackageReadOnly(b.school.id);
+      assert.deepStrictEqual(access.moduleEntitlements, quote.modules);
+      assert.strictEqual(access.commercialPackage?.code, sku);
+      assert.strictEqual(access.commercialPackage?.learnerLimit, quote.learnerLimit);
+      assert.strictEqual(periodEnd.toISOString(), billingCycle === "MONTHLY"
+        ? "2026-12-25T08:00:00.000Z"
+        : "2027-11-25T08:00:00.000Z");
+    }
+  }
+  console.log("✓ All 16 package and billing-cycle combinations resolve from persisted activation");
 
   await cleanup();
   console.log("\nAll phase6eSubscriptionStatus security tests passed.");

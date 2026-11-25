@@ -342,7 +342,7 @@ export function isSubscriptionDashboardUnlocked(
   | undefined
 ): boolean {
   if (!status) return false;
-  if (status.dashboardUnlocked) return true;
+  if (typeof status.dashboardUnlocked === "boolean") return status.dashboardUnlocked;
   if (status.isActive) return true;
   if (status.subscription?.status === "ACTIVE") return true;
   return false;
@@ -486,6 +486,7 @@ export type CreateSubscriptionCheckoutInput = {
   sku: string;
   billingCycle: "MONTHLY" | "ANNUAL";
   payerEmail?: string;
+  renewal?: boolean;
 };
 
 export async function createSubscriptionCheckout(
@@ -500,6 +501,7 @@ export async function createSubscriptionCheckout(
       packageCode: input.sku,
       billingCycle: input.billingCycle,
       payerEmail: input.payerEmail,
+      renewal: input.renewal,
     }),
   }) as Promise<PayFastCheckoutResponse>;
 }

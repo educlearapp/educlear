@@ -1,5 +1,8 @@
 import { Router } from "express";
 
+import { ModularCheckoutError } from "../services/modularPayfastCheckout";
+import { recordEftRenewal } from "../services/superAdmin/recordEftRenewal";
+
 import type { SuperAdminRequest } from "../middleware/requireSuperAdmin";
 import { listSuperAdminSchools } from "../services/superAdmin/listSuperAdminSchools";
 import {
@@ -157,6 +160,27 @@ router.patch("/:schoolId", async (req: SuperAdminRequest, res) => {
     }
     const message = error instanceof Error ? error.message : "Failed to update school";
     return res.status(400).json({ success: false, error: message });
+  }
+});
+
+router.post("/:schoolId/eft-renewal", async (req: SuperAdminRequest, res) => {
+  if (!req.superAdmin) return res.status(403).json({ success: false, error: "Super admin access required" });
+  try {
+    const result = await recordEftRenewal({
+      schoolId: resolveLifecycleTargetSchoolId(req.params.schoolId, req.body?.schoolId),
+      reference: req.body?.reference,
+      paidOn: req.body?.paidOn,
+      amountCents: req.body?.amountCents,
+      billingCycle: req.body?.billingCycle,
+      actorId: req.superAdmin.userId,
+    });
+    return res.status(201).json(result);
+  } catch (error) {
+    if (error instanceof ModularCheckoutError || error instanceof SchoolLifecycleError) {
+      return res.status(error.statusCode).json({ success: false, error: error.message });
+    }
+    console.error("[super-admin/schools] EFT renewal failed", error);
+    return res.status(500).json({ success: false, error: "Could not record EFT renewal" });
   }
 });
 

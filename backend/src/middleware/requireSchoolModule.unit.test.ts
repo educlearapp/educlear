@@ -69,6 +69,13 @@ function mockDb(entitlements: EntRow[]) {
   };
 
   const store = {
+    subscriptionStatus: "ACTIVE",
+    school: {
+      findUnique: async ({ where }: { where: { id: string } }) => ({
+        schoolSubscription: { status: store.subscriptionStatus, activationSource: "legacy" },
+        moduleEntitlements: rows.filter((row) => row.schoolId === where.id),
+      }),
+    },
     user: {
       findUnique: async ({ where }: { where: { id: string } }) => users[where.id] || null,
     },
@@ -187,7 +194,7 @@ async function main() {
   );
 
   // Core school: ACCOUNTING off, PAYROLL off
-  mockDb([
+  const { store } = mockDb([
     { schoolId: SCHOOL_A, module: "CORE", enabled: true },
     { schoolId: SCHOOL_A, module: "ACCOUNTING", enabled: false },
     { schoolId: SCHOOL_A, module: "PAYROLL", enabled: false },
@@ -196,7 +203,17 @@ async function main() {
     { schoolId: SCHOOL_B, module: "PAYROLL", enabled: true },
   ]);
 
-  // Missing-row fail-open for school with no PAYROLL row yet
+  store.subscriptionStatus = "PENDING_PAYMENT";
+  for (const module of [ProductModule.CORE, ProductModule.ACCOUNTING, ProductModule.PAYROLL]) {
+    const unpaid = await evaluateSchoolModuleGate({
+      authHeader: `Bearer ${sign(OWNER_B, SCHOOL_B)}`,
+      module,
+    });
+    assert.strictEqual(unpaid.allowed, false);
+  }
+  store.subscriptionStatus = "ACTIVE";
+
+  // Active Full school is entitled to Accounting.
   const missing = await evaluateSchoolModuleGate({
     authHeader: `Bearer ${sign(OWNER_B, SCHOOL_B)}`,
     module: "ACCOUNTING",

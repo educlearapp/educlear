@@ -32,6 +32,8 @@ import {
   formatSubscriptionStatus,
 } from "./subscriptionsApi";
 
+import { EDUCLEAR_LEGAL_CONTACT } from "../components/legal/legalContact";
+
 const GOLD = "#d4af37";
 const INK = "#0f172a";
 
@@ -141,7 +143,7 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
   const checkoutAvailable = isModularCheckoutAvailable(modularCheckoutAvailable);
 
   const handleUpgradeCheckout = useCallback(
-    async (pkg: EduClearCommercialPackage) => {
+    async (pkg: EduClearCommercialPackage, renewal = false) => {
       if (!checkoutAvailable || checkoutBusySku) return;
       if (!schoolId) {
         setCheckoutError("No school selected. Please log in again.");
@@ -155,6 +157,7 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
           schoolId,
           sku: pkg.code,
           billingCycle,
+          renewal,
         });
         if (!result?.paymentUrl || !result?.payload) {
           throw new Error("Checkout response incomplete");
@@ -263,6 +266,27 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
             <p style={{ margin: "8px 0 0", color: "#d1d5db", lineHeight: 1.5 }}>
               {currentCard.description}
             </p>
+            {subscriptionStatus === "ACTIVE" ? (
+              <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap", marginTop: 16 }}>
+                <button
+                  type="button"
+                  disabled={!checkoutAvailable || checkoutBusySku !== null}
+                  onClick={() => void handleUpgradeCheckout(current, true)}
+                >
+                  {checkoutBusySku === current.code ? "Opening PayFast…" : "Renew with PayFast"}
+                </button>
+                <a
+                  style={{ color: GOLD }}
+                  href={`mailto:${EDUCLEAR_LEGAL_CONTACT.email}?subject=${encodeURIComponent(
+                    `EduClear EFT renewal – ${schoolName || schoolId}`
+                  )}&body=${encodeURIComponent(
+                    `Please send EFT payment instructions for ${current.name} (${interval}).`
+                  )}`}
+                >
+                  Request EFT details
+                </a>
+              </div>
+            ) : null}
             {subscriptionStatus ? (
               <p
                 style={{ margin: "14px 0 0", fontSize: 14, color: GOLD, fontWeight: 700 }}

@@ -35,6 +35,7 @@ export type ModularPaymentIntent = {
   legacyCapacityCode: EduClearPackageCode;
   itemName: string;
   createdAt: string;
+  renewal?: true;
 };
 
 export type ModularCheckoutQuote = {
@@ -96,6 +97,10 @@ export function legacyCapacityCodeForCommercialSku(
 
 export function periodMonthsForCycle(cycle: ModularBillingCycle): number {
   return cycle === "ANNUAL" ? 12 : 1;
+}
+
+export function renewalPeriodStart(paidAt: Date, currentPeriodEnd: Date | null): Date {
+  return currentPeriodEnd && currentPeriodEnd > paidAt ? currentPeriodEnd : paidAt;
 }
 
 export function computeSubscriptionPeriodEnd(
@@ -181,6 +186,7 @@ export function buildModularPaymentIntent(input: {
   schoolId: string;
   quote: ModularCheckoutQuote;
   createdAt?: Date;
+  renewal?: boolean;
 }): ModularPaymentIntent {
   return {
     checkoutType: "SUBSCRIPTION",
@@ -195,6 +201,7 @@ export function buildModularPaymentIntent(input: {
     legacyCapacityCode: input.quote.legacyCapacityCode,
     itemName: input.quote.itemName,
     createdAt: (input.createdAt || new Date()).toISOString(),
+    ...(input.renewal ? { renewal: true as const } : {}),
   };
 }
 
@@ -212,7 +219,7 @@ export function readModularPaymentIntent(raw: unknown): ModularPaymentIntent | n
     const schoolId = String(obj.schoolId || "").trim();
     if (!schoolId) return null;
     if (Number(obj.amountCents) !== quote.amountCents) return null;
-    return buildModularPaymentIntent({ schoolId, quote });
+    return buildModularPaymentIntent({ schoolId, quote, renewal: obj.renewal === true });
   } catch {
     return null;
   }

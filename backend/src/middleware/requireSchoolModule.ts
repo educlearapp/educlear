@@ -2,7 +2,7 @@
  * Tenant product-module entitlement gate (EduClear Core Phase 5B).
  *
  * Rule: school owns module AND existing RBAC still applies separately.
- * Missing entitlement rows fail-open (enabled) per Phase 1 rollout policy.
+ * Effective entitlements require an active subscription.
  *
  * CORE Billing must never be gated via ACCOUNTING.
  * Banking requires CORE and/or ACCOUNTING (see requireAnySchoolModule / banking policy).
@@ -11,6 +11,7 @@ import type { NextFunction, Request, Response } from "express";
 import { ProductModule } from "@prisma/client";
 
 import {
+  getSchoolModuleEntitlementsReadOnly,
   isSchoolModuleEnabled,
   type ProductModuleKey,
 } from "../services/schoolModuleEntitlements";
@@ -210,12 +211,8 @@ export async function evaluateAnySchoolModuleGate(input: {
     };
   }
 
-  const matched: ProductModuleKey[] = [];
-  for (const moduleKey of modules) {
-    if (await isSchoolModuleEnabled(authorizedSchoolId, moduleKey)) {
-      matched.push(moduleKey);
-    }
-  }
+  const entitlements = await getSchoolModuleEntitlementsReadOnly(authorizedSchoolId);
+  const matched = modules.filter((module) => entitlements[module]);
 
   if (!matched.length) {
     const label = modules.join(" or ");
@@ -371,10 +368,8 @@ export async function assertAnySchoolModuleEntitled(
       code: "INVALID_MODULE",
     };
   }
-  const matched: ProductModuleKey[] = [];
-  for (const moduleKey of moduleKeys) {
-    if (await isSchoolModuleEnabled(id, moduleKey)) matched.push(moduleKey);
-  }
+  const entitlements = await getSchoolModuleEntitlementsReadOnly(id);
+  const matched = moduleKeys.filter((module) => entitlements[module]);
   if (!matched.length) {
     return {
       allowed: false,

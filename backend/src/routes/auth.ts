@@ -13,7 +13,6 @@ import {
   ensureSchoolSubscription,
   NEW_SCHOOL_LEGACY_CAPACITY_PLACEHOLDER,
 } from "../services/ensureSchoolSubscription";
-import { ensureSchoolModuleEntitlements } from "../services/schoolModuleEntitlements";
 import { seedSchoolEmailDefaults } from "../services/schoolEmailService";
 import {
   appRoleFromPrismaRole,
@@ -456,8 +455,6 @@ router.post("/register-school", async (req, res) => {
         lastLoginAt: null,
       });
 
-      // Modular commercial default = Full (111). Missing rows fail-open as enabled.
-      await ensureSchoolModuleEntitlements(result.school.id);
       authLog(
         result.reclaimed
           ? "register-school: reclaimed existing school with registration password"
@@ -566,8 +563,6 @@ router.post("/register-school", async (req, res) => {
       lastLoginAt: null,
     });
 
-    // Modular commercial default = Full (111). Missing rows fail-open as enabled.
-    await ensureSchoolModuleEntitlements(result.school.id);
     authLog("register-school: created school and user", {
       email,
       schoolId: result.school.id,

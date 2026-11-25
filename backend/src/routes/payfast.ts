@@ -20,7 +20,9 @@ import {
 import { ensureEduClearCreditBundles } from "../services/ensureEduClearCreditBundles";
 import { ensureEduClearPackages } from "../services/ensureEduClearPackages";
 import { ensureSchoolSubscription } from "../services/ensureSchoolSubscription";
+import { commercialPackageFromEntitlements } from "../services/resolveSchoolCommercialPackage";
 import {
+  MODULAR_CHECKOUT_KIND,
   ModularCheckoutError,
   applyExactCommercialModuleEntitlements,
   assertModularUpgradeAllowed,
@@ -33,6 +35,7 @@ import {
   planModularActivationFromIntent,
   readModularPaymentIntent,
   resolveModularCheckoutQuote,
+  renewalPeriodStart,
 } from "../services/modularPayfastCheckout";
 import {
   PayFastConfigError,
@@ -238,7 +241,17 @@ async function createSubscriptionCheckout(
     String(subscriptionRow?.status || "")
       .trim()
       .toUpperCase() === "ACTIVE";
-  if (isActivePaid) {
+  const renewal = req.body?.renewal === true;
+  if (renewal) {
+    const current = commercialPackageFromEntitlements(moduleEntitlements, subscriptionRow?.packageCode);
+    if (!isActivePaid || current?.code !== quote.sku) {
+      return res.status(409).json({
+        success: false,
+        error: "Renewal is available for the school's current active package.",
+        code: "INVALID_RENEWAL_PACKAGE",
+      });
+    }
+  } else if (isActivePaid) {
     try {
       assertModularUpgradeAllowed({
         currentModules: moduleEntitlements,
@@ -289,7 +302,7 @@ async function createSubscriptionCheckout(
 
   const invoiceNumber = await nextSubscriptionInvoiceNumber(schoolId);
   const merchantPaymentId = `ec-sub-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  const intent = buildModularPaymentIntent({ schoolId, quote });
+  const intent = buildModularPaymentIntent({ schoolId, quote, renewal });
   const { first, last } = splitSchoolContactName(school.name);
 
   const result = await prisma.$transaction(async (tx) => {
@@ -638,9 +651,14 @@ async function handleSubscriptionItn(
 
   if (isPayFastPaymentComplete(paymentStatus)) {
     const activatedAt = new Date();
-    const currentPeriodStart = activatedAt;
+    let currentPeriodStart = activatedAt;
 
-    const modularIntent = readModularPaymentIntent(paymentLog.rawRequest);
+    const rawIntent = paymentLog.rawRequest as { checkoutKind?: string } | null;
+    const modularIntent = readModularPaymentIntent(rawIntent);
+    if (rawIntent?.checkoutKind === MODULAR_CHECKOUT_KIND &&
+        (!modularIntent || modularIntent.amountCents !== paymentLog.amountCents)) {
+      return "amount_mismatch";
+    }
     const modularPlan = modularIntent
       ? planModularActivationFromIntent(modularIntent)
       : null;
@@ -655,7 +673,7 @@ async function handleSubscriptionItn(
       return "amount_mismatch";
     }
 
-    const currentPeriodEnd = modularPlan
+    let currentPeriodEnd = modularPlan
       ? computeSubscriptionPeriodEnd(activatedAt, modularPlan.billingCycle)
       : addOneCalendarMonth(activatedAt);
 
@@ -685,9 +703,13 @@ async function handleSubscriptionItn(
           : null);
     }
 
+    if (modularPlan && !resolvedPaidPackage) {
+      throw new Error("Missing paid package capacity configuration");
+    }
+
     await prisma.$transaction(async (tx) => {
-      await tx.subscriptionPaymentLog.update({
-        where: { id: paymentLog.id },
+      const claimedPayment = await tx.subscriptionPaymentLog.updateMany({
+        where: { id: paymentLog.id, status: { not: SubscriptionPaymentStatus.PAID } },
         data: {
           status: SubscriptionPaymentStatus.PAID,
           gatewayPaymentId,
@@ -695,6 +717,26 @@ async function handleSubscriptionItn(
           failureReason: null,
         },
       });
+
+      if (claimedPayment.count === 0) return;
+
+      const subscriptionId = paymentLog.invoice.subscriptionId;
+      if (modularIntent?.renewal && modularPlan) {
+        // Serialize renewals with EFT and verify a checkout opened before a package change
+        // cannot overwrite the newer package.
+        await tx.$queryRaw`SELECT id FROM "SchoolSubscription" WHERE id = ${subscriptionId} FOR UPDATE`;
+        const sub = await tx.schoolSubscription.findUniqueOrThrow({
+          where: { id: subscriptionId },
+          include: { school: { include: { moduleEntitlements: true } } },
+        });
+        const matchesPaidPackage = sub.packageCode === modularPlan.legacyCapacityCode &&
+          sub.school.moduleEntitlements.every((row) => row.enabled === modularPlan.modules[row.module]);
+        if (sub.status !== SchoolSubscriptionStatus.ACTIVE || !matchesPaidPackage) {
+          throw new Error("Renewal requires review because the school's subscription changed");
+        }
+        currentPeriodStart = renewalPeriodStart(activatedAt, sub.currentPeriodEnd);
+        currentPeriodEnd = computeSubscriptionPeriodEnd(currentPeriodStart, modularPlan.billingCycle);
+      }
 
       await tx.subscriptionInvoice.update({
         where: { id: paymentLog.invoiceId },
@@ -719,7 +761,7 @@ async function handleSubscriptionItn(
           ...(modularPlan
             ? { activationSource: "payfast_modular_itn" }
             : {}),
-          activatedAt,
+          ...(modularIntent?.renewal ? {} : { activatedAt }),
           currentPeriodStart,
           currentPeriodEnd,
           cancelledAt: null,
@@ -742,14 +784,16 @@ async function handleSubscriptionItn(
     const failureReason = `PayFast status: ${paymentStatus}`;
 
     await prisma.$transaction(async (tx) => {
-      await tx.subscriptionPaymentLog.update({
-        where: { id: paymentLog.id },
+      const failedPayment = await tx.subscriptionPaymentLog.updateMany({
+        where: { id: paymentLog.id, status: { not: SubscriptionPaymentStatus.PAID } },
         data: {
           status: SubscriptionPaymentStatus.FAILED,
           gatewayPaymentId,
           failureReason,
         },
       });
+
+      if (failedPayment.count === 0) return;
 
       await tx.subscriptionInvoice.update({
         where: { id: paymentLog.invoiceId },

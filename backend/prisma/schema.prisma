@@ -315,6 +315,7 @@ enum SubscriptionPaymentStatus {
 enum PaymentGatewayProvider {
   PAYFAST
   OZOW
+  EFT
 }
 
 model EduClearPackage {

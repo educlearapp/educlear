@@ -1,0 +1,1 @@
+ALTER TYPE "PaymentGatewayProvider" ADD VALUE IF NOT EXISTS 'EFT';

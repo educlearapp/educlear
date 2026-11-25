@@ -148,6 +148,20 @@ const COMBOS: Combo[] = [
 
 function mockCombo(c: Combo) {
   Object.assign(prisma, {
+    school: {
+      findUnique: async () => ({
+        schoolSubscription: { status: "ACTIVE", activationSource: "payfast_modular_itn" },
+        moduleEntitlements: (["CORE", "ACCOUNTING", "PAYROLL"] as const).map(
+          (module) => ({ module, enabled: c[module] })
+        ),
+      }),
+    },
+    userRbacMeta: {
+      findUnique: async ({ where }: { where: { userId: string } }) =>
+        where.userId === OWNER
+          ? { userId: OWNER, appRole: "Owner", permissions: {} }
+          : { userId: where.userId },
+    },
     user: {
       findUnique: async () => ({
         id: OWNER,

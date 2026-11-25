@@ -47,9 +47,16 @@ function mockEntitlementStore(initial: EntitlementRow[] = []) {
 
   const store = {
     rows,
+    subscription: { status: "ACTIVE", activationSource: "legacy" },
     school: {
       findUnique: async ({ where }: { where: { id: string } }) => {
-        if (where.id === SCHOOL_A || where.id === SCHOOL_B) return { id: where.id };
+        if (where.id === SCHOOL_A || where.id === SCHOOL_B) {
+          return {
+            id: where.id,
+            schoolSubscription: store.subscription,
+            moduleEntitlements: rows.filter((row) => row.schoolId === where.id),
+          };
+        }
         return null;
       },
       findMany: async () => [],
@@ -263,6 +270,20 @@ async function main() {
 
   await ensureSchoolModuleEntitlements(SCHOOL_A);
   assert.strictEqual(emptyStore.rows.length, 3);
+
+  for (const status of ["PENDING_PAYMENT", "PAST_DUE", "CANCELLED", "SUSPENDED"]) {
+    emptyStore.subscription.status = status;
+    assert.deepStrictEqual(await getSchoolModuleEntitlements(SCHOOL_A), {
+      CORE: false, ACCOUNTING: false, PAYROLL: false,
+    });
+    assert.strictEqual(await isSchoolModuleEnabled(SCHOOL_A, "CORE"), false);
+  }
+  emptyStore.subscription.status = "ACTIVE";
+  emptyStore.subscription.activationSource = "payfast_modular_itn";
+  assert.deepStrictEqual(await getSchoolModuleEntitlements(SCHOOL_B), {
+    CORE: false, ACCOUNTING: false, PAYROLL: false,
+  });
+  emptyStore.subscription.activationSource = "legacy";
   assert.deepStrictEqual(
     emptyStore.rows
       .filter((r) => r.schoolId === SCHOOL_A)

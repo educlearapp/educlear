@@ -167,7 +167,6 @@ router.get("/school/:schoolId/status", async (req, res) => {
     }
 
     // Read-only GET: no Da Silva ensure/write and no entitlement row creation.
-    // Missing entitlement rows resolve fail-open Full via read-only snapshot.
     const subscription = await prisma.schoolSubscription.findUnique({
       where: { schoolId },
       select: {
@@ -193,7 +192,7 @@ router.get("/school/:schoolId/status", async (req, res) => {
     const isActive = subscription
       ? isActiveSubscriptionStatus(subscription.status)
       : false;
-    const dashboardUnlocked = isActive;
+    const dashboardUnlocked = isActive && commercialPackage !== null;
 
     return res.json({
       success: true,
